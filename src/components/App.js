@@ -298,7 +298,7 @@ const App = () => {
                 //{/* Workout Schedule Section */}
                 <div className="w-full max-w-lg">
                     {/* Show the workout schedule */}
-                    <h2 className="text-xl font-bold text-center mb-4">Weekly Workout Schedule</h2>
+                    <h2 className="text-xl font-bold text-center mb-4">{formData.name}'s Weekly Workout Schedule</h2>
                     <ul className="bg-white shadow-md rounded px-8 pt-6 pb-8">
                         {workoutSchedule.length > 0 ? (
                             workoutSchedule.map((workout, index) => {
