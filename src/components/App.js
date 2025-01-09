@@ -3,12 +3,15 @@ import { generateWorkoutSchedule } from './workoutGenerator';
 
 const App = () => {
     const [formData, setFormData] = useState({
+        name: '',
         age: '',
         gender: '',
         height: '',
         weight: '',
-        skillLevel: '',
-        fitnessGoals: '',
+        fitnessGoal: '',
+        intensity: '',
+        exercisesPerWorkout: '',
+        workoutsPerWeek: '',
     });
 
     const [workoutSchedule, setWorkoutSchedule] = useState([]); // Store the generated schedule
@@ -20,20 +23,9 @@ const App = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
-        // Generate a workout schedule based on fitness goals
-        const schedule = generateWorkoutSchedule(formData.fitnessGoal);
+        // Generate a workout schedule based on number of workouts per week
+        const schedule = generateWorkoutSchedule(Number(formData.workoutsPerWeek));
         setWorkoutSchedule(schedule); // Update the schedule state
-    };
-
-    const generateWorkoutSchedule = (fitnessGoal) => {
-        const workouts = {
-            weight_loss: ['Cardio', 'HIIT', 'Strength Training', 'Yoga', 'Cardio', 'Rest', 'Active Recovery'],
-            muscle_gain: ['Strength Training', 'Strength Training', 'Rest', 'Strength Training', 'Cardio', 'Strength Training', 'Rest'],
-            strength: ['Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest', 'Rest'],
-        };
-
-        return workouts[fitnessGoal] || ['Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest'];
     };
 
     //////////////////////////////
@@ -53,8 +45,6 @@ const App = () => {
     };
 
     console.log(seatedBarbellCurls.description);
-
-
 
     //////////////////////////////
     return (

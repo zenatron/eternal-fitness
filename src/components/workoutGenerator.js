@@ -44,11 +44,36 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
 
     // TODO: Implement 5 and 6 day splits
     const fiveDaySplits = {
-
+        variation1: ['Upper Body', 'Lower Body', 'Rest', 'Push', 'Pull', 'Legs', 'Rest'],
+        variation2: ['Upper Body', 'Rest', 'Lower Body', 'Push', 'Rest', 'Pull', 'Legs'],
+        variation3: ['Rest', 'Upper Body', 'Lower Body', 'Push', 'Rest', 'Pull', 'Legs'],
+        variation4: ['Upper Body', 'Lower Body', 'Push', 'Rest', 'Pull', 'Rest', 'Legs'],
+        variation5: ['Upper Body', 'Rest', 'Lower Body', 'Rest', 'Push', 'Pull', 'Legs'],
+        variation6: ['Rest', 'Upper Body', 'Pull', 'Rest', 'Lower Body', 'Push', 'Legs'],
+        variation7: ['Push', 'Rest', 'Pull', 'Legs', 'Rest', 'Upper Body', 'Lower Body'],
+        variation8: ['Pull', 'Rest', 'Legs', 'Push', 'Rest', 'Upper Body', 'Lower Body'],
+        variation9: ['Rest', 'Push', 'Pull', 'Rest', 'Upper Body', 'Lower Body', 'Legs'],
+        variation10: ['Push', 'Pull', 'Rest', 'Legs', 'Rest', 'Upper Body', 'Lower Body'],
+        variation11: ['Pull', 'Rest', 'Legs', 'Rest', 'Upper Body', 'Lower Body', 'Push'],
+        variation12: ['Rest', 'Pull', 'Legs', 'Rest', 'Push', 'Upper Body', 'Lower Body'],
     };
 
     const sixDaySplits = {
-
+        // Rest at the Start
+        variation1: ['Rest', 'Push', 'Pull', 'Legs A', 'Push', 'Pull', 'Legs B'],
+        variation2: ['Rest', 'Push', 'Pull', 'Legs A', 'Pull', 'Push', 'Legs B'],
+        variation3: ['Rest', 'Push', 'Legs A', 'Pull', 'Push', 'Pull', 'Legs B'],
+        variation4: ['Rest', 'Pull', 'Push', 'Legs A', 'Push', 'Pull', 'Legs B'],
+        // Rest in the Middle
+        variation5: ['Push', 'Pull', 'Legs A', 'Rest', 'Push', 'Pull', 'Legs B'],
+        variation6: ['Push', 'Pull', 'Rest', 'Legs A', 'Push', 'Pull', 'Legs B'],
+        variation7: ['Push', 'Legs A', 'Pull', 'Rest', 'Push', 'Pull', 'Legs B'],
+        variation8: ['Pull', 'Push', 'Legs A', 'Rest', 'Pull', 'Push', 'Legs B'],
+        // Rest at the End
+        variation9: ['Push', 'Pull', 'Legs A', 'Push', 'Pull', 'Legs B', 'Rest'],
+        variation10: ['Push', 'Pull', 'Legs A', 'Pull', 'Push', 'Legs B', 'Rest'],
+        variation11: ['Push', 'Legs A', 'Pull', 'Push', 'Pull', 'Legs B', 'Rest'],
+        variation12: ['Pull', 'Push', 'Legs A', 'Push', 'Pull', 'Legs B', 'Rest'],
     };
     
     // Choose a random split
@@ -66,6 +91,10 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
             return chooseRandomSplit(threeDaySplits);
         case 4:
             return chooseRandomSplit(fourDaySplits);
+        case 5:
+            return chooseRandomSplit(fiveDaySplits);
+        case 6:
+            return chooseRandomSplit(sixDaySplits);
         default:
             return ['Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest'];
     }
