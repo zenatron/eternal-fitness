@@ -57,6 +57,26 @@ const App = () => {
         variation2: ['Rest', 'Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest'],
     };
 
+    const fourDaySplits = {
+        variation1: ['UA', 'LA', 'Rest', 'UB', 'LB', 'Rest', 'Rest'],
+        variation2: ['UA', 'Rest', 'LA', 'UB', 'Rest', 'LB', 'Rest'],
+        variation3: ['UA', 'Rest', 'LA', 'Rest', 'UB', 'LB', 'Rest'],
+        variation4: ['UA', 'Rest', 'Rest', 'LA', 'UB', 'Rest', 'LB'],
+        variation5: ['Rest', 'UA', 'LA', 'Rest', 'UB', 'LB', 'Rest'],
+        variation6: ['Rest', 'UA', 'Rest', 'LA', 'UB', 'Rest', 'LB'],
+        variation7: ['Rest', 'Rest', 'UA', 'LA', 'Rest', 'UB', 'LB'],
+        variation8: ['Rest', 'Rest', 'UA', 'Rest', 'LA', 'UB', 'Rest'],
+        variation9: ['UB', 'LB', 'Rest', 'UA', 'LA', 'Rest', 'Rest'],
+        variation10: ['UB', 'Rest', 'LB', 'UA', 'Rest', 'LA', 'Rest'],
+        variation11: ['UB', 'Rest', 'LB', 'Rest', 'UA', 'LA', 'Rest'],
+        variation12: ['UB', 'Rest', 'Rest', 'LB', 'UA', 'Rest', 'LA'],
+        variation13: ['Rest', 'UB', 'LB', 'Rest', 'UA', 'LA', 'Rest'],
+        variation14: ['Rest', 'UB', 'Rest', 'LB', 'UA', 'Rest', 'LA'],
+        variation15: ['Rest', 'Rest', 'UB', 'LB', 'Rest', 'UA', 'Rest'],
+        variation16: ['Rest', 'Rest', 'UB', 'Rest', 'LB', 'UA', 'Rest'],
+    };
+    
+
     const chooseRandomSplit = (split) => {
         const splits = Object.keys(split);
         const randomIndex = Math.floor(Math.random() * splits.length);
