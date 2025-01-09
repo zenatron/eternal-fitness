@@ -29,10 +29,38 @@ const App = () => {
         const workouts = {
             weight_loss: ['Cardio', 'HIIT', 'Strength Training', 'Yoga', 'Cardio', 'Rest', 'Active Recovery'],
             muscle_gain: ['Strength Training', 'Strength Training', 'Rest', 'Strength Training', 'Cardio', 'Strength Training', 'Rest'],
-            strength: ['Running', 'Cycling', 'Swimming', 'Rest', 'Running', 'HIIT', 'Active Recovery'],
+            strength: ['Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest', 'Rest'],
         };
 
         return workouts[fitnessGoal] || ['Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest', 'Rest'];
+    };
+
+    const twoDaySplits = {
+        variation1: ['Upper', 'Rest', 'Lower', 'Rest', 'Rest', 'Rest', 'Rest'],
+        variation2: ['Upper', 'Rest', 'Rest', 'Lower', 'Rest', 'Rest', 'Rest'],
+        variation3: ['Upper', 'Rest', 'Rest', 'Rest', 'Lower', 'Rest', 'Rest'],
+        variation4: ['Upper', 'Rest', 'Rest', 'Rest', 'Rest', 'Lower', 'Rest'],
+        variation5: ['Rest', 'Upper', 'Rest', 'Lower', 'Rest', 'Rest', 'Rest'],
+        variation6: ['Rest', 'Upper', 'Rest', 'Rest', 'Lower', 'Rest', 'Rest'],
+        variation7: ['Rest', 'Upper', 'Rest', 'Rest', 'Rest', 'Lower', 'Rest'],
+        variation8: ['Rest', 'Upper', 'Rest', 'Rest', 'Rest', 'Rest', 'Lower'],
+        variation9: ['Rest', 'Rest', 'Upper', 'Rest', 'Lower', 'Rest', 'Rest'],
+        variation10: ['Rest', 'Rest', 'Upper', 'Rest', 'Rest', 'Lower', 'Rest'],
+        variation11: ['Rest', 'Rest', 'Upper', 'Rest', 'Rest', 'Rest', 'Lower'],
+        variation12: ['Rest', 'Rest', 'Rest', 'Upper', 'Rest', 'Lower', 'Rest'],
+        variation13: ['Rest', 'Rest', 'Rest', 'Upper', 'Rest', 'Rest', 'Lower'],
+        variation14: ['Rest', 'Rest', 'Rest', 'Rest', 'Upper', 'Rest', 'Lower'],
+    };
+
+    const threeDaySplits = {
+        variation1: ['Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest', 'Rest'],
+        variation2: ['Rest', 'Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest'],
+    };
+
+    const chooseRandomSplit = (split) => {
+        const splits = Object.keys(split);
+        const randomIndex = Math.floor(Math.random() * splits.length);
+        return split[splits[randomIndex]];
     };
 
     //////////////////////////////
