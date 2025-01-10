@@ -1,3 +1,5 @@
+import { exerciseDict } from "./exercises";
+
 export const generateWorkoutSchedule = (daysPerWeek) => {
 
     // Define workout splits
@@ -17,12 +19,12 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
         variation13: ['Rest', 'Rest', 'Rest', 'Upper', 'Rest', 'Rest', 'Lower'],
         variation14: ['Rest', 'Rest', 'Rest', 'Rest', 'Upper', 'Rest', 'Lower'],
     };
-
+    
     const threeDaySplits = {
         variation1: ['Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest', 'Rest'],
         variation2: ['Rest', 'Push', 'Rest', 'Pull', 'Rest', 'Legs', 'Rest'],
     };
-
+    
     const fourDaySplits = {
         variation1: ['UA', 'LA', 'Rest', 'UB', 'LB', 'Rest', 'Rest'],
         variation2: ['UA', 'Rest', 'LA', 'UB', 'Rest', 'LB', 'Rest'],
@@ -41,7 +43,7 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
         variation15: ['Rest', 'Rest', 'UB', 'LB', 'Rest', 'UA', 'Rest'],
         variation16: ['Rest', 'Rest', 'UB', 'Rest', 'LB', 'UA', 'Rest'],
     };
-
+    
     // TODO: Implement 5 and 6 day splits
     const fiveDaySplits = {
         variation1: ['Upper Body', 'Lower Body', 'Rest', 'Push', 'Pull', 'Legs', 'Rest'],
@@ -57,7 +59,7 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
         variation11: ['Pull', 'Rest', 'Legs', 'Rest', 'Upper Body', 'Lower Body', 'Push'],
         variation12: ['Rest', 'Pull', 'Legs', 'Rest', 'Push', 'Upper Body', 'Lower Body'],
     };
-
+    
     const sixDaySplits = {
         // Rest at the Start
         variation1: ['Rest', 'Push', 'Pull', 'Legs A', 'Push', 'Pull', 'Legs B'],
@@ -75,6 +77,43 @@ export const generateWorkoutSchedule = (daysPerWeek) => {
         variation11: ['Push', 'Legs A', 'Pull', 'Push', 'Pull', 'Legs B', 'Rest'],
         variation12: ['Pull', 'Push', 'Legs A', 'Push', 'Pull', 'Legs B', 'Rest'],
     };
+    
+    // TODO: Write tests to ensure that exercises are present in the main exercise dictionary
+
+    const dayExercises = {
+        Upper: {
+            primary: [
+                'Bench Press',
+                'Lat Pulldown',
+                'Overhead Press',
+            ],
+            secondary: [
+                'Pull-Ups',
+                'Bicep Curls',
+                'Lateral Raises',
+                'Barbell Rows',
+                'Tricep Pushdowns',
+                'Dumbbell Incline Press',
+                'Push-Ups',
+            ],
+        },
+        Lower: {
+            primary: [
+                'Romanian Deadlifts',
+                'Dumbbell Lunges',
+                'Pull-Ups'
+            ],
+            secondary: [
+                'Incline Dumbbell Press',
+                'Hanging Leg Raises',
+                'Bulgarian Split Squats',
+                'Step-Ups',
+                'Hamstring Curls',
+                'Leg Press',
+                'Calf Raises',
+            ],
+        },
+    };    
     
     // Choose a random split
     const chooseRandomSplit = (split) => {
