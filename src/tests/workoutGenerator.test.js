@@ -1,5 +1,5 @@
-import { exerciseDict } from '../components/exercises'; // Adjust the path to your exercises.js
-import { dayExercises } from '../components/workoutGenerator'; // Adjust the path to your dayExercises.js
+import { exerciseDict } from '../components/exercises';
+import { dayExercises } from '../components/workoutGenerator';
 
 describe('Workout Generator Validation', () => {
     // Helper function to collect all unique exercise names from dayExercises
