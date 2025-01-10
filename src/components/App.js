@@ -25,8 +25,8 @@ const App = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Generate a workout schedule based on number of workouts per week
-        const schedule = generateWorkoutSchedule(Number(formData.workoutsPerWeek));
+
+        const schedule = generateWorkoutSchedule(Number(formData.workoutsPerWeek), Number(formData.exercisesPerWorkout));
         setWorkoutSchedule(schedule); // Update the schedule state
     };
 
