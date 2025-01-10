@@ -168,4 +168,25 @@ export const exerciseDict = {
     'Cable Kickbacks': {
         muscles: ['Glutes'],
     },
+    'Dumbbell Lateral Raises': {
+        muscles: ['Shoulders'],
+    },
+    'Hammer Curls': {
+        muscles: ['Biceps'],
+    },
+    'Dumbbell Bicep Curls': {
+        muscles: ['Biceps'],
+    },
+    'Back Squats': {
+        muscles: ['Quads'],
+    },
+    'Tricep Dips': {
+        muscles: ['Triceps'],
+    },
+    'Dumbbell Flys': {
+        muscles: ['Chest'],
+    },
+    'Barbell Curls': {
+        muscles: ['Biceps'],
+    },
 };
