@@ -34,9 +34,8 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                         <div key={index} className="border-b last:border-b-0 pb-4 flex justify-between">
                             {/* Day Title and Exercises */}
                             <div>
-                                <h3 className="text-lg font-semibold mb-2">
-                                    Day {index + 1} ({formattedDate})
-                                </h3>
+                                <h4 className="text-md font-medium text-gray-500">Day {index + 1}</h4>
+                                <h3 className="text-lg font-semibold mb-2">{formattedDate}</h3>
                                 <ul className="list-disc ml-5 space-y-1">
                                     {Array.isArray(workout)
                                         ? workout.map((exercise, exerciseIndex) => (
