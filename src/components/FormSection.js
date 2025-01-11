@@ -1,6 +1,22 @@
 import React from 'react';
 
-const FormSection = ({ formData, handleChange, handleSubmit }) => {
+const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
+
+    const handleDebugSkip = () => {
+        // Prefill the form with debug values
+        setFormData({
+            name: 'Debug',
+            age: '25',
+            gender: 'male',
+            height: '72', // Inches
+            weight: '170', // Pounds
+            fitnessGoal: 'muscle_gain',
+            intensity: '5',
+            exercisesPerWorkout: '6',
+            workoutsPerWeek: '4',
+        });
+    };
+
     return (
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-lg">
             <h1 className="text-2xl font-bold text-center mb-2">Eternal Fitness</h1>
@@ -233,6 +249,16 @@ const FormSection = ({ formData, handleChange, handleSubmit }) => {
                         className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300 mt-4"
                     >
                         Submit
+                    </button>
+                </div>
+                {/* Debug: Skip Button */}
+                <div className="flex justify-between items-center mt-4">
+                    <button
+                        type="button"
+                        onClick={handleDebugSkip}
+                        className="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 focus:outline-none focus:ring focus:ring-gray-300"
+                    >
+                        Debug: Prefill Form
                     </button>
                 </div>
             </form>

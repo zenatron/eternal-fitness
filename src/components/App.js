@@ -40,6 +40,7 @@ const App = () => {
                         formData={formData}
                         handleChange={handleChange}
                         handleSubmit={handleSubmit}
+                        setFormData={setFormData}
                     />
                 ) : (
                     <ScheduleSection
