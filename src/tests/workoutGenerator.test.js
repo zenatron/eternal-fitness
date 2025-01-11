@@ -41,7 +41,7 @@ describe('Workout Generator Validation', () => {
         expect(missingExercises).toEqual([]);
     });
 
-    it('should ensure all "days" in split variations are defined in days', () => {
+    it('should ensure all "days" in split variations are defined in days.js', () => {
         const uniqueDays = collectDaysFromSplits(splitVariations);
         const missingDays = uniqueDays.filter((day) => !dayExercises[day]);
 
