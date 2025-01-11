@@ -50,7 +50,7 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                                 </ul>
                             </div>
                             {/* Muscles Targeted */}
-                            <div className="mt-6 text-sm text-gray-500">
+                            <div className="ml-6 text-sm text-gray-500">
                                 {Array.isArray(workout) ? (
                                     <div>
                                         <h4 className="font-semibold mb-1">Muscles Targeted:</h4>
