@@ -35,14 +35,29 @@ const App = () => {
     useEffect(() => {
         const fetchSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user || null);
+            if (session) {
+                const { user } = session;
+                const userData = {
+                    email: user.email,
+                    name: user.user_metadata?.name || 'User', // Retrieve name from metadata
+                };
+                setUser(userData);
+            }
         };
 
         fetchSession();
 
-        // Listen for auth state changes
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user || null);
+            if (session) {
+                const { user } = session;
+                const userData = {
+                    email: user.email,
+                    name: user.user_metadata?.name || 'User', // Retrieve name from metadata
+                };
+                setUser(userData);
+            } else {
+                setUser(null);
+            }
         });
 
         return () => listener?.subscription.unsubscribe();

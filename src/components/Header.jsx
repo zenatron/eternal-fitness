@@ -7,7 +7,7 @@ const Header = ({ user, handleLogout, setShowForm }) => {
             <nav>
                 {user ? (
                     <div className="flex items-center space-x-4">
-                        <span className="text-sm">Hello, {user.email}</span>
+                        <span className="text-sm">Hello, {user.name}</span>
                         <button
                             onClick={handleLogout}
                             className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
