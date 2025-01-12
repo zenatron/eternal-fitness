@@ -29,9 +29,9 @@ const SignupForm = ({ switchToLogin }) => {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-            <div className="w-full max-w-md bg-white p-6 rounded shadow-md space-y-4 min-h-[400px] flex flex-col justify-between">
+            <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[300px] flex flex-col justify-between">
                 <h1 className="text-2xl font-bold text-center">Sign Up</h1>
-                <form onSubmit={handleSignup} className="space-y-4">
+                <form onSubmit={handleSignup} className="flex flex-col flex-grow space-y-4">
                     <div>
                         <label className="block text-sm font-bold mb-2">Name</label>
                         <input
@@ -65,14 +65,14 @@ const SignupForm = ({ switchToLogin }) => {
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                     <button
                         type="submit"
-                        className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
+                        className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 mt-auto"
                     >
                         Sign Up
                     </button>
                 </form>
                 <button
                     onClick={switchToLogin}
-                    className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+                    className="w-full text-gray-800 py-2 px-4 rounded hover:text-gray-600"
                 >
                     Already Have an Account?
                 </button>
