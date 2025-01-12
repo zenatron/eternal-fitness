@@ -31,6 +31,9 @@ const App = () => {
     // State for form to show (login or signup)
     const [formToShow, setFormToShow] = useState('login'); // 'login' or 'signup'
 
+    // Loading state
+    const [loading, setLoading] = useState(true);
+
     // On component mount, check for existing session
     useEffect(() => {
         const fetchSession = async () => {
@@ -43,6 +46,7 @@ const App = () => {
                 };
                 setUser(userData);
             }
+            setLoading(false);
         };
 
         fetchSession();
@@ -90,7 +94,12 @@ const App = () => {
 
             {/* Main Content */}
             <main className="flex-grow flex items-center justify-center p-4">
-                {user ? (
+                {loading ? (
+                    // Show a loading indicator
+                    <div className="flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : user ? (
                     workoutSchedule.length === 0 ? (
                         <FormSection
                             formData={formData}
