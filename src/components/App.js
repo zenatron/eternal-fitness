@@ -8,6 +8,7 @@ import Footer from './Footer';
 import FormSection from './FormSection';
 import ScheduleSection from './ScheduleSection';
 import LoginForm from './LoginForm';
+import { LoginPage } from './LoginForm';
 import SignupForm from './SignupForm';
 
 // Functions
@@ -93,6 +94,14 @@ const App = () => {
         await supabase.auth.signOut();
         setUser(null);
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-100">

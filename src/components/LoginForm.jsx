@@ -60,4 +60,12 @@ const LoginForm = ({ switchToSignup }) => {
     );
 };
 
+export const LoginPage = ({ handleLogin, switchToSignup }) => {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <LoginForm handleLogin={handleLogin} switchToSignup={switchToSignup} />
+        </div>
+    );
+};
+
 export default LoginForm;
