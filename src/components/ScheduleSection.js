@@ -76,14 +76,14 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                         const newSchedule = generateWorkoutSchedule(workoutsPerWeek, exercisesPerWorkout);
                         setWorkoutSchedule(newSchedule);
                     }}
-                    className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 focus:outline-none focus:ring focus:ring-green-300"
+                    className="btn btn-tertiary w-full"
                 >
                     Regenerate Schedule
                 </button>
                 {/* Go Back Button */}
                 <button
                     onClick={() => setWorkoutSchedule([])} // Reset to show form again
-                    className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300"
+                    className="btn btn-primary w-full"
                 >
                     Go Back
                 </button>
