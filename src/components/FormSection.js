@@ -246,7 +246,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 <div>
                     <button
                         type="submit"
-                        className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring focus:ring-blue-300 mt-4"
+                        className="btn btn-primary w-full"
                     >
                         Submit
                     </button>
@@ -256,7 +256,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                     <button
                         type="button"
                         onClick={handleDebugSkip}
-                        className="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 focus:outline-none focus:ring focus:ring-gray-300"
+                        className="btn btn-secondary w-full"
                     >
                         Debug: Prefill Form
                     </button>

@@ -8,6 +8,8 @@ import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import { generateWorkoutSchedule } from './workoutGenerator';
 
+import '../styles/styles.css';
+
 const App = () => {
     // State for form data
     const [formData, setFormData] = useState({
