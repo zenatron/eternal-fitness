@@ -103,7 +103,7 @@ const App = () => {
     }
 
     return (
-        <Router>
+        <Router basename='/eternal-fitness'>
             <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-slate-800">
                 <Header user={user} handleLogout={handleLogout} setShowForm={setFormToShow}/>
 
