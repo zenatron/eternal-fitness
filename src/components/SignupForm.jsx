@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
-const SignupForm = ({ switchToLogin }) => {
+const SignupForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -26,6 +27,8 @@ const SignupForm = ({ switchToLogin }) => {
             window.location.reload();
         }
     };
+
+    const navigator = useNavigate();
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -71,7 +74,7 @@ const SignupForm = ({ switchToLogin }) => {
                     </button>
                 </form>
                 <button
-                    onClick={switchToLogin}
+                    onClick={() => navigator('/login')}
                     className="btn btn-secondary w-full"
                 >
                     Already Have an Account?

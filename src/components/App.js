@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 // Components
 import Header from './Header';
 import Footer from './Footer';
-import FormSection from './FormSection';
-import ScheduleSection from './ScheduleSection';
-import LoginForm from './LoginForm';
-import { LoginPage } from './LoginForm';
-import SignupForm from './SignupForm';
+
+import LoginPage from './LoginPage';
+import WorkoutPage from './WorkoutPage';
+import SignupPage from './SignupPage';
 
 // Functions
 import { generateWorkoutSchedule } from './workoutGenerator';
@@ -104,44 +103,59 @@ const App = () => {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-100">
-            {/* Header with login/logout */}
-            <Header user={user} handleLogout={handleLogout} setShowForm={setFormToShow} />
+        <Router>
+            <div className="min-h-screen flex flex-col bg-gray-100">
+                <Header user={user} handleLogout={handleLogout} setShowForm={setFormToShow}/>
 
-            {/* Main Content */}
-            <main className="flex-grow flex items-center justify-center p-4">
-                {loading ? (
-                    // Show a loading indicator
-                    <div className="flex items-center justify-center">
-                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                ) : user ? (
-                    workoutSchedule.length === 0 ? (
-                        <FormSection
-                            formData={formData}
-                            handleChange={handleChange}
-                            handleSubmit={handleSubmit}
-                            setFormData={setFormData} // Ensure setFormData is passed
-                        />
-                    ) : (
-                        <ScheduleSection
-                            formData={formData}
-                            workoutSchedule={workoutSchedule}
-                            setWorkoutSchedule={setWorkoutSchedule}
-                        />
-                    )
-                ) : (
-                    formToShow === 'login' ? (
-                        <LoginForm switchToSignup={() => setFormToShow('signup')} />
-                    ) : (
-                        <SignupForm switchToLogin={() => setFormToShow('login')} />
-                    )
-                )}
-            </main>
+                <main className="flex-grow">
+                    <Routes>
+                        {/* Redirect to login or workout based on user session */}
+                        <Route path="/" element={<Navigate to={user ? "/workout" : "/login"} />} />
 
-            {/* Footer */}
-            <Footer />
-        </div>
+                        {/* Login Route */}
+                        <Route path="/login" element={user ? <Navigate to="/workout" /> : <LoginPage />} />
+
+                        {/* Signup Route */}
+                        <Route path="/signup" element={user ? <Navigate to="/workout" /> : <SignupPage />} />
+
+                        {/* Workout Form Route */}
+                        <Route
+                            path="/workout"
+                            element={
+                                user ? (
+                                    <WorkoutPage
+                                        formData={formData}
+                                        setFormData={setFormData}
+                                        handleChange={handleChange}
+                                        handleSubmit={handleSubmit}
+                                    />
+                                ) : (
+                                    <Navigate to="/login" />
+                                )
+                            }
+                        />
+
+                        {/* Schedule Route
+                        <Route
+                            path="/schedule"
+                            element={
+                                user ? (
+                                    <SchedulePage
+                                        formData={formData}
+                                        workoutSchedule={workoutSchedule}
+                                        setWorkoutSchedule={setWorkoutSchedule}
+                                    />
+                                ) : (
+                                    <Navigate to="/login" />
+                                )
+                            }
+                        /> */}
+                    </Routes>
+                </main>
+
+                <Footer />
+            </div>
+        </Router>
     );
 };
 

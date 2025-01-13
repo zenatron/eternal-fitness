@@ -1,6 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const Header = ({ user, handleLogout, setShowForm }) => {
+const Header = ({ user, handleLogout }) => {
+
+    const navigate = useNavigate();
+
     return (
         <header className="bg-gray-800 text-white py-4 px-8 flex justify-between items-center">
             <h1 className="text-lg font-bold">Eternal Fitness</h1>
@@ -18,13 +22,13 @@ const Header = ({ user, handleLogout, setShowForm }) => {
                 ) : (
                     <div className="flex space-x-4">
                         <button
-                            onClick={() => setShowForm('login')}
+                            onClick={() => navigate('/login')}
                             className="btn btn-primary"
                         >
                             Login
                         </button>
                         <button
-                            onClick={() => setShowForm('signup')}
+                            onClick={() => navigate('/signup')}
                             className="btn btn-secondary"
                         >
                             Signup
