@@ -1,10 +1,9 @@
 <script>
-  // Extract the pathname from the URL
-  const pathname = window.location.pathname;
+  const repoName = '/eternal-fitness';
+  const currentPath = window.location.pathname;
 
-  // Construct the redirect URL dynamically for GitHub Pages
-  const redirectTo = `${window.location.origin}/eternal-fitness${pathname}`;
-
-  // Redirect the user to the correct path
-  window.location.replace(redirectTo);
+  if (!currentPath.startsWith(repoName)) {
+    const redirectTo = `${window.location.origin}${repoName}${currentPath}`;
+    window.location.replace(redirectTo);
+  }
 </script>
