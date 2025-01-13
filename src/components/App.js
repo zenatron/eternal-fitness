@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// Components
+import Header from './Header';
+import Footer from './Footer';
 import FormSection from './FormSection';
 import ScheduleSection from './ScheduleSection';
-import Footer from './Footer';
-import Header from './Header';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
+
+// Functions
 import { generateWorkoutSchedule } from './workoutGenerator';
 
 import '../styles/styles.css';

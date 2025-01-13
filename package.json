@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "homepage": "https://zenatron.github.io/eternal-fitness/",
   "scripts": {
@@ -25,6 +25,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.47.12",
     "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
     "react-scripts": "^5.0.1"
   },
   "browserslist": {
