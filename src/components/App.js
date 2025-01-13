@@ -96,7 +96,7 @@ const App = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
@@ -104,7 +104,7 @@ const App = () => {
 
     return (
         <Router>
-            <div className="min-h-screen flex flex-col bg-gray-100">
+            <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-slate-800">
                 <Header user={user} handleLogout={handleLogout} setShowForm={setFormToShow}/>
 
                 <main className="flex-grow">

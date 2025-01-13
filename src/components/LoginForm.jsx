@@ -20,9 +20,9 @@ const LoginForm = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
             <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
-                <h1 className="text-2xl font-bold text-center">Login</h1>
+                <h1 className="text-2xl font-bold text-center gradient-text-blue">Login</h1>
                 <form onSubmit={handleLogin} className="flex flex-col flex-grow space-y-4">
                     <div>
                         <label className="block text-sm font-bold mb-2">Email</label>

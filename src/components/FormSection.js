@@ -19,12 +19,12 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
 
     return (
         <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-lg">
-            <h1 className="text-2xl font-bold text-center mb-2">Eternal Fitness</h1>
-            <h3 className="text-sm text-center mb-4">Complete your Fitness Profile and click Submit to generate your Workout Schedule</h3>
+            <h1 className="text-2xl font-bold text-center mb-2 ">Eternal Fitness</h1>
+            <h3 className="text-sm text-center mb-4 ">Complete your Fitness Profile and click Submit to generate your Workout Schedule</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2">Name</label>
+                    <label className="block text-gray-700  font-bold mb-2">Name</label>
                     <input
                         type="text"
                         name="name"

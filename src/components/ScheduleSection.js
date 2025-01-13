@@ -18,8 +18,8 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
 
     return (
         <div className="w-full max-w-lg">
-            <h2 className="text-xl font-bold text-center mb-4">{formData.name}'s Weekly Workout Schedule</h2>
             <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 space-y-6">
+            <h2 className="text-xl font-bold text-center mb-4 gradient-text-blue">{formData.name}'s Weekly Workout Schedule</h2>
                 {workoutSchedule.map((workout, index) => {
                     const today = new Date();
                     const workoutDate = new Date(today);
@@ -66,27 +66,27 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                         </div>
                     );
                 })}
-            </div>
-            <div className="mt-6 flex flex-col space-y-4">
-                {/* Regenerate Schedule Button */}
-                <button
-                    onClick={() => {
-                        const workoutsPerWeek = Number(formData.workoutsPerWeek);
-                        const exercisesPerWorkout = Number(formData.exercisesPerWorkout);
-                        const newSchedule = generateWorkoutSchedule(workoutsPerWeek, exercisesPerWorkout);
-                        setWorkoutSchedule(newSchedule);
-                    }}
-                    className="btn btn-tertiary w-full"
-                >
-                    Regenerate Schedule
-                </button>
-                {/* Go Back Button */}
-                <button
-                    onClick={() => setWorkoutSchedule([])} // Reset to show form again
-                    className="btn btn-primary w-full"
-                >
-                    Go Back
-                </button>
+                <div className="mt-6 flex flex-col space-y-4">
+                    {/* Regenerate Schedule Button */}
+                    <button
+                        onClick={() => {
+                            const workoutsPerWeek = Number(formData.workoutsPerWeek);
+                            const exercisesPerWorkout = Number(formData.exercisesPerWorkout);
+                            const newSchedule = generateWorkoutSchedule(workoutsPerWeek, exercisesPerWorkout);
+                            setWorkoutSchedule(newSchedule);
+                        }}
+                        className="btn btn-tertiary w-full"
+                    >
+                        Regenerate Schedule
+                    </button>
+                    {/* Go Back Button */}
+                    <button
+                        onClick={() => setWorkoutSchedule([])} // Reset to show form again
+                        className="btn btn-primary w-full"
+                    >
+                        Go Back
+                    </button>
+                </div>
             </div>
         </div>
     );

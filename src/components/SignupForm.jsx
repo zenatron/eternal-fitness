@@ -32,12 +32,12 @@ const SignupForm = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
             <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
                 {signupSuccess ? (
                     // Success message
                     <div className="text-center space-y-2">
-                        <h1 className="gradient-text text-2xl font-bold">Thank You for Signing Up!</h1>
+                        <h1 className="gradient-text-blue text-2xl font-bold">Thank You for Signing Up!</h1>
                         <p className="text-gray-700">
                             Please check your email for a confirmation link to activate your Eternal Fitness account.
                         </p>
@@ -50,7 +50,7 @@ const SignupForm = () => {
                     </div>
                 ) : (
                     <>
-                    <h1 className="text-2xl font-bold text-center">Sign Up</h1>
+                    <h1 className="text-2xl font-bold bg-center text-center gradient-text-green">Sign Up</h1>
                     <form onSubmit={handleSignup} className="flex flex-col flex-grow space-y-4">
                         <div>
                             <label className="block text-sm font-bold mb-2">Name</label>

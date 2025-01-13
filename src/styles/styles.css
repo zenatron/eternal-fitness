@@ -25,7 +25,10 @@
 }
 
 @layer utilities {
-    .gradient-text {
-        @apply bg-gradient-to-r from-cyan-500 to-blue-500 text-transparent bg-clip-text;
+    .gradient-text-blue {
+        @apply bg-gradient-to-r from-cyan-400 to-blue-600 text-transparent bg-clip-text m-auto;
+    }
+    .gradient-text-green {
+        @apply bg-gradient-to-r from-lime-400 to-green-600 text-transparent bg-clip-text m-auto;
     }
 }

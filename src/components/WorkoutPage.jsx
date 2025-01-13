@@ -32,7 +32,7 @@ const WorkoutPage = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 mt-8 mb-8">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800 mt-8 mb-8">
             {workoutSchedule.length === 0 ? (
                 <FormSection
                     formData={formData}
