@@ -19,7 +19,7 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
     return (
         <div className="w-full max-w-lg">
             <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 space-y-6">
-            <h2 className="text-xl font-bold text-center mb-4 gradient-text-blue">{formData.name}'s Weekly Workout Schedule</h2>
+            <h2 className="text-xl font-bold text-center mb-4 w-fit gradient-text-blue">{formData.name}'s Weekly Workout Schedule</h2>
                 {workoutSchedule.map((workout, index) => {
                     const today = new Date();
                     const workoutDate = new Date(today);
