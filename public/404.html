@@ -1,6 +1,10 @@
 <script>
-  // Redirect to the correct path for single-page apps
+  // Extract the pathname from the URL
   const pathname = window.location.pathname;
-  const redirectTo = '/' + pathname;
-  window.location.href = redirectTo;
+
+  // Construct the redirect URL dynamically for GitHub Pages
+  const redirectTo = `${window.location.origin}/repo-name${pathname}`;
+
+  // Redirect the user to the correct path
+  window.location.replace(redirectTo);
 </script>
