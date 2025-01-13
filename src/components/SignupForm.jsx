@@ -37,9 +37,9 @@ const SignupForm = () => {
                 {signupSuccess ? (
                     // Success message
                     <div className="text-center space-y-2">
-                        <h1 className="text-2xl font-bold">Thank You for Signing Up!</h1>
+                        <h1 className="gradient-text text-2xl font-bold">Thank You for Signing Up!</h1>
                         <p className="text-gray-700">
-                            Please check your email for a confirmation link to activate your <strong>Eternal Fitness</strong> account.
+                            Please check your email for a confirmation link to activate your Eternal Fitness account.
                         </p>
                         <button
                             onClick={() => navigate('/login')}

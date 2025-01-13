@@ -23,3 +23,9 @@
     @apply bg-red-500 text-white hover:bg-red-600 ;
   }
 }
+
+@layer utilities {
+    .gradient-text {
+        @apply bg-gradient-to-r from-cyan-500 to-blue-500 text-transparent bg-clip-text;
+    }
+}
