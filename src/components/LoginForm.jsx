@@ -17,7 +17,7 @@ const LoginForm = () => {
         }
     };
 
-    const navigator = useNavigate();
+    const navigate = useNavigate();
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -53,7 +53,7 @@ const LoginForm = () => {
                     </button>
                 </form>
                 <button
-                    onClick={() => navigator('/signup')}
+                    onClick={() => navigate('/signup')}
                     className="btn btn-secondary w-full"
                 >
                     Create an Account

@@ -7,6 +7,7 @@ const SignupForm = () => {
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [error, setError] = useState('');
+    const [signupSuccess, setSignupSuccess] = useState(false);
 
     const handleSignup = async (e) => {
         e.preventDefault();
@@ -24,61 +25,79 @@ const SignupForm = () => {
             setError(error.message);
         } else {
             console.log('Signup successful:', data);
-            window.location.reload();
+            setSignupSuccess(true);
         }
     };
 
-    const navigator = useNavigate();
+    const navigate = useNavigate();
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
             <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
-                <h1 className="text-2xl font-bold text-center">Sign Up</h1>
-                <form onSubmit={handleSignup} className="flex flex-col flex-grow space-y-4">
-                    <div>
-                        <label className="block text-sm font-bold mb-2">Name</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
-                            required
-                        />
+                {signupSuccess ? (
+                    // Success message
+                    <div className="text-center space-y-2">
+                        <h1 className="text-2xl font-bold">Thank You for Signing Up!</h1>
+                        <p className="text-gray-700">
+                            Please check your email for a confirmation link to activate your <strong>Eternal Fitness</strong> account.
+                        </p>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="btn btn-primary"
+                        >
+                            Go to Login
+                        </button>
                     </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-2">Email</label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold mb-2">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
-                            required
-                        />
-                    </div>
-                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                ) : (
+                    <>
+                    <h1 className="text-2xl font-bold text-center">Sign Up</h1>
+                    <form onSubmit={handleSignup} className="flex flex-col flex-grow space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-2">Name</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2">Email</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                required
+                            />
+                        </div>
+                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                        <button
+                            type="submit"
+                            className="btn btn-tertiary w-full"
+                        >
+                            Sign Up
+                        </button>
+                    </form>
                     <button
-                        type="submit"
-                        className="btn btn-tertiary w-full"
+                        onClick={() => navigate('/login')}
+                        className="btn btn-secondary w-full"
                     >
-                        Sign Up
+                        Already Have an Account?
                     </button>
-                </form>
-                <button
-                    onClick={() => navigator('/login')}
-                    className="btn btn-secondary w-full"
-                >
-                    Already Have an Account?
-                </button>
+                    </>
+                )}
             </div>
         </div>
     );
