@@ -1,9 +1,0 @@
-<script>
-  const repoName = '/eternal-fitness';
-  const currentPath = window.location.pathname;
-
-  if (!currentPath.startsWith(repoName)) {
-    const redirectTo = `${window.location.origin}${repoName}${currentPath}`;
-    window.location.replace(redirectTo);
-  }
-</script>
