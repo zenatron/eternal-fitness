@@ -15,6 +15,10 @@
     @apply bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-300;
   }
 
+  .btn-tertiary {
+    @apply bg-green-500 text-white hover:bg-green-600 focus:ring-green-300;
+  }
+
   .btn-danger {
     @apply bg-red-500 text-white hover:bg-red-600 ;
   }

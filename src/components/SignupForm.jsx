@@ -65,14 +65,14 @@ const SignupForm = ({ switchToLogin }) => {
                     {error && <p className="text-red-500 text-sm">{error}</p>}
                     <button
                         type="submit"
-                        className="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 mt-auto"
+                        className="btn btn-tertiary w-full"
                     >
                         Sign Up
                     </button>
                 </form>
                 <button
                     onClick={switchToLogin}
-                    className="w-full text-gray-800 py-2 px-4 rounded hover:text-gray-600"
+                    className="btn btn-secondary w-full"
                 >
                     Already Have an Account?
                 </button>
