@@ -21,26 +21,26 @@ const LoginForm = () => {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
-            <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
+            <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
                 <h1 className="text-2xl font-bold text-center gradient-text-blue">Login</h1>
                 <form onSubmit={handleLogin} className="flex flex-col flex-grow space-y-4">
                     <div>
-                        <label className="block text-sm font-bold mb-2">Email</label>
+                        <label className="block text-sm font-bold mb-2 form-item-heading">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
+                            className="form-input"
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-2">Password</label>
+                        <label className="block text-sm font-bold mb-2 form-item-heading">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
+                            className="form-input"
                             required
                         />
                     </div>

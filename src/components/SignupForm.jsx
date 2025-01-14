@@ -33,12 +33,12 @@ const SignupForm = () => {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
-            <div className="w-full max-w-lg bg-white p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
+            <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-6 rounded shadow-md space-y-4 min-w-[400px] flex flex-col justify-between">
                 {signupSuccess ? (
                     // Success message
-                    <div className="text-center space-y-2">
+                    <div className="text-center space-y-4">
                         <h1 className="gradient-text-blue text-2xl font-bold w-fit">Thank You for Signing Up!</h1>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                             Please check your email for a confirmation link to activate your Eternal Fitness account.
                         </p>
                         <button
@@ -53,32 +53,32 @@ const SignupForm = () => {
                     <h1 className="text-2xl font-bold bg-center text-center gradient-text-green">Sign Up</h1>
                     <form onSubmit={handleSignup} className="flex flex-col flex-grow space-y-4">
                         <div>
-                            <label className="block text-sm font-bold mb-2">Name</label>
+                            <label className="form-item-heading">Name</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                className="form-input"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2">Email</label>
+                            <label className="form-item-heading">Email</label>
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                className="form-input"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2">Password</label>
+                            <label className="form-item-heading">Password</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300"
+                                className="form-input"
                                 required
                             />
                         </div>

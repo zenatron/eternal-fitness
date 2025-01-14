@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "private": true,
   "scripts": {
     "start": "react-scripts start",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.47.12",
     "react-dom": "^19.0.0",
+    "react-icons": "^5.4.0",
     "react-router-dom": "^7.1.1",
     "react-scripts": "^5.0.1"
   },

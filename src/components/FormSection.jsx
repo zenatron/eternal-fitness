@@ -68,7 +68,6 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         <option value="other">Other</option>
                     </select>
                 </div>
-
                 {/* Height */}
                 <div>
                     <label className="form-item-heading">Height (in inches)</label>
