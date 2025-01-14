@@ -22,6 +22,13 @@
   .btn-danger {
     @apply bg-red-500 text-white hover:bg-red-600 ;
   }
+
+  .form-input {
+    @apply dark:bg-slate-800 w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200 placeholder-slate-400
+  }
+  .form-item-heading {
+    @apply block text-gray-700 dark:text-white font-bold mb-2
+  }
 }
 
 @layer utilities {
@@ -30,5 +37,15 @@
     }
     .gradient-text-green {
         @apply bg-gradient-to-r from-lime-400 to-green-600 text-transparent bg-clip-text m-auto;
+    }
+    .gradient-text-apple {
+        @apply bg-gradient-to-r text-transparent bg-clip-text m-auto;
+        background-image: linear-gradient(
+          to right,
+        #4DA6FF, /* Lighter Blue */
+        #7D7AFF, /* Lighter Purple */
+        #FF77A9, /* Lighter Pink */
+        #FFA759  /* Lighter Orange */
+        );
     }
 }

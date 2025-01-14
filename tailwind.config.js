@@ -12,7 +12,14 @@ module.exports = {
         },
         animation: {
           'gradient-move': 'gradient-move 3s ease infinite',
-        }
+        },
+        colors: {
+          'apple-blue': '#007AFF',
+          'apple-green': '#34C759',
+          'apple-yellow': '#FFCC00',
+          'apple-orange': '#FF9500',
+          'apple-red': '#FF3B30',
+        },
       },
   },
   darkMode: 'class',

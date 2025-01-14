@@ -18,27 +18,27 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
     };
 
     return (
-        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-lg">
-            <h1 className="text-2xl font-bold text-center mb-2 w-fit gradient-text-blue">Eternal Fitness</h1>
-            <h3 className="text-sm text-center mb-4 ">Complete your Fitness Profile and click Submit to generate your Workout Schedule</h3>
+        <div className="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 w-full max-w-lg">
+            <h1 className="text-2xl font-bold text-center mb-2 w-fit gradient-text-apple">Eternal Fitness</h1>
+            <h3 className="text-sm text-center mb-4 dark:text-white">Complete your Fitness Profile and click Submit to generate your Workout Schedule</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name */}
                 <div>
-                    <label className="block text-gray-700  font-bold mb-2">Name</label>
+                    <label className="form-item-heading">Name</label>
                     <input
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
                         placeholder='ex. John Doe'
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     />
                 </div>
 
                 {/* Age */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2">Age</label>
+                    <label className="form-item-heading">Age</label>
                     <input
                         type="number"
                         name="age"
@@ -46,7 +46,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         onChange={handleChange}
                         min="0"
                         max="99"
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         placeholder='ex. 25'
                         required
                     />
@@ -54,12 +54,12 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
 
                 {/* Gender */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2">Gender</label>
+                    <label className="form-item-heading">Gender</label>
                     <select
                         name="gender"
                         value={formData.gender}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     >
                         <option value="">Select Gender</option>
@@ -71,7 +71,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
 
                 {/* Height */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2">Height (in inches)</label>
+                    <label className="form-item-heading">Height (in inches)</label>
                     <input
                         type="number"
                         name="height"
@@ -79,14 +79,14 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         onChange={handleChange}
                         min="0"
                         placeholder="ex. 72"
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     />
                 </div>
 
                 {/* Weight */}
                 <div>
-                    <label className="block text-gray-700 font-bold mb-2">Weight (in lbs)</label>
+                    <label className="form-item-heading">Weight (in lbs)</label>
                     <input
                         type="text"
                         name="weight"
@@ -94,7 +94,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         onChange={handleChange}
                         min="0"
                         placeholder="ex. 160"
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     />
                 </div>
@@ -102,7 +102,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 {/* Fitness Goal */}
                 <div>
                     <div className="flex items-center mb-2">
-                        <label className="text-gray-700 font-bold">Fitness Goal</label>
+                        <label className="form-item-heading">Fitness Goal</label>
                         <div className="relative group inline-block ml-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -114,7 +114,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         name="fitnessGoal"
                         value={formData.fitnessGoal}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     >
                         <option value="">Select Fitness Goal</option>
@@ -127,7 +127,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 {/* Intensity */}
                 <div>
                     <div className="flex items-center mb-2">
-                        <label className="text-gray-700 font-bold">Intensity</label>
+                        <label className="form-item-heading">Intensity</label>
                         <div className="relative group inline-block ml-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -139,7 +139,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         name="intensity"
                         value={formData.intensity}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     >
                         <option value="">Select Intensity</option>
@@ -158,7 +158,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 {/* Exercises Per Workout */}
                 <div>
                     <div className="flex items-center mb-2">
-                        <label className="text-gray-700 font-bold">Exercises Per Workout</label>
+                        <label className="form-item-heading">Exercises Per Workout</label>
                         <div className="relative group inline-block ml-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -170,7 +170,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         name="exercisesPerWorkout"
                         value={formData.exercisesPerWorkout}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     >
                         <option value="">Select a Number</option>
@@ -186,7 +186,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 {/* Workouts Per Week */}
                 <div>
                     <div className="flex items-center mb-2">
-                        <label className="text-gray-700 font-bold">Workouts Per Week</label>
+                        <label className="form-item-heading">Workouts Per Week</label>
                         <div className="relative group inline-block ml-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -198,7 +198,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                         name="workoutsPerWeek"
                         value={formData.workoutsPerWeek}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+                        className="form-input"
                         required
                     >
                         <option value="">Select a Number</option>
