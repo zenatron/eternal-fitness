@@ -102,7 +102,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 <div>
                     <div className="flex items-center mb-2">
                         <label className="form-item-heading">Fitness Goal</label>
-                        <div className="relative group inline-block ml-2">
+                        <div className="relative group inline-block ml-2 mb-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 Select a goal that best matches your fitness objectives.
@@ -127,7 +127,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 <div>
                     <div className="flex items-center mb-2">
                         <label className="form-item-heading">Intensity</label>
-                        <div className="relative group inline-block ml-2">
+                        <div className="relative group inline-block ml-2 mb-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 Intensity 1-9 of each workout.
@@ -158,7 +158,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 <div>
                     <div className="flex items-center mb-2">
                         <label className="form-item-heading">Exercises Per Workout</label>
-                        <div className="relative group inline-block ml-2">
+                        <div className="relative group inline-block ml-2 mb-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 How many exercises you would like to do per workout.
@@ -186,7 +186,7 @@ const FormSection = ({ formData, handleChange, handleSubmit, setFormData }) => {
                 <div>
                     <div className="flex items-center mb-2">
                         <label className="form-item-heading">Workouts Per Week</label>
-                        <div className="relative group inline-block ml-2">
+                        <div className="relative group inline-block ml-2 mb-2">
                             <span className="text-blue-500 font-bold cursor-pointer">?</span>
                             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 p-2 bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 How many times per week you would like to workout.

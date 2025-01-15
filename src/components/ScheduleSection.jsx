@@ -39,12 +39,12 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                                 <ul className="list-disc ml-5 space-y-1">
                                     {Array.isArray(workout)
                                         ? workout.map((exercise, exerciseIndex) => (
-                                            <li key={exerciseIndex} className="text-gray-700 dark:text-gray-400">
+                                            <li key={exerciseIndex} className="text-gray-700 dark:text-gray-300">
                                                 {exercise}
                                             </li>
                                         ))
                                         : (
-                                            <li className="text-gray-700 dark:text-gray-400 italic">{workout}</li> // For "Rest" days
+                                            <li className="text-gray-500 dark:text-gray-400 italic">{workout}</li> // For "Rest" days
                                         )}
                                 </ul>
                             </div>
@@ -60,7 +60,7 @@ const ScheduleSection = ({ formData, workoutSchedule, setWorkoutSchedule }) => {
                                         </ul>
                                     </div>
                                 ) : (
-                                    <p className="text-base italic font-semibold">Enjoy your rest day!</p>
+                                    <p className="text-base italic font-semibold text-gray-500 dark:text-gray-400">Enjoy your rest day!</p>
                                 )}
                             </div>
                         </div>
