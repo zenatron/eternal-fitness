@@ -33,13 +33,13 @@
 
 @layer utilities {
     .gradient-text-blue {
-        @apply bg-gradient-to-r from-cyan-400 to-blue-600 text-transparent bg-clip-text m-auto;
+        @apply bg-gradient-to-r from-cyan-400 to-blue-600 text-transparent bg-clip-text w-fit;
     }
     .gradient-text-green {
-        @apply bg-gradient-to-r from-lime-400 to-green-600 text-transparent bg-clip-text m-auto;
+        @apply bg-gradient-to-r from-lime-400 to-green-600 text-transparent bg-clip-text w-fit;
     }
     .gradient-text-apple {
-        @apply bg-gradient-to-r text-transparent bg-clip-text m-auto;
+        @apply bg-gradient-to-r text-transparent bg-clip-text w-fit;
         background-image: linear-gradient(
           to right,
         #4DA6FF, /* Lighter Blue */
