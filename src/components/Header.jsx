@@ -10,7 +10,7 @@ const Header = ({ user, handleLogout }) => {
     return (
         <header className="bg-gray-800 text-white py-4 px-8 flex justify-between items-center dark:bg-gray-900 dark:text-gray-300">
             {/* Website Logo/Title */}
-            <h1 className="text-2xl text-left font-bold gradient-text-apple">Eternal Fitness</h1>
+            <h1 className="text-2xl text-left font-bold gradient-text-apple inline-block">Eternal Fitness</h1>
 
             {/* Navigation and User Section */}
             <nav className="flex items-center space-x-6">
@@ -34,7 +34,7 @@ const Header = ({ user, handleLogout }) => {
                         </button>
                         <button
                             onClick={() => navigate('/signup')}
-                            className="btn btn-secondary"
+                            className="btn btn-secondary hidden sm:block"
                         >
                             Signup
                         </button>
