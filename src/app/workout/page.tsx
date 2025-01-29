@@ -10,9 +10,22 @@ export default async function WorkoutPage() {
     redirect('/login')
   }
 
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select()
+    .eq('id', user.id)
+    .single()
+  if (error) {
+    console.error('Error fetching profile (likely not setup):', error)
+    redirect('/profile/setup')
+  }
+  if (!profile) {
+    redirect('/profile/setup')
+  }
+
   return (
     <div className="container mx-auto px-4">
-      <WorkoutForm/>
+      <WorkoutForm />
     </div>
   )
 }
