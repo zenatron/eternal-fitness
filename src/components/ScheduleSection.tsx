@@ -1,8 +1,7 @@
 'use client'
 
 import { FormData } from '@/types'
-import { exerciseDict } from '@/data/exercises'
-import { generateWorkoutSchedule } from '@/lib/workoutGenerator'
+import { getExerciseDetails, generateWorkoutSchedule } from '@/services/workoutGenerator'
 
 interface ScheduleSectionProps {
   formData: FormData
@@ -15,12 +14,21 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
   const getMusclesForDay = (exercises: string[]): string[] => {
     const muscleSet = new Set<string>()
     exercises.forEach((exercise) => {
-      const exerciseData = exerciseDict[exercise]
+      const exerciseData = getExerciseDetails(exercise)
       if (exerciseData?.muscles) {
         exerciseData.muscles.forEach((muscle) => muscleSet.add(muscle))
       }
     })
     return Array.from(muscleSet)
+  }
+
+  const handleRegenerateSchedule = () => {
+    // Use the legacy function for now
+    const newSchedule = generateWorkoutSchedule(
+      Number(formData.workoutsPerWeek),
+      Number(formData.exercisesPerWorkout)
+    )
+    setWorkoutSchedule(newSchedule)
   }
 
   return (
@@ -80,19 +88,12 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
           )
         })}
         <div className="mt-6 flex flex-col space-y-4">
-          {/* Regenerate Schedule Button */}
           <button
-            onClick={() => {
-              const workoutsPerWeek = Number(formData.workoutsPerWeek)
-              const exercisesPerWorkout = Number(formData.exercisesPerWorkout)
-              const newSchedule = generateWorkoutSchedule(workoutsPerWeek, exercisesPerWorkout)
-              setWorkoutSchedule(newSchedule)
-            }}
+            onClick={handleRegenerateSchedule}
             className="btn btn-tertiary w-full"
           >
             Regenerate Schedule
           </button>
-          {/* Go Back Button */}
           <button
             onClick={() => setWorkoutSchedule([])}
             className="btn btn-primary w-full"

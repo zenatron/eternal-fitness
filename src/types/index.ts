@@ -11,8 +11,8 @@ export interface FormData {
   weight: string
   fitnessGoal: string
   intensity: string
-  exercisesPerWorkout: string
   workoutsPerWeek: string
+  exercisesPerWorkout: string
 }
 
 export interface Exercise {

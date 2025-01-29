@@ -3,28 +3,27 @@
 import { useState } from 'react'
 import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
-import { generateWorkoutSchedule } from '@/lib/workoutGenerator'
+import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
-import type { User } from '@supabase/auth-helpers-nextjs'
 
-export default function WorkoutForm({ user }: { user: User }) {
+export default function WorkoutForm() {
   const [formData, setFormData] = useState<FormData>({
-    name: user?.user_metadata?.name || '',
+    name: '',
     age: '',
     gender: '',
     height: '',
     weight: '',
     fitnessGoal: '',
     intensity: '',
-    exercisesPerWorkout: '',
     workoutsPerWeek: '',
+    exercisesPerWorkout: ''
   })
 
   const [workoutSchedule, setWorkoutSchedule] = useState<(string[] | string)[]>([])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData({ ...formData, [name]: value })
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -35,7 +34,7 @@ export default function WorkoutForm({ user }: { user: User }) {
       Number(formData.workoutsPerWeek),
       Number(formData.exercisesPerWorkout)
     )
-    setWorkoutSchedule(schedule || [])
+    setWorkoutSchedule(schedule)
   }
 
   return (

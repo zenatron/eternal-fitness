@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ThemeSwitch from './ThemeSwitch'
 import { FaUser } from 'react-icons/fa'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { User } from '@supabase/auth-helpers-nextjs'
 
 interface HeaderProps {
@@ -14,10 +16,12 @@ interface HeaderProps {
 export function Header({ user }: HeaderProps) {
   const router = useRouter()
   const supabase = createClientComponentClient()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
+      setIsMenuOpen(false)
       router.push('/login')
       router.refresh()
     } catch (error) {
@@ -25,37 +29,127 @@ export function Header({ user }: HeaderProps) {
     }
   }
 
+  const menuVariants = {
+    closed: {
+      opacity: 0,
+      x: "100%",
+      transition: {
+        duration: 0.2
+      }
+    },
+    open: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.3
+      }
+    }
+  }
+
   return (
-    <header className="bg-gray-800 text-white py-4 px-8 flex justify-between items-center dark:bg-gray-900 dark:text-gray-300">
+    <header className="bg-gray-800 text-white py-4 px-8 flex justify-between items-center dark:bg-gray-900 dark:text-gray-300 relative z-50">
       {/* Website Logo/Title */}
       <Link href="/" className="text-2xl text-left font-bold gradient-text-apple inline-block">
         Eternal Fitness
       </Link>
 
-      {/* Navigation and User Section */}
-      <nav className="flex items-center space-x-6">
+      {/* Desktop Navigation */}
+      <nav className="hidden md:flex items-center space-x-6">
         {user ? (
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/profile"
-              className="hover:text-blue-400 transition-colors duration-200"
-              title="View Profile"
-            >
-              <FaUser className="w-5 h-5" />
-            </Link>
-            <button onClick={handleLogout} className="btn btn-danger">
-              Logout
-            </button>
-          </div>
+          <Link 
+            href="/profile"
+            className="hover:text-blue-400 transition-colors duration-200"
+            title="View Profile"
+          >
+            <FaUser className="w-5 h-5" />
+          </Link>
         ) : (
           <Link href="/login" className="btn btn-primary">
             Login
           </Link>
         )}
-
-        {/* Dark Mode Toggle */}
         <ThemeSwitch />
       </nav>
+
+      {/* Mobile Hamburger Button */}
+      <button 
+        onClick={() => setIsMenuOpen(!isMenuOpen)}
+        className="md:hidden flex flex-col justify-center items-center w-6 h-6 space-y-1.5 focus:outline-none"
+        aria-label="Toggle menu"
+      >
+        <span 
+          className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
+            isMenuOpen ? 'rotate-45 translate-y-2' : ''
+          }`}
+        />
+        <span 
+          className={`w-6 h-0.5 bg-white transition-all duration-300 ${
+            isMenuOpen ? 'opacity-0' : ''
+          }`}
+        />
+        <span 
+          className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
+            isMenuOpen ? '-rotate-45 -translate-y-2' : ''
+          }`}
+        />
+      </button>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black md:hidden"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            
+            {/* Menu */}
+            <motion.div
+              variants={menuVariants}
+              initial="closed"
+              animate="open"
+              exit="closed"
+              className="fixed right-0 top-0 h-screen w-64 bg-gray-800 dark:bg-gray-900 p-6 md:hidden shadow-lg"
+            >
+              <div className="flex flex-col space-y-6">
+                {user ? (
+                  <>
+                    <Link 
+                      href="/profile"
+                      className="flex items-center space-x-2 text-lg hover:text-blue-400 transition-colors duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <FaUser className="w-5 h-5" />
+                      <span>Profile</span>
+                    </Link>
+                    <button 
+                      onClick={handleLogout} 
+                      className="btn btn-danger w-full"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link 
+                    href="/login" 
+                    className="btn btn-primary w-full"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                )}
+                <div className="pt-4 border-t border-gray-700">
+                  <ThemeSwitch />
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
   )
 } 

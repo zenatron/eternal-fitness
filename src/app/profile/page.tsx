@@ -65,10 +65,15 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        <div className="pt-4">
+        <div className="flex flex-col space-y-3 pt-4">
           <Link href="/profile/edit" className="btn btn-secondary w-full">
             Edit Profile
           </Link>
+          <form action="/auth/sign-out" method="post">
+            <button type="submit" className="btn btn-danger w-full">
+              Sign Out
+            </button>
+          </form>
         </div>
       </div>
     </div>

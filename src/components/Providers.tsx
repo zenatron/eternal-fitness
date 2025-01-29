@@ -1,11 +1,16 @@
 'use client';
 
-import { ThemeProvider } from '@/contexts/ThemeContext'
-import { ReactNode } from 'react'
+import { ThemeProvider } from 'next-themes'
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+      enableColorScheme={false}
+    >
       {children}
     </ThemeProvider>
   )

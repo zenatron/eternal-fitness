@@ -1,40 +1,51 @@
 'use client'
 
-import { FaSun, FaMoon } from 'react-icons/fa'
-import { useTheme } from '@/contexts/ThemeContext'
 import { useEffect, useState } from 'react'
+import { useTheme } from 'next-themes'
+import { FiSun, FiMoon, FiMonitor } from 'react-icons/fi'
+
+const themes = [
+  { id: 'system', icon: FiMonitor },
+  { id: 'light', icon: FiSun },
+  { id: 'dark', icon: FiMoon },
+] as const
 
 export default function ThemeSwitch() {
-  const { theme, toggleTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const { theme, setTheme } = useTheme()
 
-  // Only show the UI after mounting to prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return null // Return null on server-side and first render
+  const toggleTheme = () => {
+    const currentIndex = themes.findIndex(t => t.id === theme)
+    const nextIndex = (currentIndex + 1) % themes.length
+    setTheme(themes[nextIndex].id)
   }
 
-  return (
-    <div
-      onClick={toggleTheme}
-      className="relative w-16 h-8 bg-gray-300 dark:bg-gray-600 rounded-full cursor-pointer p-1 transition-colors duration-300"
-    >
-      {/* Sliding Circle */}
-      <div
-        className={`w-6 h-6 bg-white dark:bg-gray-900 rounded-full shadow-md transform transition-transform duration-300 flex items-center justify-center ${
-          theme === 'dark' ? 'translate-x-8' : 'translate-x-0'
-        }`}
+  if (!mounted) {
+    return (
+      <button
+        className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors duration-200"
+        aria-label="Theme settings"
       >
-        {/* Sun Icon for Light Mode */}
-        {theme === 'light' ? (
-          <FaSun className="text-yellow-500 w-4 h-4 transition-opacity duration-300" />
-        ) : (
-          <FaMoon className="text-blue-400 w-4 h-4 transition-opacity duration-300" />
-        )}
-      </div>
-    </div>
+        <span className="opacity-0">Loading...</span>
+      </button>
+    )
+  }
+
+  const currentTheme = themes.find(t => t.id === theme) || themes[0]
+  const CurrentIcon = currentTheme.icon
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors duration-200"
+      aria-label="Toggle theme"
+      title={`Current theme: ${currentTheme.id}`}
+    >
+      <CurrentIcon className="w-4 h-4" />
+    </button>
   )
 } 
