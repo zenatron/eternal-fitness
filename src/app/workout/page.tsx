@@ -12,7 +12,7 @@ export default async function WorkoutPage() {
 
   return (
     <div className="container mx-auto px-4">
-      <WorkoutForm user={user} />
+      <WorkoutForm/>
     </div>
   )
 }

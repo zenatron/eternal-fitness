@@ -5,13 +5,8 @@ import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
 import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
-import { User } from '@supabase/supabase-js'
 
-interface WorkoutFormProps {
-  user: User
-}
-
-export default function WorkoutForm({ user }: WorkoutFormProps) {
+export default function WorkoutForm() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     age: '',
