@@ -96,9 +96,9 @@ export default function ProfileSetup() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-6 rounded shadow-md space-y-4">
+      <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-8 rounded shadow-md space-y-6">
         <h1 className="text-2xl font-bold text-center gradient-text-blue">Complete Your Profile</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label className="form-item-heading">Name</label>
             <input
@@ -185,13 +185,26 @@ export default function ProfileSetup() {
             <p className="text-red-500 text-sm">{error}</p>
           )}
 
-          <button
-            type="submit"
-            className="btn btn-primary w-full"
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save Profile'}
-          </button>
+          <div className="flex flex-col gap-4">
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Save Profile'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={async () => {
+                const response = await fetch('/auth/sign-out', { method: 'POST' })
+                if (response.ok) router.push('/login')
+              }}
+              className="btn btn-secondary w-full"
+            >
+              Sign Out
+            </button>
+          </div>
         </form>
       </div>
     </div>
