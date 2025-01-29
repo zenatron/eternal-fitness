@@ -46,7 +46,7 @@ export default function LoginPage() {
             formAction={signup}
             className="btn btn-secondary w-full"
           >
-            Create new account
+            Create an account
           </button>
         </form>
       </div>
