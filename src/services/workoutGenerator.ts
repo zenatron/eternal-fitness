@@ -53,8 +53,29 @@ export class WorkoutGenerator {
   }
 }
 
-export function generateWorkoutSchedule(workoutsPerWeek: number, exercisesPerWorkout: number): (string[] | string)[] {
-  // Get a random split based on number of workouts
+export interface WorkoutDay {
+  exercises: string[]
+  splitName: string
+}
+
+function selectExercisesForDay(day: DayPlan, totalExercises: number): string[] {
+  // Always include all primary exercises first
+  const selectedExercises = [...day.primary]
+
+  // If we need more exercises, randomly select from secondary
+  if (totalExercises > day.primary.length) {
+    const remainingNeeded = totalExercises - day.primary.length
+    const shuffledSecondary = [...day.secondary].sort(() => Math.random() - 0.5)
+    selectedExercises.push(...shuffledSecondary.slice(0, remainingNeeded))
+  }
+
+  return selectedExercises
+}
+
+export function generateWorkoutSchedule(
+  workoutsPerWeek: number, 
+  exercisesPerWorkout: number
+): (WorkoutDay | 'Rest')[] {
   const splitKey = getSplitForWorkoutCount(workoutsPerWeek)
   const split = splits[splitKey]
   
@@ -62,10 +83,8 @@ export function generateWorkoutSchedule(workoutsPerWeek: number, exercisesPerWor
     throw new Error(`No split found for ${workoutsPerWeek} workouts per week`)
   }
 
-  // Get the pattern for the selected split
-  const pattern = split.pattern.slice(0, 7) // Ensure we only take a week's worth
+  const pattern = split.pattern.slice(0, 7)
   
-  // Convert pattern to actual workouts
   return pattern.map(dayType => {
     if (dayType === 'rest') return 'Rest'
     
@@ -73,7 +92,11 @@ export function generateWorkoutSchedule(workoutsPerWeek: number, exercisesPerWor
     if (!day) {
       throw new Error(`Day type "${dayType}" not found in split`)
     }
-    return selectExercisesForDay(day, exercisesPerWorkout)
+
+    return {
+      exercises: selectExercisesForDay(day, exercisesPerWorkout),
+      splitName: day.name
+    }
   })
 }
 
@@ -90,21 +113,49 @@ function getSplitForWorkoutCount(workoutsPerWeek: number): string {
   return possibleSplits[Math.floor(Math.random() * possibleSplits.length)]
 }
 
-function selectExercisesForDay(day: DayPlan, count: number): string[] {
-  // Combine primary and secondary exercises
-  const allExercises = [...day.primary, ...day.secondary]
-  
-  // Randomly select the requested number of exercises
-  const selected: string[] = []
-  while (selected.length < count && allExercises.length > 0) {
-    const index = Math.floor(Math.random() * allExercises.length)
-    selected.push(allExercises[index])
-    allExercises.splice(index, 1)
-  }
-  
-  return selected
-}
-
 export function getExerciseDetails(exerciseName: string): Exercise | undefined {
   return exercises[exerciseName]
+}
+
+interface ModifiedExerciseDetails {
+  sets: { min: number; max: number }
+  reps: { min: number; max: number }
+}
+
+export function getModifiedExerciseDetails(
+  exerciseName: string,
+  intensity: string
+): ModifiedExerciseDetails | undefined {
+  const baseExercise = exercises[exerciseName]
+  if (!baseExercise) return undefined
+
+  switch (intensity) {
+    case 'low':
+      return {
+        sets: {
+          min: Math.max(1, baseExercise.sets.min - 1),
+          max: Math.max(1, baseExercise.sets.max - 1)
+        },
+        reps: {
+          min: Math.floor(baseExercise.reps.min * 0.75),
+          max: Math.floor(baseExercise.reps.max * 0.75)
+        }
+      }
+    case 'high':
+      return {
+        sets: {
+          min: baseExercise.sets.min + 1,
+          max: baseExercise.sets.max + 1
+        },
+        reps: {
+          min: Math.ceil(baseExercise.reps.min * 1.25),
+          max: Math.ceil(baseExercise.reps.max * 1.25)
+        }
+      }
+    default: // medium intensity
+      return {
+        sets: { ...baseExercise.sets },
+        reps: { ...baseExercise.reps }
+      }
+  }
 } 

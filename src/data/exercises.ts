@@ -419,5 +419,13 @@ export const exercises: ExerciseDatabase = {
     reps: { min: 10, max: 15 },
     category: 'isolation',
     equipment: ['Body Weight']
+  },
+  'Core Work': {
+    name: 'Core Work',
+    muscles: ['Core', 'Hip Flexors'],
+    sets: { min: 3, max: 4 },
+    reps: { min: 12, max: 20 },
+    category: 'isolation',
+    equipment: ['Body Weight']
   }
 } as const

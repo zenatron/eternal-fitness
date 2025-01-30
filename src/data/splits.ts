@@ -2,45 +2,47 @@ import { SplitDatabase } from '@/types/exercises'
 
 export const splits: SplitDatabase = {
   'TwoDay': {
-    name: 'Upper/Lower Split',
-    description: 'A 2-day split focusing on upper and lower body separately',
+    name: 'Two Day Split',
+    description: 'Upper/Lower split for twice per week training',
     daysPerWeek: 2,
-    pattern: ['upper', 'rest', 'rest', 'lower', 'rest', 'rest', 'rest'],
+    pattern: ['upper', 'lower', 'rest', 'rest', 'rest', 'rest', 'rest'],
     days: {
       upper: {
         name: 'Upper Body',
-        description: 'Chest, Back, Shoulders, Arms',
+        description: 'Focus on chest, back, shoulders, and arms',
         primary: [
           'Bench Press',
-          'Lat Pulldown',
+          'Barbell Rows',
           'Overhead Press'
         ],
         secondary: [
-          'Pull-Ups',
+          'Lat Pulldown',
+          'Tricep Pushdowns',
           'Bicep Curls',
           'Lateral Raises',
-          'Barbell Rows',
-          'Tricep Pushdowns',
-          'Dumbbell Incline Press',
-          'Push-Ups'
+          'Face Pulls',
+          'Dips',
+          'Pull-Ups',
+          'Dumbbell Incline Press'
         ]
       },
       lower: {
         name: 'Lower Body',
-        description: 'Legs, Glutes, Core',
+        description: 'Focus on legs and core',
         primary: [
+          'Back Squats',
           'Romanian Deadlifts',
-          'Dumbbell Lunges',
           'Bulgarian Split Squats'
         ],
         secondary: [
-          'Hanging Leg Raises',
-          'Step-Ups',
-          'Hamstring Curls',
           'Leg Press',
+          'Walking Lunges',
           'Calf Raises',
-          'Frog Pumps',
-          'Goblet Squats'
+          'Leg Extensions',
+          'Hamstring Curls',
+          'Glute Bridges',
+          'Hip Thrusts',
+          'Core Work'
         ]
       }
     }

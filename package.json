@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.7.2",
+  "version": "0.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -31,6 +31,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@supabase/auth-helpers-nextjs": "^0.9.0",
     "@supabase/ssr": "^0.5.2",

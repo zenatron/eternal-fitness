@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
-import { generateWorkoutSchedule } from '@/services/workoutGenerator'
+import { generateWorkoutSchedule, type WorkoutDay } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
 
 export default function WorkoutForm() {
@@ -19,7 +19,7 @@ export default function WorkoutForm() {
     exercisesPerWorkout: ''
   })
 
-  const [workoutSchedule, setWorkoutSchedule] = useState<(string[] | string)[]>([])
+  const [workoutSchedule, setWorkoutSchedule] = useState<(WorkoutDay | 'Rest')[]>([])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target

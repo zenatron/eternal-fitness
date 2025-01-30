@@ -1,15 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import { FormData } from '@/types'
-import { getExerciseDetails, generateWorkoutSchedule } from '@/services/workoutGenerator'
+import { getExerciseDetails, generateWorkoutSchedule, WorkoutDay, getModifiedExerciseDetails } from '@/services/workoutGenerator'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface ScheduleSectionProps {
   formData: FormData
-  workoutSchedule: (string[] | string)[]
-  setWorkoutSchedule: React.Dispatch<React.SetStateAction<(string[] | string)[]>>
+  workoutSchedule: (WorkoutDay | 'Rest')[]
+  setWorkoutSchedule: React.Dispatch<React.SetStateAction<(WorkoutDay | 'Rest')[]>>
 }
 
 export default function ScheduleSection({ formData, workoutSchedule, setWorkoutSchedule }: ScheduleSectionProps) {
+  const [expandedDay, setExpandedDay] = useState<number | null>(null)
+
   // Function to get all muscles targeted for a given day's exercises
   const getMusclesForDay = (exercises: string[]): string[] => {
     const muscleSet = new Set<string>()
@@ -23,7 +27,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
   }
 
   const handleRegenerateSchedule = () => {
-    // Use the legacy function for now
+    setExpandedDay(null)
     const newSchedule = generateWorkoutSchedule(
       Number(formData.workoutsPerWeek),
       Number(formData.exercisesPerWorkout)
@@ -31,72 +35,131 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
     setWorkoutSchedule(newSchedule)
   }
 
+  const getFormattedDate = (daysFromNow: number) => {
+    const date = new Date()
+    date.setDate(date.getDate() + daysFromNow + 1)
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+
   return (
-    <div className="w-full max-w-lg">
-      <div className="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8 w-full max-w-lg">
-        <h2 className="text-xl font-bold text-center mb-4 m-auto w-fit gradient-text-blue">
+    <div className="w-full max-w-4xl px-4">
+      <div className="bg-white dark:bg-gray-900 shadow-md rounded-lg p-6">
+        <h2 className="text-2xl font-bold text-center mb-6 gradient-text-blue m-auto">
           {formData.name}&#39;s Weekly Workout Schedule
         </h2>
-        {workoutSchedule.map((workout, index) => {
-          const today = new Date()
-          const workoutDate = new Date(today)
-          workoutDate.setDate(today.getDate() + index + 1) // Start with tomorrow
-
-          const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }
-          const formattedDate = workoutDate.toLocaleDateString('en-US', options)
-
-          const musclesTargeted = Array.isArray(workout) ? getMusclesForDay(workout) : []
-
-          return (
-            <div key={index} className="border-b last:border-b-0 pb-4 mt-4 flex justify-between">
-              {/* Day Title and Exercises */}
-              <div>
-                <h4 className="text-md font-medium text-gray-400">Day {index + 1}</h4>
-                <h3 className="text-lg font-semibold mb-2 text-black dark:text-white">{formattedDate}</h3>
-                <ul className="list-disc ml-5 space-y-1">
-                  {Array.isArray(workout) ? (
-                    workout.map((exercise, exerciseIndex) => (
-                      <li key={exerciseIndex} className="text-gray-700 dark:text-gray-300">
-                        {exercise}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-gray-500 dark:text-gray-400 italic">{workout}</li>
-                  )}
-                </ul>
-              </div>
-              {/* Muscles Targeted */}
-              <div className="ml-6 text-sm text-gray-500">
-                {Array.isArray(workout) ? (
-                  <div>
-                    <h4 className="text-base font-semibold mb-1 text-gray-500 dark:text-gray-400">
-                      Muscles Targeted:
-                    </h4>
-                    <ul className="list-disc ml-4 space-y-1 text-gray-500 dark:text-gray-400">
-                      {musclesTargeted.map((muscle, muscleIndex) => (
-                        <li key={muscleIndex}>{muscle}</li>
-                      ))}
-                    </ul>
+        
+        <div className="grid gap-4 mb-6">
+          {workoutSchedule.map((workout, index) => {
+            const isExpanded = expandedDay === index
+            const isWorkoutDay = workout !== 'Rest'
+            const musclesTargeted = isWorkoutDay 
+              ? getMusclesForDay((workout as WorkoutDay).exercises) 
+              : []
+            
+            return (
+              <div
+                key={index}
+                className={`
+                  rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden
+                  transition-shadow duration-200
+                  ${isWorkoutDay ? 'hover:shadow-lg cursor-pointer' : 'bg-gray-50 dark:bg-gray-800'}
+                `}
+                onClick={() => isWorkoutDay && setExpandedDay(isExpanded ? null : index)}
+              >
+                <div className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {getFormattedDate(index)}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Day {index + 1} - {isWorkoutDay ? (workout as WorkoutDay).splitName : 'Rest'}
+                      </p>
+                    </div>
+                    {isWorkoutDay && (
+                      <button 
+                        className="text-blue-500 hover:text-blue-600 dark:text-blue-400"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setExpandedDay(isExpanded ? null : index)
+                        }}
+                      >
+                        {isExpanded ? '▼' : '▶'}
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-base italic font-semibold text-gray-500 dark:text-gray-400">
-                    Enjoy your rest day!
-                  </p>
-                )}
+
+                  {!isWorkoutDay && (
+                    <p className="mt-2 text-gray-500 dark:text-gray-400 italic">
+                      Rest Day - Recovery & Growth
+                    </p>
+                  )}
+
+                  {isWorkoutDay && !isExpanded && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Muscles: {musclesTargeted.join(', ')}
+                      </p>
+                    </div>
+                  )}
+
+                  <AnimatePresence>
+                    {isExpanded && isWorkoutDay && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="mt-4 space-y-4"
+                      >
+                        {(workout as WorkoutDay).exercises.map((exercise, exerciseIndex) => {
+                          const details = getExerciseDetails(exercise)
+                          const modifiedDetails = getModifiedExerciseDetails(exercise, formData.intensity)
+                          
+                          return (
+                            <div 
+                              key={exerciseIndex}
+                              className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md"
+                            >
+                              <h4 className="font-medium text-gray-900 dark:text-white">
+                                {exercise}
+                              </h4>
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                <p className="text-gray-600 dark:text-gray-300">
+                                  Sets: {modifiedDetails?.sets.min}-{modifiedDetails?.sets.max}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-300">
+                                  Reps: {modifiedDetails?.reps.min}-{modifiedDetails?.reps.max}
+                                </p>
+                              </div>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Targets: {details?.muscles.join(', ')}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
-          )
-        })}
-        <div className="mt-6 flex flex-col space-y-4">
+            )
+          })}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleRegenerateSchedule}
-            className="btn btn-tertiary w-full"
+            className="btn btn-tertiary flex-1"
           >
             Regenerate Schedule
           </button>
           <button
-            onClick={() => setWorkoutSchedule([])}
-            className="btn btn-primary w-full"
+            onClick={() => {
+              setExpandedDay(null)
+              setWorkoutSchedule([])
+            }}
+            className="btn btn-primary flex-1"
           >
             Go Back
           </button>

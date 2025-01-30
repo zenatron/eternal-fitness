@@ -4,6 +4,8 @@ import { FormData } from '@/types'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
+import { PencilIcon } from '@heroicons/react/24/outline'
 
 interface FormSectionProps {
   formData: FormData
@@ -37,6 +39,7 @@ function TooltipLabel({ text, tooltip }: TooltipLabelProps) {
 
 export default function FormSection({ formData, handleChange, handleSubmit, setFormData }: FormSectionProps) {
   const [isLoading, setIsLoading] = useState(true)
+  const [useMetric, setUseMetric] = useState(false)
 
   useEffect(() => {
     async function loadProfileData() {
@@ -54,6 +57,7 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
           .single()
 
         if (profile) {
+          setUseMetric(profile.useMetric || false)
           setFormData(prev => ({
             ...prev,
             name: profile.name || '',
@@ -91,15 +95,23 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
   return (
     <div className="w-full max-w-lg">
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8">
-        <h2 className="text-2xl font-bold text-center mb-4 gradient-text-blue mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6 gradient-text-blue w-fit m-auto">
           Create Your Workout Plan
         </h2>
 
-        {/* Profile Information */}
         <div className="space-y-4 mb-8 p-6 bg-gray-50 dark:bg-gray-800 rounded">
-          <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-            Profile Information
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+              Profile Information
+            </h2>
+            <Link 
+              href="/profile/edit"
+              className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+            >
+              <PencilIcon className="h-4 w-4" />
+              <span>Edit</span>
+            </Link>
+          </div>
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="form-item-heading">Name</label>
@@ -129,7 +141,9 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               />
             </div>
             <div>
-              <label className="form-item-heading">Height</label>
+              <label className="form-item-heading">
+                Height {useMetric ? '(cm)' : '(in)'}
+              </label>
               <input
                 type="text"
                 value={formData.height}
@@ -138,7 +152,9 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               />
             </div>
             <div>
-              <label className="form-item-heading">Weight</label>
+              <label className="form-item-heading">
+                Weight {useMetric ? '(kg)' : '(lbs)'}
+              </label>
               <input
                 type="text"
                 value={formData.weight}
@@ -149,8 +165,7 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
           </div>
         </div>
 
-        {/* Workout Parameters */}
-        <div className="space-y-6">
+        <div className="space-y-6 mb-8">
           <div className="form-group">
             <TooltipLabel 
               text="Fitness Goal"
@@ -167,14 +182,13 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               <option value="weight_loss">Weight Loss</option>
               <option value="muscle_gain">Muscle Gain</option>
               <option value="endurance">Endurance</option>
-              <option value="general_fitness">General Fitness</option>
             </select>
           </div>
 
           <div className="form-group">
             <TooltipLabel 
-              text="Intensity Level"
-              tooltip="Choose based on your current fitness level and experience"
+              text="Workout Intensity"
+              tooltip="How challenging you want your workouts to be. Affects sets and reps."
             />
             <select
               name="intensity"
@@ -184,9 +198,9 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               required
             >
               <option value="">Select intensity</option>
-              <option value="low">Low - Beginner Friendly</option>
-              <option value="medium">Medium - Some Experience</option>
-              <option value="high">High - Advanced</option>
+              <option value="low">Low - Fewer sets & reps</option>
+              <option value="medium">Medium - Standard sets & reps</option>
+              <option value="high">High - More sets & reps</option>
             </select>
           </div>
 
@@ -202,11 +216,12 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               className="form-input"
               required
             >
-              <option value="">Select number</option>
-              <option value="3">3 days</option>
-              <option value="4">4 days</option>
-              <option value="5">5 days</option>
-              <option value="6">6 days</option>
+              <option value="">Select frequency</option>
+              <option value="2">2 days/week</option>
+              <option value="3">3 days/week</option>
+              <option value="4">4 days/week</option>
+              <option value="5">5 days/week</option>
+              <option value="6">6 days/week</option>
             </select>
           </div>
 
@@ -222,19 +237,25 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
               className="form-input"
               required
             >
-              <option value="">Select number</option>
+              <option value="">Select number of exercises</option>
               <option value="3">3 exercises</option>
               <option value="4">4 exercises</option>
               <option value="5">5 exercises</option>
               <option value="6">6 exercises</option>
+              <option value="7">7 exercises</option>
+              <option value="8">8 exercises</option>
             </select>
           </div>
         </div>
 
-        {/* Submit Button */}
-        <button type="submit" className="btn btn-primary w-full mt-8">
-          Generate Workout Schedule
-        </button>
+        <div className="pt-4">
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+          >
+            Generate Workout Schedule
+          </button>
+        </div>
       </form>
     </div>
   )
