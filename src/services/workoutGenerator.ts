@@ -80,37 +80,37 @@ export function generateWorkoutSchedule(
   const split = splits[splitKey]
   
   if (!split) {
-    throw new Error(`No split found for ${workoutsPerWeek} workouts per week`)
+    throw new Error('Invalid workout count')
   }
 
   const pattern = split.pattern.slice(0, 7)
   
   return pattern.map(dayType => {
     if (dayType === 'rest') return 'Rest'
-    
-    const day = split.days[dayType]
-    if (!day) {
-      throw new Error(`Day type "${dayType}" not found in split`)
-    }
 
+    const day = split.days[dayType]
     return {
-      exercises: selectExercisesForDay(day, exercisesPerWorkout),
-      splitName: day.name
+      splitName: dayType,
+      exercises: selectExercisesForDay(day, exercisesPerWorkout)
     }
   })
 }
 
 function getSplitForWorkoutCount(workoutsPerWeek: number): string {
-  const splitMap: Record<number, string[]> = {
-    2: ['TwoDay'],
-    3: ['ThreeDay'],
-    4: ['FourDay'],
-    5: ['FiveDay'],
-    6: ['SixDay']
+  switch (workoutsPerWeek) {
+    case 2:
+      return 'TwoDay'
+    case 3:
+      return 'ThreeDay'
+    case 4:
+      return 'FourDay'
+    case 5:
+      return 'FiveDay'
+    case 6:
+      return 'SixDay'
+    default:
+      return 'ThreeDay' // Default to 3-day split if invalid count
   }
-
-  const possibleSplits = splitMap[workoutsPerWeek] || ['ThreeDay']
-  return possibleSplits[Math.floor(Math.random() * possibleSplits.length)]
 }
 
 export function getExerciseDetails(exerciseName: string): Exercise | undefined {
@@ -158,4 +158,4 @@ export function getModifiedExerciseDetails(
         reps: { ...baseExercise.reps }
       }
   }
-} 
+}

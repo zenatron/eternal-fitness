@@ -41,7 +41,7 @@ export default function ThemeSwitch() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors duration-200"
+      className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-700 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
       aria-label="Toggle theme"
       title={`Current theme: ${currentTheme.id}`}
     >

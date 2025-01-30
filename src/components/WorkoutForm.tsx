@@ -5,6 +5,7 @@ import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
 import { generateWorkoutSchedule, type WorkoutDay } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
+import { motion } from 'framer-motion'
 
 export default function WorkoutForm() {
   const [formData, setFormData] = useState<FormData>({
@@ -38,21 +39,27 @@ export default function WorkoutForm() {
   }
 
   return (
-    <div className="flex items-center justify-center py-8">
-      {workoutSchedule.length === 0 ? (
-        <FormSection
-          formData={formData}
-          handleChange={handleChange}
-          handleSubmit={handleSubmit}
-          setFormData={setFormData}
-        />
-      ) : (
-        <ScheduleSection
-          formData={formData}
-          workoutSchedule={workoutSchedule}
-          setWorkoutSchedule={setWorkoutSchedule}
-        />
-      )}
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="min-h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 py-12 px-4 overflow-hidden"
+    >
+      <div className="w-full">
+        {workoutSchedule.length === 0 ? (
+          <FormSection
+            formData={formData}
+            handleChange={handleChange}
+            handleSubmit={handleSubmit}
+            setFormData={setFormData}
+          />
+        ) : (
+          <ScheduleSection
+            formData={formData}
+            workoutSchedule={workoutSchedule}
+            setWorkoutSchedule={setWorkoutSchedule}
+          />
+        )}
+      </div>
+    </motion.div>
   )
 } 

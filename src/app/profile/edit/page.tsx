@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Switch } from '@headlessui/react'
+import { ArrowLeftIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 
 interface ProfileFormData {
   name: string
@@ -16,6 +19,7 @@ interface ProfileFormData {
 
 export default function ProfileEdit() {
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
     age: '',
@@ -24,7 +28,6 @@ export default function ProfileEdit() {
     gender: '',
     useMetric: false
   })
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [initialLoad, setInitialLoad] = useState(true)
 
@@ -74,34 +77,6 @@ export default function ProfileEdit() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const toggleUnit = () => {
-    setFormData(prev => {
-      const useMetric = !prev.useMetric
-      return {
-        ...prev,
-        useMetric,
-        height: prev.height ? convertHeight(prev.height, useMetric) : '',
-        weight: prev.weight ? convertWeight(prev.weight, useMetric) : ''
-      }
-    })
-  }
-
-  const convertHeight = (value: string, toMetric: boolean) => {
-    if (!value) return ''
-    const num = parseFloat(value)
-    return toMetric ? 
-      (num * 2.54).toFixed(1) : // inches to cm
-      (num / 2.54).toFixed(1)   // cm to inches
-  }
-
-  const convertWeight = (value: string, toMetric: boolean) => {
-    if (!value) return ''
-    const num = parseFloat(value)
-    return toMetric ? 
-      (num / 2.205).toFixed(1) : // lbs to kg
-      (num * 2.205).toFixed(1)   // kg to lbs
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -138,120 +113,161 @@ export default function ProfileEdit() {
 
   if (initialLoad) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
         <div className="text-gray-700 dark:text-gray-300">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-6 rounded shadow-md space-y-4">
-        <h1 className="text-2xl font-bold text-center gradient-text-blue">Edit Profile</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="form-item-heading">Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="form-input"
-              required
-            />
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative flex items-center gap-6">
+              <UserCircleIcon className="w-20 h-20" />
+              <div>
+                <h1 className="text-3xl font-bold">Edit Profile</h1>
+                <p className="text-blue-100 mt-1">Update your personal information</p>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="form-item-heading">Age</label>
-            <input
-              type="number"
-              name="age"
-              value={formData.age}
-              onChange={handleChange}
-              className="form-input"
-              min="13"
-              max="120"
-              required
-            />
-          </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
+                {error}
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  required
+                />
+              </div>
 
-          <div>
-            <label className="form-item-heading">Gender</label>
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              className="form-input"
-              required
-            >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Age
+                </label>
+                <input
+                  type="number"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleChange}
+                  className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  required
+                />
+              </div>
 
-          <div className="flex justify-end mb-2">
-            <button
-              type="button"
-              onClick={toggleUnit}
-              className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400"
-            >
-              Switch to {formData.useMetric ? 'Imperial' : 'Metric'}
-            </button>
-          </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Height {formData.useMetric ? '(cm)' : '(in)'}
+                </label>
+                <input
+                  type="number"
+                  name="height"
+                  value={formData.height}
+                  onChange={handleChange}
+                  className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  required
+                />
+              </div>
 
-          <div>
-            <label className="form-item-heading">
-              Height ({formData.useMetric ? 'cm' : 'inches'})
-            </label>
-            <input
-              type="number"
-              name="height"
-              value={formData.height}
-              onChange={handleChange}
-              className="form-input"
-              step="0.1"
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Weight {formData.useMetric ? '(kg)' : '(lbs)'}
+                </label>
+                <input
+                  type="number"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  required
+                />
+              </div>
 
-          <div>
-            <label className="form-item-heading">
-              Weight ({formData.useMetric ? 'kg' : 'lbs'})
-            </label>
-            <input
-              type="number"
-              name="weight"
-              value={formData.weight}
-              onChange={handleChange}
-              className="form-input"
-              step="0.1"
-              required
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Gender
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  required
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
 
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Measurement System
+                </label>
+                <Switch.Group>
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={formData.useMetric}
+                      onChange={(checked) => setFormData(prev => ({ ...prev, useMetric: checked }))}
+                      className={`${
+                        formData.useMetric ? 'bg-blue-600' : 'bg-gray-400'
+                      } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none`}
+                    >
+                      <span
+                        className={`${
+                          formData.useMetric ? 'translate-x-6' : 'translate-x-1'
+                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </Switch>
+                    <Switch.Label className="text-sm text-gray-600 dark:text-gray-400">
+                      {formData.useMetric ? 'Metric (cm/kg)' : 'Imperial (in/lbs)'}
+                    </Switch.Label>
+                  </div>
+                </Switch.Group>
+              </div>
+            </div>
 
-          <div className="flex space-x-4">
-            <button
-              type="submit"
-              className="btn btn-primary flex-1"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </button>
-            <Link 
-              href="/profile"
-              className="btn btn-secondary flex-1 text-center"
-            >
-              Cancel
-            </Link>
-          </div>
-        </form>
-      </div>
+            {/* Action Buttons */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <Link 
+                href="/profile"
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+                Back
+              </Link>
+              <button
+                type="submit"
+                className="btn btn-primary flex-1"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
     </div>
   )
 } 

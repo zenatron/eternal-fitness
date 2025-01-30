@@ -47,7 +47,7 @@ export function Header({ user }: HeaderProps) {
   }
 
   return (
-    <header className="bg-gray-800 text-white py-4 px-8 flex justify-between items-center dark:bg-gray-900 dark:text-gray-300 relative z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
       {/* Website Logo/Title */}
       <Link href="/" className="text-2xl text-left font-bold gradient-text-apple inline-block">
         Eternal Fitness
@@ -58,7 +58,7 @@ export function Header({ user }: HeaderProps) {
         {user ? (
           <Link 
             href="/profile"
-            className="hover:text-blue-400 transition-colors duration-200"
+            className="text-gray-700 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
             title="View Profile"
           >
             <FaUser className="w-5 h-5" />
