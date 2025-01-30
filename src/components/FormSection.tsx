@@ -74,7 +74,14 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
   }, [setFormData])
 
   if (isLoading) {
-    return <div>Loading profile data...</div>
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading profile data...</p>
+        </div>
+      </div>
+    )
   }
 
   const capitalizeFirstLetter = (str: string) => {
@@ -84,7 +91,7 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
   return (
     <div className="w-full max-w-lg">
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 shadow-md rounded px-8 pt-6 pb-8">
-        <h2 className="text-2xl font-bold text-center mb-8 gradient-text-blue">
+        <h2 className="text-2xl font-bold text-center mb-4 gradient-text-blue mx-auto">
           Create Your Workout Plan
         </h2>
 
