@@ -49,9 +49,21 @@ export function Header({ user }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 right-0 bg-slate-800 dark:bg-gray-950 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
       {/* Website Logo/Title */}
-      <Link href="/" className="text-2xl text-left font-bold gradient-text-apple inline-block">
-        Eternal Fitness
-      </Link>
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-bold">
+          <Link 
+            href="/" 
+            className="
+              bg-clip-text text-transparent 
+              bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500
+              hover:animate-gradient-x
+              bg-[size:200%]
+            "
+          >
+            Eternal Fitness
+          </Link>
+        </h1>
+      </div>
 
       {/* Desktop Navigation */}
       <nav className="hidden md:flex items-center space-x-6">
