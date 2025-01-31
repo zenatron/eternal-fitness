@@ -111,7 +111,7 @@ export default function ProfileSetup() {
               <UserCircleIcon className="w-20 h-20" />
               <div>
                 <h1 className="text-3xl font-bold">Complete Your Profile</h1>
-                <p className="text-blue-100 mt-1">Let's personalize your experience</p>
+                <p className="text-blue-100 mt-1">Let&apos;s personalize your experience</p>
               </div>
             </div>
           </div>

@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { FormData } from '@/types'
 import { getExerciseDetails, generateWorkoutSchedule, WorkoutDay, getModifiedExerciseDetails } from '@/services/workoutGenerator'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CalendarDaysIcon, ArrowPathIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, ArrowPathIcon, ArrowLeftIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
+import { getWorkoutDisplayName } from '@/data/displayNames'
+import { generateICalendarData, downloadCalendarFile } from '@/utils/calendar'
 
 interface ScheduleSectionProps {
   formData: FormData
@@ -67,6 +69,16 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
     }
   }
 
+  const handleAddToCalendar = () => {
+    const icalData = generateICalendarData(workoutSchedule)
+    downloadCalendarFile(icalData)
+  }
+
+  const getDisplayName = (workout: WorkoutDay | 'Rest') => {
+    if (workout === 'Rest') return 'Rest'
+    return getWorkoutDisplayName(workout.splitName)
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <motion.div 
@@ -80,13 +92,24 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
           <div className="relative flex items-center gap-6">
             <CalendarDaysIcon className="w-20 h-20" />
             <div>
-              <h1 className="text-3xl font-bold">{formData.name}&#39;s Workout Plan</h1>
+              <h1 className="text-3xl font-bold">{formData.name}&apos;s Workout Plan</h1>
               <p className="text-blue-100 mt-1">Your personalized weekly schedule</p>
             </div>
           </div>
         </div>
 
         <div className="p-8">
+          {/* Add Calendar Button */}
+          <div className="mb-6">
+            <button
+              onClick={handleAddToCalendar}
+              className="btn btn-secondary inline-flex items-center gap-2"
+            >
+              <PlusCircleIcon className="w-5 h-5" />
+              Add to Calendar
+            </button>
+          </div>
+
           <div className="grid gap-4 mb-8">
             {workoutSchedule.map((workout, index) => {
               const isExpanded = expandedDay === index
@@ -117,7 +140,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                           {getFormattedDate(index)}
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Day {index + 1} - {isWorkoutDay ? (workout as WorkoutDay).splitName : 'Rest'}
+                          Day {index + 1} - {isWorkoutDay ? getDisplayName(workout) : 'Rest'}
                         </p>
                       </div>
                       {isWorkoutDay && (

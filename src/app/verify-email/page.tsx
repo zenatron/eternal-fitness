@@ -22,7 +22,7 @@ export default function VerifyEmail() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold">Check Your Email</h1>
-                <p className="text-blue-100 mt-1">We've sent you a verification link</p>
+                <p className="text-blue-100 mt-1">We&apos;ve sent you a verification link</p>
               </div>
             </div>
           </div>
@@ -33,7 +33,7 @@ export default function VerifyEmail() {
                 Please click the link in your email to verify your account and continue.
               </p>
               <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
-                <p>Didn't receive the email?</p>
+                <p>Didn&apos;t receive the email?</p>
                 <p>Check your spam folder or contact support.</p>
               </div>
             </div>
