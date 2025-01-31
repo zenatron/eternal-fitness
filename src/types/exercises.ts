@@ -28,41 +28,24 @@ export interface Exercise {
 }
 
 export interface WorkoutDay {
-  name: string                    // e.g., "Push Day", "Leg Day"
-  primary: string[]              // Array of exercise names (ordered)
-  secondary: string[]            // Array of exercise names (can be random)
-  description?: string           // Optional description of the day's focus
-}
-
-export interface WorkoutSplit {
-  name: string                   // e.g., "PPL", "Upper/Lower"
-  description: string
-  daysPerWeek: number
-  pattern: (string | 'rest')[]   // e.g., ['push', 'pull', 'legs', 'rest', 'push', 'pull', 'legs']
-  days: Record<string, WorkoutDay> // e.g., { push: WorkoutDay, pull: WorkoutDay, legs: WorkoutDay }
-}
-
-export interface ExerciseDatabase {
-  [key: string]: Exercise
-}
-
-export interface DayPlan {
   name: string
   description: string
   primary: string[]
   secondary: string[]
 }
 
-export interface Split {
+export interface WorkoutSplit {
   name: string
   description: string
   daysPerWeek: number
   pattern: (string | 'rest')[]
-  days: {
-    [key: string]: DayPlan
-  }
+  days: Record<string, WorkoutDay>
+}
+
+export interface ExerciseDatabase {
+  [key: string]: Exercise
 }
 
 export interface SplitDatabase {
-  [key: string]: Split
-} 
+  [key: string]: WorkoutSplit
+}

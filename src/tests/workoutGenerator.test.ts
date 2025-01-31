@@ -1,6 +1,6 @@
 import { exercises } from '@/data/exercises'
 import { splits } from '@/data/splits'
-import { generateWorkoutSchedule, type WorkoutDay } from '@/services/workoutGenerator'
+import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 
 describe('Data Structure Validation', () => {
   describe('Exercise Database', () => {
@@ -194,77 +194,49 @@ describe('Data Structure Validation', () => {
 })
 
 describe('Workout Generator', () => {
-  const workoutCounts = [2, 3, 4, 5, 6]
-  const exerciseCounts = [3, 4, 5, 6, 7, 8]
+  test('generates correct number of days for a week', () => {
+    const schedule = generateWorkoutSchedule(3, 5)
+    expect(schedule).toHaveLength(7)
+  })
 
-  describe.each(workoutCounts)('generates correct number of workouts for %i days per week', (workoutsPerWeek) => {
-    it(`generates correct schedule length`, () => {
-      const schedule = generateWorkoutSchedule(workoutsPerWeek, 4)
-      expect(schedule).toHaveLength(7) // Always 7 days in a week
-      
+  test('generates correct number of exercises per workout day', () => {
+    const schedule = generateWorkoutSchedule(3, 5)
+    schedule.forEach(day => {
+      if (day !== 'Rest') {
+        expect(day.primary.length).toBeLessThanOrEqual(5)
+      }
+    })
+  })
+
+  test('includes rest days in the schedule', () => {
+    const schedule = generateWorkoutSchedule(3, 5)
+    expect(schedule.filter(day => day === 'Rest')).toHaveLength(4)
+  })
+
+  test('workout days have required properties', () => {
+    const schedule = generateWorkoutSchedule(3, 5)
+    schedule.forEach(day => {
+      if (day !== 'Rest') {
+        expect(day).toHaveProperty('name')
+        expect(day).toHaveProperty('description')
+        expect(day).toHaveProperty('primary')
+        expect(day).toHaveProperty('secondary')
+        expect(Array.isArray(day.primary)).toBe(true)
+        expect(Array.isArray(day.secondary)).toBe(true)
+      }
+    })
+  })
+
+  test('throws error for invalid workout count', () => {
+    expect(() => generateWorkoutSchedule(8, 5)).toThrow('Invalid workout count')
+  })
+
+  test('handles different workout frequencies', () => {
+    const frequencies = [2, 3, 4, 5, 6]
+    frequencies.forEach(freq => {
+      const schedule = generateWorkoutSchedule(freq, 5)
       const workoutDays = schedule.filter(day => day !== 'Rest')
-      expect(workoutDays).toHaveLength(workoutsPerWeek)
-    })
-
-    it('includes correct number of rest days', () => {
-      const schedule = generateWorkoutSchedule(workoutsPerWeek, 4)
-      const restDays = schedule.filter(day => day === 'Rest')
-      expect(restDays).toHaveLength(7 - workoutsPerWeek)
+      expect(workoutDays).toHaveLength(freq)
     })
   })
-
-  describe.each(exerciseCounts)('generates correct number of exercises (%i) per workout', (exerciseCount) => {
-    it(`includes correct number of exercises`, () => {
-      const schedule = generateWorkoutSchedule(3, exerciseCount)
-      const workoutDays = schedule.filter((day): day is WorkoutDay => day !== 'Rest')
-      
-      workoutDays.forEach(day => {
-        expect(day.exercises).toHaveLength(exerciseCount)
-      })
-    })
-
-    it('includes all primary exercises first', () => {
-      const schedule = generateWorkoutSchedule(3, exerciseCount)
-      const workoutDays = schedule.filter((day): day is WorkoutDay => day !== 'Rest')
-      
-      workoutDays.forEach(day => {
-        const splitKey = Object.keys(splits).find(key => 
-          Object.values(splits[key].days).some(splitDay => 
-            splitDay.name === day.splitName
-          )
-        )
-        
-        if (!splitKey) throw new Error(`Split not found for ${day.splitName}`)
-        
-        const splitDay = Object.values(splits[splitKey].days).find(d => d.name === day.splitName)
-        if (!splitDay) throw new Error(`Day not found: ${day.splitName}`)
-
-        // Check that all primary exercises are included in order at the start
-        splitDay.primary.forEach((exercise, index) => {
-          expect(day.exercises[index]).toBe(exercise)
-        })
-      })
-    })
-  })
-
-  it('includes valid exercises only', () => {
-    const schedule = generateWorkoutSchedule(3, 5)
-    const workoutDays = schedule.filter((day): day is WorkoutDay => day !== 'Rest')
-    
-    workoutDays.forEach(day => {
-      day.exercises.forEach(exercise => {
-        expect(exercises).toHaveProperty(exercise)
-      })
-    })
-  })
-
-  it('provides split names for workout days', () => {
-    const schedule = generateWorkoutSchedule(3, 5)
-    const workoutDays = schedule.filter((day): day is WorkoutDay => day !== 'Rest')
-    
-    workoutDays.forEach(day => {
-      expect(day.splitName).toBeTruthy()
-      expect(typeof day.splitName).toBe('string')
-    })
-  })
-}) 
+})

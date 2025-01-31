@@ -55,7 +55,7 @@ export const splits: SplitDatabase = {
     pattern: ['push', 'rest', 'pull', 'rest', 'legs', 'rest', 'rest'],
     days: {
       push: {
-        name: 'push',
+        name: 'Push',
         description: 'Chest, Shoulders, Triceps',
         primary: [
           'Incline Dumbbell Press',
@@ -73,7 +73,7 @@ export const splits: SplitDatabase = {
         ]
       },
       pull: {
-        name: 'pull',
+        name: 'Pull',
         description: 'Back, Biceps',
         primary: [
           'Barbell Rows',
@@ -91,7 +91,7 @@ export const splits: SplitDatabase = {
         ]
       },
       legs: {
-        name: 'legs',
+        name: 'Legs',
         description: 'Legs, Glutes',
         primary: [
           'Back Squats',

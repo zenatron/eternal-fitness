@@ -1,17 +1,17 @@
 import { exercises } from '@/data/exercises'
 import { splits } from '@/data/splits'
-import type { Exercise, Split, DayPlan } from '@/types/exercises'
+import type { Exercise, WorkoutSplit, WorkoutDay } from '@/types/exercises'
 
 export class WorkoutGenerator {
   private readonly exercises: Record<string, Exercise>
-  private readonly splits: Record<string, Split>
+  private readonly splits: Record<string, WorkoutSplit>
 
-  constructor(exercises: Record<string, Exercise>, splits: Record<string, Split>) {
+  constructor(exercises: Record<string, Exercise>, splits: Record<string, WorkoutSplit>) {
     this.exercises = exercises
     this.splits = splits
   }
 
-  private generateDayWorkout(day: DayPlan, exerciseCount: number): string[] {
+  private generateDayWorkout(day: WorkoutDay, exerciseCount: number): string[] {
     const workout: string[] = []
     
     // Always include primary exercises first
@@ -48,17 +48,12 @@ export class WorkoutGenerator {
     return this.exercises[exerciseName]
   }
 
-  public getSplitDetails(splitName: string): Split | undefined {
+  public getSplitDetails(splitName: string): WorkoutSplit | undefined {
     return this.splits[splitName]
   }
 }
 
-export interface WorkoutDay {
-  exercises: string[]
-  splitName: string
-}
-
-function selectExercisesForDay(day: DayPlan, totalExercises: number): string[] {
+function selectExercisesForDay(day: WorkoutDay, totalExercises: number): string[] {
   // Always include all primary exercises first
   const selectedExercises = [...day.primary]
 
@@ -76,13 +71,14 @@ export function generateWorkoutSchedule(
   workoutsPerWeek: number, 
   exercisesPerWorkout: number
 ): (WorkoutDay | 'Rest')[] {
-  const splitKey = getSplitForWorkoutCount(workoutsPerWeek)
-  const split = splits[splitKey]
-  
-  if (!split) {
+  // Add validation at the start
+  if (workoutsPerWeek < 2 || workoutsPerWeek > 6) {
     throw new Error('Invalid workout count')
   }
 
+  const splitKey = getSplitForWorkoutCount(workoutsPerWeek)
+  const split = splits[splitKey]
+  
   const pattern = split.pattern.slice(0, 7)
   
   return pattern.map(dayType => {
@@ -90,8 +86,10 @@ export function generateWorkoutSchedule(
 
     const day = split.days[dayType]
     return {
-      splitName: dayType,
-      exercises: selectExercisesForDay(day, exercisesPerWorkout)
+      name: day.name,
+      description: day.description,
+      primary: selectExercisesForDay(day, exercisesPerWorkout),
+      secondary: []
     }
   })
 }

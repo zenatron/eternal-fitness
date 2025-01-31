@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
-import { generateWorkoutSchedule, type WorkoutDay } from '@/services/workoutGenerator'
+import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
+import type { WorkoutDay } from '@/types/exercises'
 import { motion } from 'framer-motion'
 
 export default function WorkoutForm() {

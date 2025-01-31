@@ -1,4 +1,4 @@
-import { WorkoutDay } from '@/services/workoutGenerator'
+import type { WorkoutDay } from '@/types/exercises'
 
 export function generateICalendarData(workoutSchedule: (WorkoutDay | 'Rest')[]): string {
   const now = new Date()
@@ -8,8 +8,8 @@ export function generateICalendarData(workoutSchedule: (WorkoutDay | 'Rest')[]):
     
     if (day === 'Rest') return null
 
-    const summary = `Workout: ${day.splitName}`
-    const description = `Exercises:\n${day.exercises.join('\n')}`
+    const summary = `Workout: ${day.name}`
+    const description = `Exercises:\n${[...day.primary, ...day.secondary].join('\n')}`
     
     // Format date to YYYYMMDD
     const dateString = date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'

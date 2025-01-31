@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { FormData } from '@/types'
-import { getExerciseDetails, generateWorkoutSchedule, WorkoutDay, getModifiedExerciseDetails } from '@/services/workoutGenerator'
+import { getExerciseDetails, generateWorkoutSchedule, getModifiedExerciseDetails } from '@/services/workoutGenerator'
+import type { WorkoutDay } from '@/types/exercises'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CalendarDaysIcon, ArrowPathIcon, ArrowLeftIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
-import { getWorkoutDisplayName } from '@/data/displayNames'
 import { generateICalendarData, downloadCalendarFile } from '@/utils/calendar'
 
 interface ScheduleSectionProps {
@@ -18,9 +18,11 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
   const [expandedDay, setExpandedDay] = useState<number | null>(null)
 
   // Function to get all muscles targeted for a given day's exercises
-  const getMusclesForDay = (exercises: string[]): string[] => {
+  const getMusclesForDay = (workout: WorkoutDay): string[] => {
     const muscleSet = new Set<string>()
-    exercises.forEach((exercise) => {
+    const allExercises = [...workout.primary, ...workout.secondary]
+    
+    allExercises.forEach((exercise) => {
       const exerciseData = getExerciseDetails(exercise)
       if (exerciseData?.muscles) {
         exerciseData.muscles.forEach((muscle) => muscleSet.add(muscle))
@@ -76,7 +78,8 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
 
   const getDisplayName = (workout: WorkoutDay | 'Rest') => {
     if (workout === 'Rest') return 'Rest'
-    return getWorkoutDisplayName(workout.splitName)
+    // Use the name from the splits data
+    return workout.name
   }
 
   return (
@@ -115,7 +118,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               const isExpanded = expandedDay === index
               const isWorkoutDay = workout !== 'Rest'
               const musclesTargeted = isWorkoutDay 
-                ? getMusclesForDay((workout as WorkoutDay).exercises) 
+                ? getMusclesForDay(workout as WorkoutDay)
                 : []
 
               return (
@@ -213,7 +216,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                           transition={{ duration: 0.2 }}
                           className="mt-6 space-y-4"
                         >
-                          {(workout as WorkoutDay).exercises.map((exercise, exerciseIndex) => {
+                          {workout.primary.map((exercise, exerciseIndex) => {
                             const details = getExerciseDetails(exercise)
                             const modifiedDetails = getModifiedExerciseDetails(exercise, formData.intensity)
 
