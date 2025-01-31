@@ -47,6 +47,26 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
 
+  // Function to scroll to a specific day's header
+  const scrollToDay = (index: number) => {
+    const dayElement = document.getElementById(`workout-day-${index}`)
+    if (dayElement) {
+      const headerHeight = 64 // Height of the fixed header (4rem)
+      const rect = dayElement.getBoundingClientRect()
+      const absoluteTop = window.pageYOffset + rect.top - headerHeight - 16 // Subtract header height and add some padding
+      window.scrollTo({ top: absoluteTop, behavior: 'smooth' })
+    }
+  }
+
+  // Modify the click handler to include scrolling
+  const handleDayClick = (index: number) => {
+    setExpandedDay(expandedDay === index ? null : index)
+    if (expandedDay !== index) {
+      // Small delay to ensure the content expands before scrolling
+      setTimeout(() => scrollToDay(index), 100)
+    }
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <motion.div 
@@ -78,6 +98,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               return (
                 <motion.div
                   key={index}
+                  id={`workout-day-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -87,7 +108,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                     ${isWorkoutDay ? 'hover:shadow-lg cursor-pointer' : 'bg-gray-50 dark:bg-gray-800/50'}
                     ${isExpanded ? 'shadow-lg' : ''}
                   `}
-                  onClick={() => isWorkoutDay && setExpandedDay(isExpanded ? null : index)}
+                  onClick={() => isWorkoutDay && handleDayClick(index)}
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start">
@@ -104,7 +125,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                           className="text-blue-500 hover:text-blue-600 dark:text-blue-400 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation()
-                            setExpandedDay(isExpanded ? null : index)
+                            handleDayClick(index)
                           }}
                         >
                           <motion.span

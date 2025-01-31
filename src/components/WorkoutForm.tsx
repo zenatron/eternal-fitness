@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
 import { generateWorkoutSchedule, type WorkoutDay } from '@/services/workoutGenerator'
@@ -36,7 +36,14 @@ export default function WorkoutForm() {
       Number(formData.exercisesPerWorkout)
     )
     setWorkoutSchedule(schedule)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  useEffect(() => {
+    if (workoutSchedule.length > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [workoutSchedule])
 
   return (
     <motion.div 
