@@ -4,6 +4,7 @@ import { Providers } from '@/components/Providers'
 import { ThemeHandler } from '@/components/ThemeHandler'
 import { Header } from '@/components/Header'
 import { createClient } from '@/utils/supabase/server'
+import { Footer } from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: 'Eternal Fitness',
@@ -28,6 +29,7 @@ export default async function RootLayout({
               <main className="flex-1 pt-16">
                 {children}
               </main>
+              <Footer />
             </div>
           </ThemeHandler>
         </Providers>
