@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import { motion } from 'framer-motion'
+import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 
 interface ProfileFormData {
   name: string
@@ -95,118 +97,140 @@ export default function ProfileSetup() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-slate-800">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-900 p-8 rounded shadow-md space-y-6">
-        <h1 className="text-2xl font-bold text-center gradient-text-blue">Complete Your Profile</h1>
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label className="form-item-heading">Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="form-input"
-              required
-            />
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="relative flex items-center gap-6">
+              <UserCircleIcon className="w-20 h-20" />
+              <div>
+                <h1 className="text-3xl font-bold">Complete Your Profile</h1>
+                <p className="text-blue-100 mt-1">Let's personalize your experience</p>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="form-item-heading">Age</label>
-            <input
-              type="number"
-              name="age"
-              value={formData.age}
-              onChange={handleChange}
-              className="form-input"
-              min="13"
-              max="120"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="form-item-heading">Gender</label>
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              className="form-input"
-              required
-            >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div className="flex justify-end mb-2">
-            <button
-              type="button"
-              onClick={toggleUnit}
-              className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400"
-            >
-              Switch to {formData.useMetric ? 'Imperial' : 'Metric'}
-            </button>
-          </div>
-
-          <div>
-            <label className="form-item-heading">
-              Height ({formData.useMetric ? 'cm' : 'inches'})
-            </label>
-            <input
-              type="number"
-              name="height"
-              value={formData.height}
-              onChange={handleChange}
-              className="form-input"
-              step="0.1"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="form-item-heading">
-              Weight ({formData.useMetric ? 'kg' : 'lbs'})
-            </label>
-            <input
-              type="number"
-              name="weight"
-              value={formData.weight}
-              onChange={handleChange}
-              className="form-input"
-              step="0.1"
-              required
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
-
-          <div className="flex flex-col gap-4">
-            <button
-              type="submit"
-              className="btn btn-primary w-full"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : 'Save Profile'}
-            </button>
+          <form onSubmit={handleSubmit} className="p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
+                {error}
+              </div>
+            )}
             
-            <button
-              type="button"
-              onClick={async () => {
-                const response = await fetch('/auth/sign-out', { method: 'POST' })
-                if (response.ok) router.push('/login')
-              }}
-              className="btn btn-secondary w-full"
-            >
-              Sign Out
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="form-item-heading">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-item-heading">Age</label>
+                <input
+                  type="number"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleChange}
+                  className="form-input"
+                  min="13"
+                  max="120"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-item-heading">Gender</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className="form-input"
+                  required
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={toggleUnit}
+                  className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400"
+                >
+                  Switch to {formData.useMetric ? 'Imperial' : 'Metric'}
+                </button>
+              </div>
+
+              <div>
+                <label className="form-item-heading">
+                  Height ({formData.useMetric ? 'cm' : 'inches'})
+                </label>
+                <input
+                  type="number"
+                  name="height"
+                  value={formData.height}
+                  onChange={handleChange}
+                  className="form-input"
+                  step="0.1"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-item-heading">
+                  Weight ({formData.useMetric ? 'kg' : 'lbs'})
+                </label>
+                <input
+                  type="number"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  className="form-input"
+                  step="0.1"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <button
+                type="submit"
+                className="btn btn-primary flex-1"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Profile'}
+              </button>
+              
+              <button
+                type="button"
+                onClick={async () => {
+                  const response = await fetch('/auth/sign-out', { method: 'POST' })
+                  if (response.ok) router.push('/login')
+                }}
+                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                Sign Out
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
     </div>
   )
 } 
