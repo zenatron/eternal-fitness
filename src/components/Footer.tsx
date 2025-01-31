@@ -1,6 +1,6 @@
 export function Footer() {
   return (
-    <footer className="bg-gray-800 dark:bg-gray-900 text-white py-4 px-8 text-center">
+    <footer className="bg-slate-800 dark:bg-gray-950 text-white py-4 px-8 text-center">
       <p className="text-sm text-gray-300">
         © {new Date().getFullYear()} Eternal Fitness. All rights reserved.
       </p>

@@ -47,7 +47,7 @@ export function Header({ user }: HeaderProps) {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 bg-slate-800 dark:bg-gray-950 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
       {/* Website Logo/Title */}
       <Link href="/" className="text-2xl text-left font-bold gradient-text-apple inline-block">
         Eternal Fitness
@@ -58,7 +58,7 @@ export function Header({ user }: HeaderProps) {
         {user ? (
           <Link 
             href="/profile"
-            className="text-gray-700 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
+            className="text-gray-100 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
             title="View Profile"
           >
             <FaUser className="w-5 h-5" />
@@ -120,7 +120,7 @@ export function Header({ user }: HeaderProps) {
                   <>
                     <Link 
                       href="/profile"
-                      className="flex items-center space-x-2 text-lg hover:text-blue-400 transition-colors duration-200"
+                      className="flex items-center space-x-2 text-lg text-gray-100 dark:text-gray-200 hover:text-blue-400 dark:hover:text-blue-400 transition-colors duration-200"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <FaUser className="w-5 h-5" />
