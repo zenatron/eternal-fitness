@@ -7,7 +7,7 @@ import {
   PlusCircleIcon, 
   TrashIcon, 
   CheckCircleIcon,
-  ClipboardDocumentListIcon
+  FlagIcon
 } from '@heroicons/react/24/outline';
 import { Exercise, Workout, ExerciseSet } from '@/types/workout';
 
@@ -142,7 +142,7 @@ export default function CreateWorkoutPage() {
           <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center gap-6">
-              <ClipboardDocumentListIcon className="w-20 h-20" />
+              <FlagIcon className="w-20 h-20" />
               <div>
                 <h1 className="text-3xl font-bold">Create Custom Workout</h1>
                 <p className="text-blue-100 mt-1">Design your own personalized workout routine</p>
