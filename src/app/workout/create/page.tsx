@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { 
   PlusCircleIcon, 
   TrashIcon, 
+  ExclamationCircleIcon,
   CheckCircleIcon,
   FlagIcon
 } from '@heroicons/react/24/outline';
@@ -117,6 +118,11 @@ export default function CreateWorkoutPage() {
       return;
     }
 
+    if (workoutExercises.some(exercise => exercise.sets?.some(set => set.reps === 0 || set.weight === 0))) {
+      setSaveMessage('Please add reps and weight to your sets');
+      return;
+    }
+
     const workout: Workout = {
       id: generateId(),
       name: workoutName,
@@ -164,7 +170,7 @@ export default function CreateWorkoutPage() {
               >
                 {saveMessage.includes('successfully') 
                   ? <CheckCircleIcon className="h-5 w-5" /> 
-                  : <TrashIcon className="h-5 w-5" />
+                  : <ExclamationCircleIcon className="h-5 w-5" />
                 }
                 {saveMessage}
               </motion.div>
