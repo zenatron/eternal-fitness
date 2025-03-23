@@ -22,7 +22,7 @@ export default function VerifyEmail() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold">Check Your Email</h1>
-                <p className="text-blue-100 mt-1">We&apos;ve sent you a verification link</p>
+                <p className="text-blue-100 mt-1">{"We've sent you a verification link"}</p>
               </div>
             </div>
           </div>
@@ -30,11 +30,11 @@ export default function VerifyEmail() {
           <div className="p-8 space-y-6">
             <div className="text-center space-y-4">
               <p className="text-gray-600 dark:text-gray-300">
-                Please click the link in your email to verify your account and continue.
+                {"Please click the link in your email to verify your account and continue."}
               </p>
               <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
-                <p>Didn&apos;t receive the email?</p>
-                <p>Check your spam folder or contact support.</p>
+                <p>{"Didn't receive the email?"}</p>
+                <p>{"Check your spam folder or contact support."}</p>
               </div>
             </div>
 
@@ -43,7 +43,7 @@ export default function VerifyEmail() {
               className="btn btn-primary w-full inline-flex items-center justify-center gap-2"
             >
               <ArrowLeftIcon className="w-5 h-5" />
-              Return to Login
+              {"Return to Login"}
             </Link>
           </div>
         </div>

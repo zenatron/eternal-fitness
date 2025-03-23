@@ -7,11 +7,9 @@ const PUBLIC_ROUTES = ['/verify-email', '/auth/confirm', '/signup']
 const BYPASS_ROUTES = ['/auth/sign-out']
 
 export async function middleware(request: NextRequest) {
-  console.log('\n🚀 Middleware executing for path:', request.nextUrl.pathname)
 
   // Skip middleware for certain routes
   if (BYPASS_ROUTES.some(route => request.nextUrl.pathname.startsWith(route))) {
-    console.log('⏭️ Bypassing middleware for auth route')
     return NextResponse.next()
   }
 
@@ -24,11 +22,9 @@ export async function middleware(request: NextRequest) {
       {
         cookies: {
           getAll() {
-            console.log('📝 Getting cookies')
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            console.log('📝 Setting cookies')
             cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
             response = NextResponse.next({ request })
             cookiesToSet.forEach(({ name, value, options }) =>
@@ -40,11 +36,9 @@ export async function middleware(request: NextRequest) {
     )
 
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    console.log('🔑 User:', user ? 'Authenticated' : 'Not authenticated')
 
     // Don't treat AuthSessionMissingError as an error
     if (userError && userError.status !== 400) {
-      console.error('❌ Auth error:', userError)
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
@@ -53,23 +47,19 @@ export async function middleware(request: NextRequest) {
     // Handle /login path first
     if (path === '/login') {
       if (user) {
-        console.log('👉 Redirecting authenticated user from /login to /workout')
         const redirectUrl = new URL('/workout', request.url)
         return NextResponse.redirect(redirectUrl)
       }
-      console.log('✅ Allowing access to login page')
       return response
     }
 
     // Handle other public routes
     if (PUBLIC_ROUTES.includes(path)) {
-      console.log('✅ Allowing access to public route')
       return response
     }
 
     // Redirect to login if not authenticated
     if (!user && !path.startsWith('/auth')) {
-      console.log('👉 Redirecting unauthenticated user to /login')
       const redirectUrl = new URL('/login', request.url)
       return NextResponse.redirect(redirectUrl)
     }
@@ -83,16 +73,13 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (!profile) {
-        console.log('👉 Redirecting to profile setup - no profile found')
         const redirectUrl = new URL('/profile/setup', request.url)
         return NextResponse.redirect(redirectUrl)
       }
     }
 
-    console.log('✅ Allowing access to protected route')
     return response
   } catch (error) {
-    console.error('❌ Error in middleware:', error)
     return NextResponse.next({ request })
   }
 }

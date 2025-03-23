@@ -1,5 +1,5 @@
-import { exercises } from '@/data/exercises'
-import { splits } from '@/data/splits'
+import { exercises } from '@/lib/exercises'
+import { splits } from '@/lib/splits'
 import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 
 describe('Data Structure Validation', () => {

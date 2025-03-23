@@ -1,5 +1,5 @@
-import { exercises } from '@/data/exercises'
-import { splits } from '@/data/splits'
+import { exercises } from '@/lib/exercises'
+import { splits } from '@/lib/splits'
 import type { Exercise, WorkoutSplit, WorkoutDay } from '@/types/exercises'
 
 export class WorkoutGenerator {

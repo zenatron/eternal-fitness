@@ -95,8 +95,8 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
           <div className="relative flex items-center gap-6">
             <CalendarDaysIcon className="w-20 h-20" />
             <div>
-              <h1 className="text-3xl font-bold">{formData.name}&apos;s Workout Plan</h1>
-              <p className="text-blue-100 mt-1">Your personalized weekly schedule</p>
+              <h1 className="text-3xl font-bold">{`${formData.name}'s Workout Plan`}</h1>
+              <p className="text-blue-100 mt-1">{"Your personalized weekly schedule"}</p>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               className="btn btn-secondary inline-flex items-center gap-2"
             >
               <PlusCircleIcon className="w-5 h-5" />
-              Add to Calendar
+              {"Add to Calendar"}
             </button>
           </div>
 
@@ -268,14 +268,14 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
             >
               <ArrowLeftIcon className="w-5 h-5" />
-              Go Back
+              {"Go Back"}
             </button>
             <button
               onClick={handleRegenerateSchedule}
               className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
             >
               <ArrowPathIcon className="w-5 h-5" />
-              Regenerate Schedule
+              {"Regenerate Schedule"}
             </button>
           </div>
         </div>
