@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --app-bg: theme('colors.app-bg.light');
+    --app-card: theme('colors.app-card.light');
+  }
+  
+  .dark {
+    --app-bg: theme('colors.app-bg.dark');
+    --app-card: theme('colors.app-card.dark');
+  }
+}
+
 @layer components {
   .btn {
     @apply font-semibold py-2 px-4 rounded-lg shadow-md;
@@ -29,6 +41,14 @@
   
   .form-item-heading {
     @apply block text-gray-700 dark:text-white font-bold mb-2;
+  }
+  
+  .app-bg {
+    @apply bg-[var(--app-bg)];
+  }
+  
+  .app-card {
+    @apply bg-[var(--app-card)];
   }
 }
 

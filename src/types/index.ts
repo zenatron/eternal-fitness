@@ -1,3 +1,5 @@
+import { Exercise } from "./workout"
+
 export interface User {
   email: string
   name: string
@@ -13,10 +15,6 @@ export interface FormData {
   intensity: string
   workoutsPerWeek: string
   exercisesPerWorkout: string
-}
-
-export interface Exercise {
-  muscles: string[]
 }
 
 export interface DayPlan {

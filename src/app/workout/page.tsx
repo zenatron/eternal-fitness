@@ -24,7 +24,7 @@ export default async function WorkoutPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div>
       <WorkoutForm />
     </div>
   )

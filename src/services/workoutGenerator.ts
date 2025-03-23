@@ -1,6 +1,6 @@
 import { exercises } from '@/lib/exercises'
 import { splits } from '@/lib/splits'
-import type { Exercise, WorkoutSplit, WorkoutDay } from '@/types/exercises'
+import type { Exercise, WorkoutSplit, WorkoutDay, ExerciseSet } from '@/types/workout'
 
 export class WorkoutGenerator {
   private readonly exercises: Record<string, Exercise>
@@ -115,45 +115,41 @@ export function getExerciseDetails(exerciseName: string): Exercise | undefined {
   return exercises[exerciseName]
 }
 
-interface ModifiedExerciseDetails {
-  sets: { min: number; max: number }
-  reps: { min: number; max: number }
+// Updated to work with the new type schema
+interface RecommendedExerciseSets {
+  recommendedSets: number;
+  recommendedReps: number;
 }
 
-export function getModifiedExerciseDetails(
+export function getExerciseRecommendations(
   exerciseName: string,
   intensity: string
-): ModifiedExerciseDetails | undefined {
+): RecommendedExerciseSets | undefined {
   const baseExercise = exercises[exerciseName]
   if (!baseExercise) return undefined
+
+  // Default recommended values for exercises
+  const defaultValues = {
+    low: { sets: 3, reps: 8 },
+    medium: { sets: 4, reps: 10 },
+    high: { sets: 5, reps: 12 }
+  }
 
   switch (intensity) {
     case 'low':
       return {
-        sets: {
-          min: Math.max(1, baseExercise.sets.min - 1),
-          max: Math.max(1, baseExercise.sets.max - 1)
-        },
-        reps: {
-          min: Math.floor(baseExercise.reps.min * 0.75),
-          max: Math.floor(baseExercise.reps.max * 0.75)
-        }
+        recommendedSets: defaultValues.low.sets,
+        recommendedReps: defaultValues.low.reps
       }
     case 'high':
       return {
-        sets: {
-          min: baseExercise.sets.min + 1,
-          max: baseExercise.sets.max + 1
-        },
-        reps: {
-          min: Math.ceil(baseExercise.reps.min * 1.25),
-          max: Math.ceil(baseExercise.reps.max * 1.25)
-        }
+        recommendedSets: defaultValues.high.sets,
+        recommendedReps: defaultValues.high.reps
       }
     default: // medium intensity
       return {
-        sets: { ...baseExercise.sets },
-        reps: { ...baseExercise.reps }
+        recommendedSets: defaultValues.medium.sets,
+        recommendedReps: defaultValues.medium.reps
       }
   }
 }

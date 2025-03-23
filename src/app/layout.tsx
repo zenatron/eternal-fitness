@@ -26,7 +26,7 @@ export default async function RootLayout({
           <ThemeHandler>
             <div className="min-h-screen flex flex-col">
               <Header user={user} />
-              <main className="flex-1 pt-16">
+              <main className="flex-1 pt-16 app-bg">
                 {children}
               </main>
               <Footer />

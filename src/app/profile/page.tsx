@@ -165,8 +165,8 @@ export default function Profile() {
 
             {/* Action Buttons */}
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <Link 
-                href="/workout"
+              <Link
+                href="/workout/create"
                 className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
               >
                 <CalendarDaysIcon className="w-5 h-5" />
