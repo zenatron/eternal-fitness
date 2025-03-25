@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { IoScaleOutline } from "react-icons/io5";
+import { LuPersonStanding } from "react-icons/lu";
+import { CgGym } from "react-icons/cg";
+
 import { 
   UserCircleIcon, 
   ChartBarIcon,
-  ScaleIcon,
   CalendarDaysIcon,
   PencilSquareIcon,
   TrophyIcon
@@ -135,7 +138,7 @@ export default function Profile() {
                 className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
               >
                 <div className="flex items-center gap-4">
-                  <ChartBarIcon className="w-8 h-8 text-blue-500" />
+                  <CgGym className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Workouts Completed</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{profile.workoutsCompleted || 0}</p>
@@ -150,7 +153,7 @@ export default function Profile() {
                 className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
               >
                 <div className="flex items-center gap-4">
-                  <ScaleIcon className="w-8 h-8 text-blue-500" />
+                  <IoScaleOutline className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Current Weight</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -167,7 +170,7 @@ export default function Profile() {
                 className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
               >
                 <div className="flex items-center gap-4">
-                  <CalendarDaysIcon className="w-8 h-8 text-blue-500" />
+                  <LuPersonStanding className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Height</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
