@@ -7,6 +7,7 @@ import { IoScaleOutline } from "react-icons/io5";
 import { LuPersonStanding } from "react-icons/lu";
 import { CgGym } from "react-icons/cg";
 import { PiSignOut } from "react-icons/pi";
+import { useRouter } from 'next/navigation';
 
 import { 
   UserCircleIcon, 
@@ -34,10 +35,19 @@ export default function Profile() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [useMetricDisplay, setUseMetricDisplay] = useState(false)
-
+  const router = useRouter();
+  
   useEffect(() => {
     fetchProfile()
   }, [])
+  
+  // Separate useEffect for the redirect
+  useEffect(() => {
+    // Only redirect after loading is complete and profile is null
+    if (!loading && !profile) {
+      router.push('/profile/setup')
+    }
+  }, [loading, profile, router])
 
   const fetchProfile = async () => {
     try {
@@ -76,19 +86,6 @@ export default function Profile() {
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold mb-6">Profile Not Found</h2>
-            <p className="text-gray-600 dark:text-gray-400">Please complete your profile setup first.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -100,15 +97,15 @@ export default function Profile() {
               <div className="flex items-center gap-6">
                 <UserCircleIcon className="w-24 h-24" />
                 <div>
-                  <h1 className="text-3xl font-bold">{profile.name}</h1>
-                  <p className="text-blue-100 mt-1">Member since {new Date(profile.joinDate).toLocaleDateString()}</p>
+                  <h1 className="text-3xl font-bold">{profile?.name}</h1>
+                  <p className="text-blue-100 mt-1">Member since {new Date(profile?.joinDate || "").toLocaleDateString()}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
                 <TrophyIcon className="w-8 h-8 text-yellow-300" />
                 <div>
                   <p className="text-sm text-blue-100">Total Points</p>
-                  <p className="text-2xl font-bold">{profile.points || 0}</p>
+                  <p className="text-2xl font-bold">{profile?.points || 0}</p>
                 </div>
               </div>
             </div>
@@ -139,7 +136,7 @@ export default function Profile() {
                   <CgGym className="w-8 h-8 text-blue-500" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Workouts Completed</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{profile.workoutsCompleted || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{profile?.workoutsCompleted || 0}</p>
                   </div>
                 </div>
               </motion.div>
@@ -155,7 +152,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Current Weight</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {getDisplayValue(profile.weight, false)} {getUnitLabel(false)}
+                      {getDisplayValue(profile?.weight || 0, false)} {getUnitLabel(false)}
                     </p>
                   </div>
                 </div>
@@ -172,7 +169,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Height</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {getDisplayValue(profile.height, true)} {getUnitLabel(true)}
+                      {getDisplayValue(profile?.height || 0, true)} {getUnitLabel(true)}
                     </p>
                   </div>
                 </div>

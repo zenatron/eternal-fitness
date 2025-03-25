@@ -59,6 +59,90 @@ export default function ProfileSetup() {
       (value * 2.205) as number   // kg to lbs
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Validate form data
+      if (!formData.name) {
+        throw new Error('Please enter your name')
+      }
+      if (!formData.age || formData.age < 13) {
+        throw new Error('Please enter a valid age (13 or older)')
+      }
+      if (!formData.gender) {
+        throw new Error('Please select your gender')
+      }
+      if (!formData.height || formData.height <= 0) {
+        throw new Error('Please enter a valid height')
+      }
+      if (!formData.weight || formData.weight <= 0) {
+        throw new Error('Please enter a valid weight')
+      }
+
+      // Ensure values are in metric for storage (our API expects metric)
+      const dataToSend = {
+        name: formData.name,
+        age: Number(formData.age),
+        gender: formData.gender,
+        // Convert to metric if using imperial
+        height: formData.useMetric ? Number(formData.height) : convertHeight(Number(formData.height), true),
+        weight: formData.useMetric ? Number(formData.weight) : convertWeight(Number(formData.weight), true)
+      }
+      // First check if we're authenticated
+      const authCheck = await fetch('/api/auth/check')
+      const authResult = await authCheck.json()
+      
+      if (!authResult.authenticated) {
+        console.error('Authentication check failed:', authResult)
+        throw new Error('Not authenticated - please sign in again')
+      }
+      
+      console.log('Auth check passed, user ID:', authResult.userId)
+
+      // Send data to the API
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dataToSend),
+        // Make sure to include credentials
+        credentials: 'include'
+      })
+
+      console.log('Profile API response status:', response.status)
+      
+      if (response.status === 401) {
+        throw new Error('Authentication error - please sign in again')
+      }
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to save profile'
+        
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || `Server error (${response.status})`
+          console.error('API error response:', errorData)
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError)
+          errorMessage = `Server error (${response.status}): Failed to parse error response`
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      // Redirect to profile page on success
+      router.push('/profile')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred')
+      console.error('Profile setup error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
@@ -80,7 +164,7 @@ export default function ProfileSetup() {
             </div>
           </div>
 
-          <form className="p-8">
+          <form onSubmit={handleSubmit} className="p-8">
             {error && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
                 {error}
@@ -105,7 +189,7 @@ export default function ProfileSetup() {
                 <input
                   type="number"
                   name="age"
-                  value={formData.age}
+                  value={formData.age || ''}
                   onChange={handleChange}
                   className="form-input"
                   min="13"
@@ -147,7 +231,7 @@ export default function ProfileSetup() {
                 <input
                   type="number"
                   name="height"
-                  value={formData.height}
+                  value={formData.height || ''}
                   onChange={handleChange}
                   className="form-input"
                   step="0.1"
@@ -162,7 +246,7 @@ export default function ProfileSetup() {
                 <input
                   type="number"
                   name="weight"
-                  value={formData.weight}
+                  value={formData.weight || ''}
                   onChange={handleChange}
                   className="form-input"
                   step="0.1"
