@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { IoScaleOutline } from "react-icons/io5";
 import { LuPersonStanding } from "react-icons/lu";
 import { CgGym } from "react-icons/cg";
+import { PiSignOut } from "react-icons/pi";
 
 import { 
   UserCircleIcon, 
@@ -57,7 +58,7 @@ export default function Profile() {
 
   const getDisplayValue = (value: number | null, isHeight: boolean) => {
     if (!value) return ''
-    if (useMetricDisplay) return value
+    if (useMetricDisplay) return value.toFixed(1)
     // Convert metric to imperial for display
     return isHeight ? 
       (value / 2.54).toFixed(1) : // cm to inches
@@ -198,7 +199,12 @@ export default function Profile() {
                 Edit Profile
               </Link>
               <SignedIn>
-                <SignOutButton />
+                <SignOutButton>
+                  <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
+                    Sign Out
+                    <PiSignOut className="w-5 h-5" />
+                  </button>
+                </SignOutButton>
               </SignedIn>
             </div>
           </div>

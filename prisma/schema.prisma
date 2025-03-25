@@ -23,8 +23,8 @@ model User {
   updatedAt DateTime @updatedAt
   age Int?
   gender String?
-  height Decimal? @db.Decimal(10, 2)
-  weight Decimal? @db.Decimal(10, 2)
+  height Float?
+  weight Float?
   workouts Workout[]
   points Int @default(0)
 }
