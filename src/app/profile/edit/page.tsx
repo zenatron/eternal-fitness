@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Switch } from '@headlessui/react'
@@ -10,9 +9,9 @@ import { ArrowLeftIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 
 interface ProfileFormData {
   name: string
-  age: string
-  height: string
-  weight: string
+  age: number
+  height: number
+  weight: number
   gender: string
   useMetric: boolean
 }
@@ -22,57 +21,50 @@ export default function ProfileEdit() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
-    age: '',
-    height: '',
-    weight: '',
+    age: 0,
+    height: 0,
+    weight: 0,
     gender: '',
     useMetric: false
   })
   const [error, setError] = useState<string | null>(null)
-  const [initialLoad, setInitialLoad] = useState(true)
 
   useEffect(() => {
-    async function loadProfile() {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          router.push('/login')
-          return
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch('/api/profile')
+      if (response.ok) {
+        const data = await response.json()
+
+        // This is what we are getting from the database
+        console.log(data.height)
+        console.log(data.weight)
+
+        if (data) {
+          // Convert metric values to imperial for display
+          const imperialHeight = data.height ? (data.height / 2.54) : null
+          const imperialWeight = data.weight ? (data.weight * 2.205) : null
+
+          setFormData({
+            name: data.name || '',
+            age: data.age || 0,
+            height: imperialHeight || 0,
+            weight: imperialWeight || 0,
+            gender: data.gender || '',
+            useMetric: data.useMetric || false
+          })
         }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-
-        if (profileError) throw profileError
-        if (!profile) {
-          router.push('/profile/setup')
-          return
-        }
-
-        setFormData({
-          name: profile.name,
-          age: profile.age.toString(),
-          height: profile.height.toString(),
-          weight: profile.weight.toString(),
-          gender: profile.gender,
-          useMetric: profile.use_metric
-        })
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load profile')
-      } finally {
-        setInitialLoad(false)
       }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      setError('Failed to load profile data')
     }
+  }
 
-    loadProfile()
-  }, [router])
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
@@ -83,40 +75,48 @@ export default function ProfileEdit() {
     setError(null)
 
     try {
-      const supabase = createClient()
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      // Convert string values to numbers
+      const heightValue = formData.height
+      const weightValue = formData.weight
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name,
-          age: parseInt(formData.age),
-          height: parseFloat(formData.height),
-          weight: parseFloat(formData.weight),
-          gender: formData.gender,
-          use_metric: formData.useMetric
-        })
-        .eq('id', user.id)
+      // Only convert if we're in imperial mode
+      const height = formData.useMetric ? 
+        heightValue : // Already in cm
+        heightValue ? heightValue * 2.54 : 0 // Convert inches to cm
 
-      if (profileError) throw profileError
+      const weight = formData.useMetric ? 
+        weightValue : // Already in kg
+        weightValue ? weightValue / 2.205 : 0 // Convert lbs to kg
+
+      const submitData = {
+        name: formData.name,
+        age: formData.age,
+        gender: formData.gender,
+        height,
+        weight,
+      }
+
+      console.log(submitData)
+
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
 
       router.push('/profile')
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      setError('Failed to update profile')
     } finally {
       setLoading(false)
     }
-  }
-
-  if (initialLoad) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="text-gray-700 dark:text-gray-300">Loading...</div>
-      </div>
-    )
   }
 
   return (
@@ -155,7 +155,7 @@ export default function ProfileEdit() {
                   type="text"
                   name="name"
                   value={formData.name}
-                  onChange={handleChange}
+                  onChange={handleInputChange}
                   className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 />
@@ -169,7 +169,7 @@ export default function ProfileEdit() {
                   type="number"
                   name="age"
                   value={formData.age}
-                  onChange={handleChange}
+                  onChange={handleInputChange}
                   className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 />
@@ -183,7 +183,7 @@ export default function ProfileEdit() {
                   type="number"
                   name="height"
                   value={formData.height}
-                  onChange={handleChange}
+                  onChange={handleInputChange}
                   className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 />
@@ -197,7 +197,7 @@ export default function ProfileEdit() {
                   type="number"
                   name="weight"
                   value={formData.weight}
-                  onChange={handleChange}
+                  onChange={handleInputChange}
                   className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 />
@@ -210,7 +210,7 @@ export default function ProfileEdit() {
                 <select
                   name="gender"
                   value={formData.gender}
-                  onChange={handleChange}
+                  onChange={handleInputChange}
                   className="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 >

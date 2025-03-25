@@ -2,15 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 import { motion } from 'framer-motion'
 import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 
 interface ProfileFormData {
   name: string
-  age: string
-  height: string
-  weight: string
+  age: number
+  height: number
+  weight: number
   gender: string
   useMetric: boolean
 }
@@ -19,9 +18,9 @@ export default function ProfileSetup() {
   const router = useRouter()
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
-    age: '',
-    height: '',
-    weight: '',
+    age: 0,
+    height: 0,
+    weight: 0,
     gender: '',
     useMetric: false
   })
@@ -40,61 +39,26 @@ export default function ProfileSetup() {
       return {
         ...prev,
         useMetric,
-        height: prev.height ? convertHeight(prev.height, useMetric) : '',
-        weight: prev.weight ? convertWeight(prev.weight, useMetric) : ''
+        height: prev.height ? convertHeight(prev.height, useMetric) : 0,
+        weight: prev.weight ? convertWeight(prev.weight, useMetric) : 0
       }
     })
   }
 
-  const convertHeight = (value: string, toMetric: boolean) => {
-    if (!value) return ''
-    const num = parseFloat(value)
+  const convertHeight = (value: number, toMetric: boolean) => {
+    if (!value) return 0
     return toMetric ? 
-      (num * 2.54).toFixed(1) : // inches to cm
-      (num / 2.54).toFixed(1)   // cm to inches
+      (value * 2.54) as number : // inches to cm
+      (value / 2.54) as number   // cm to inches
   }
 
-  const convertWeight = (value: string, toMetric: boolean) => {
-    if (!value) return ''
-    const num = parseFloat(value)
-    return toMetric ? 
-      (num / 2.205).toFixed(1) : // lbs to kg
-      (num * 2.205).toFixed(1)   // kg to lbs
+  const convertWeight = (value: number, toMetric: boolean) => {
+    if (!value) return 0
+    return toMetric ?
+      (value / 2.205) as number : // lbs to kg
+      (value * 2.205) as number   // kg to lbs
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    try {
-      const supabase = createClient()
-      
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          name: formData.name,
-          age: parseInt(formData.age),
-          height: parseFloat(formData.height),
-          weight: parseFloat(formData.weight),
-          gender: formData.gender,
-          use_metric: formData.useMetric
-        })
-
-      if (profileError) throw profileError
-
-      router.push('/workout')
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
@@ -116,7 +80,7 @@ export default function ProfileSetup() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8">
+          <form className="p-8">
             {error && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400">
                 {error}

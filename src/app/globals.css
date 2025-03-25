@@ -49,7 +49,7 @@
   
   .app-card {
     @apply bg-[var(--app-card)];
-  }
+  }  
 }
 
 @layer utilities {

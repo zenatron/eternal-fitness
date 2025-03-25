@@ -2,7 +2,6 @@
 
 import { FormData } from '@/types'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
 import { QuestionMarkCircleIcon, PencilIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
@@ -40,41 +39,6 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
   const [isLoading, setIsLoading] = useState(true)
   const [useMetric, setUseMetric] = useState(false)
 
-  useEffect(() => {
-    async function loadProfileData() {
-      setIsLoading(true)
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) return
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-
-        if (profile) {
-          setUseMetric(profile.useMetric || false)
-          setFormData(prev => ({
-            ...prev,
-            name: profile.name || '',
-            age: profile.age?.toString() || '',
-            gender: profile.gender || '',
-            height: profile.height?.toString() || '',
-            weight: profile.weight?.toString() || '',
-          }))
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadProfileData()
-  }, [setFormData])
 
   if (isLoading) {
     return (
