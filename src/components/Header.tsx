@@ -1,15 +1,12 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ThemeSwitch from './ThemeSwitch'
-import { FaUser } from 'react-icons/fa'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SignedOut, SignedIn, SignInButton, UserButton } from '@clerk/nextjs'
+import { SignedIn, UserButton } from '@clerk/nextjs'
 
 export function Header() {
-  const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const menuVariants = {
@@ -56,9 +53,6 @@ export function Header() {
             userProfileUrl="/profile"
           />
         </SignedIn>
-        <SignedOut>
-          <SignInButton />
-        </SignedOut>
         <ThemeSwitch />
       </nav>
 
@@ -113,9 +107,6 @@ export function Header() {
                     userProfileUrl="/profile"
                   />
                 </SignedIn>
-                <SignedOut>
-                  <SignInButton />
-                </SignedOut>
                 <div className="pt-4 border-t border-gray-700">
                   <ThemeSwitch />
                 </div>

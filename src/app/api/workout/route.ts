@@ -35,7 +35,7 @@ export async function GET() {
 
     return NextResponse.json(workouts)
   } catch (error) {
-    console.error('Error in GET /api/workouts:', error)
+    console.error('Error in GET /api/workout:', error)
     return new NextResponse(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }), 
       { status: 500, headers: { 'Content-Type': 'application/json' } }
