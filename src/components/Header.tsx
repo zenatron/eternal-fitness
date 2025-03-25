@@ -51,14 +51,10 @@ export function Header() {
       {/* Desktop Navigation */}
       <nav className="hidden md:flex items-center space-x-6">
         <SignedIn>
-          <Link 
-            href="/profile"
-            className="text-gray-100 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
-            title="View Profile"
-          >
-            <FaUser className="w-5 h-5" />
-          </Link>
-          <UserButton />
+          <UserButton 
+            userProfileMode="navigation" 
+            userProfileUrl="/profile"
+          />
         </SignedIn>
         <SignedOut>
           <SignInButton />
@@ -112,7 +108,10 @@ export function Header() {
             >
               <div className="flex flex-col space-y-6">
                 <SignedIn>
-                  <UserButton />
+                  <UserButton 
+                    userProfileMode="navigation" 
+                    userProfileUrl="/profile"
+                  />
                 </SignedIn>
                 <SignedOut>
                   <SignInButton />

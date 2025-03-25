@@ -199,6 +199,13 @@ export default function Profile() {
                 Edit Profile
               </Link>
               <SignedIn>
+                <Link 
+                  href="/account"
+                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <UserCircleIcon className="w-5 h-5" />
+                  Manage Account
+                </Link>
                 <SignOutButton>
                   <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
                     Sign Out

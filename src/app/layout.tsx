@@ -24,7 +24,9 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      afterSignOutUrl="/login"
+    >
       <html lang="en" suppressHydrationWarning>
         <body suppressHydrationWarning>
           <Providers>
