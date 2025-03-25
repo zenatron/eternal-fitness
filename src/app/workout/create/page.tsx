@@ -11,15 +11,14 @@ import {
   FlagIcon
 } from '@heroicons/react/24/outline';
 import { Exercise, Workout, ExerciseSet } from '@/types/workout';
+import { useRouter } from 'next/navigation';
 
 export default function CreateWorkoutPage() {
   const [workoutName, setWorkoutName] = useState('');
   const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>([]);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
-
-  // Generate a unique ID
-  const generateId = () => Math.random().toString(36).substring(2, 10);
+  const router = useRouter();
 
   // Add a new exercise to the workout
   const addExercise = () => {
@@ -106,8 +105,8 @@ export default function CreateWorkoutPage() {
     }));
   };
 
-  // Save the workout (placeholder for future implementation)
-  const saveWorkout = () => {
+  // Save the workout
+  const saveWorkout = async () => {
     if (!workoutName.trim()) {
       setSaveMessage('Please give your workout a name');
       return;
@@ -123,21 +122,35 @@ export default function CreateWorkoutPage() {
       return;
     }
 
-    const workout: Workout = {
-      id: generateId(),
-      name: workoutName,
-      exercises: workoutExercises,
-      date: new Date()
-    };
+    try {
+      const response = await fetch('/api/workout/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: workoutName,
+          exercises: workoutExercises,
+        }),
+      });
 
-    console.log('Workout saved:', workout);
-    // TODO: Add database integration here in the future
-    setSaveMessage('Workout saved successfully!');
-    
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      setSaveMessage('');
-    }, 3000);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save workout');
+      }
+
+      setSaveMessage('Workout saved successfully!');
+      
+      // Clear message after 3 seconds and redirect to workouts page
+      setTimeout(() => {
+        setSaveMessage('');
+        router.push('/profile');
+      }, 3000);
+    } catch (error) {
+      console.error('Error saving workout:', error);
+      setSaveMessage(error instanceof Error ? error.message : 'Failed to save workout. Please try again.');
+    }
   };
 
   return (

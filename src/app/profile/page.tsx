@@ -9,10 +9,12 @@ import {
   ChartBarIcon,
   ScaleIcon,
   CalendarDaysIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline'
 import { SignOutButton, useUser } from '@clerk/nextjs'
 import { SignedIn } from '@clerk/nextjs'
+import SavedWorkouts from '@/components/SavedWorkouts'
 
 interface ProfileData {
   name: string
@@ -22,6 +24,7 @@ interface ProfileData {
   weight: number | null
   workoutsCompleted: number
   joinDate: string
+  points: number | null
 }
 
 export default function Profile() {
@@ -92,11 +95,20 @@ export default function Profile() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
           <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative flex items-center gap-6">
-              <UserCircleIcon className="w-24 h-24" />
-              <div>
-                <h1 className="text-3xl font-bold">{profile.name}</h1>
-                <p className="text-blue-100 mt-1">Member since {new Date(profile.joinDate).toLocaleDateString()}</p>
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <UserCircleIcon className="w-24 h-24" />
+                <div>
+                  <h1 className="text-3xl font-bold">{profile.name}</h1>
+                  <p className="text-blue-100 mt-1">Member since {new Date(profile.joinDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
+                <TrophyIcon className="w-8 h-8 text-yellow-300" />
+                <div>
+                  <p className="text-sm text-blue-100">Total Points</p>
+                  <p className="text-2xl font-bold">{profile.points || 0}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -186,6 +198,15 @@ export default function Profile() {
                 <SignOutButton />
               </SignedIn>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Saved Workouts Section */}
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mt-6">
+          <div className="p-8">
+            <SavedWorkouts />
           </div>
         </div>
       </div>
