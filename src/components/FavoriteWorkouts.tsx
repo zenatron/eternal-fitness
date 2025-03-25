@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
-  TrashIcon, 
-  CalendarIcon,
+  TrashIcon,
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from '@heroicons/react/24/outline'
+import { MdFavoriteBorder } from "react-icons/md";
 
 interface Set {
   id: string
@@ -25,7 +25,7 @@ interface Workout {
   sets: Set[]
 }
 
-export default function SavedWorkouts() {
+export default function FavoriteWorkouts() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null)
@@ -101,8 +101,8 @@ export default function SavedWorkouts() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-        <CalendarIcon className="w-6 h-6 text-blue-500" />
-        Saved Workouts
+        <MdFavoriteBorder className="w-6 h-6 text-blue-500" />
+        Favorite Workouts
       </h2>
 
       <div className="grid grid-cols-1 gap-6">

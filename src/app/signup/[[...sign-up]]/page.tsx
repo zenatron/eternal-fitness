@@ -42,7 +42,7 @@ export default function SignUpPage() {
               }}
               routing="hash"
               signInUrl="/login"
-              fallbackRedirectUrl="/profile"
+              forceRedirectUrl="/profile"
             />
           </div>
         </div>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { IoScaleOutline } from "react-icons/io5";
@@ -18,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { SignOutButton, useUser } from '@clerk/nextjs'
 import { SignedIn } from '@clerk/nextjs'
-import SavedWorkouts from '@/components/SavedWorkouts'
+import SavedWorkouts from '@/components/FavoriteWorkouts'
 
 interface ProfileData {
   name: string
@@ -32,8 +31,6 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  const router = useRouter()
-  const { user } = useUser()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [useMetricDisplay, setUseMetricDisplay] = useState(false)

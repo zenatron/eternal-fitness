@@ -25,7 +25,7 @@ model User {
   gender String?
   height Float?
   weight Float?
-  workouts Workout[]
+  completedWorkouts Workout[]
   points Int @default(0)
 }
 
