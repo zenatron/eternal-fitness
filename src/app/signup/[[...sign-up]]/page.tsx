@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { SignIn } from '@clerk/nextjs'
+import { SignUp } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 import { useTheme } from 'next-themes'
 
-export default function LoginPage() {
+export default function SignUpPage() {
+
   const { resolvedTheme } = useTheme()
-  
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <motion.div 
@@ -27,20 +28,20 @@ export default function LoginPage() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Welcome Back</h1>
-                <p className="text-blue-100 mt-1">Sign in to continue your fitness journey</p>
+                <h1 className="text-3xl font-bold">Join Eternal Fitness</h1>
+                <p className="text-blue-100 mt-1">Create an account to start your fitness journey</p>
               </div>
             </div>
           </div>
 
-          {/* Clerk Sign In - Embedded directly under header */}
+          {/* Clerk Sign Up - Embedded directly under header */}
           <div className="flex justify-center">
-            <SignIn 
+            <SignUp 
               appearance={{
                 baseTheme: resolvedTheme === 'dark' ? dark : undefined,
               }}
               routing="hash"
-              signUpUrl="/signup"
+              signInUrl="/login"
               fallbackRedirectUrl="/profile"
             />
           </div>
