@@ -94,6 +94,7 @@ export default function WorkoutFormEditor({
   const searchRef = useRef<HTMLDivElement>(null);
   const [saveMessage, setSaveMessage] = useState('');
   const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Update state if initialValues change (e.g. when data loads)
   useEffect(() => {
@@ -329,6 +330,8 @@ export default function WorkoutFormEditor({
       return;
     }
 
+    setIsSaving(true);
+    
     try {
       const endpoint = mode === 'create' 
         ? '/api/workout/create' 
@@ -373,6 +376,8 @@ export default function WorkoutFormEditor({
     } catch (error) {
       console.error(`Error ${mode}ing workout:`, error);
       setSaveMessage(error instanceof Error ? error.message : `Failed to ${mode} workout. Please try again.`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -381,20 +386,6 @@ export default function WorkoutFormEditor({
       <div className="max-w-4xl mx-auto">
         {/* Header - Passed in from parent */}
         {headerElement}
-
-        {saveMessage && (
-          <div className={`p-4 mb-6 rounded-lg flex items-center gap-3 ${
-            saveMessage.includes('success') 
-              ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' 
-              : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-          }`}>
-            {saveMessage.includes('success') 
-              ? <CheckCircleIcon className="h-5 w-5" /> 
-              : <ExclamationCircleIcon className="h-5 w-5" />
-            }
-            <span>{saveMessage}</span>
-          </div>
-        )}
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
           <form>
@@ -652,16 +643,40 @@ export default function WorkoutFormEditor({
                   transition={{ delay: 0.3 }}
                   className="mt-8"
                 >
+                  {saveMessage && (
+                    <div className={`p-4 mb-4 rounded-lg flex items-center gap-3 ${
+                      saveMessage.includes('success') 
+                        ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' 
+                        : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                    }`}>
+                      {saveMessage.includes('success') 
+                        ? <CheckCircleIcon className="h-5 w-5" /> 
+                        : <ExclamationCircleIcon className="h-5 w-5" />
+                      }
+                      <span>{saveMessage}</span>
+                    </div>
+                  )}
+                  
                   <button 
                     type="button"
                     onClick={saveWorkout} 
                     className="btn btn-tertiary w-full py-3 text-lg inline-flex items-center justify-center gap-2"
+                    disabled={isSaving}
                   >
-                    <CheckCircleIcon className="h-6 w-6" />
-                    {mode === 'create' ? 'Save Workout' : 'Update Workout'}
-                    <span className="font-normal text-sm">
-                      ({workoutExercises.length} exercises)
-                    </span>
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-200 border-t-white"></div>
+                        {mode === 'create' ? 'Saving Workout...' : 'Updating Workout...'}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-6 w-6" />
+                        {mode === 'create' ? 'Save Workout' : 'Update Workout'}
+                        <span className="font-normal text-sm">
+                          ({workoutExercises.length} exercises)
+                        </span>
+                      </>
+                    )}
                   </button>
                 </motion.div>
               )}
