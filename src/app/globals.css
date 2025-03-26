@@ -15,6 +15,22 @@
 }
 
 @layer components {
+  .text-primary {
+    @apply text-gray-700 dark:text-gray-300;
+  }
+
+  .text-heading {
+    @apply text-gray-800 dark:text-white;
+  }
+
+  .text-secondary {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .text-accent {
+    @apply text-blue-500 dark:text-blue-400;
+  }
+
   .btn {
     @apply font-semibold py-2 px-4 rounded-lg shadow-md;
   }

@@ -121,7 +121,7 @@ export default function Profile() {
                   onChange={(e) => setUseMetricDisplay(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label className="ml-2 block text-sm text-gray-700 dark:text-gray-300">Use metric system</label>
+                <label className="ml-2 block text-sm text-primary">Use metric system</label>
               </div>
             </div>
 
@@ -135,8 +135,8 @@ export default function Profile() {
                 <div className="flex items-center gap-4">
                   <CgGym className="w-8 h-8 text-blue-500" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Workouts Completed</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{profile?.workoutsCompleted || 0}</p>
+                    <p className="text-sm text-secondary">Workouts Completed</p>
+                    <p className="text-2xl font-bold text-heading">{profile?.workoutsCompleted || 0}</p>
                   </div>
                 </div>
               </motion.div>
@@ -150,8 +150,8 @@ export default function Profile() {
                 <div className="flex items-center gap-4">
                   <IoScaleOutline className="w-8 h-8 text-blue-500" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Current Weight</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm text-secondary">Current Weight</p>
+                    <p className="text-2xl font-bold text-heading">
                       {getDisplayValue(profile?.weight || 0, false)} {getUnitLabel(false)}
                     </p>
                   </div>
@@ -167,8 +167,8 @@ export default function Profile() {
                 <div className="flex items-center gap-4">
                   <LuPersonStanding className="w-8 h-8 text-blue-500" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Height</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm text-secondary">Height</p>
+                    <p className="text-2xl font-bold text-heading">
                       {getDisplayValue(profile?.height || 0, true)} {getUnitLabel(true)}
                     </p>
                   </div>

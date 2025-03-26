@@ -177,7 +177,7 @@ export default function FavoriteWorkouts() {
   if (workouts.length === 0) {
     return (
       <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-xl">
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-secondary">
           No saved workouts yet. Create your first workout to get started!
         </p>
       </div>
@@ -188,7 +188,7 @@ export default function FavoriteWorkouts() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
         <MdFavoriteBorder className="w-6 h-6 text-blue-500" />
-        Favorite Workouts
+        My Workouts
       </h2>
 
       <div className="grid grid-cols-1 gap-6">
@@ -207,7 +207,7 @@ export default function FavoriteWorkouts() {
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                   {workout.name}
                 </h3>
-                <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-2 mt-1 text-sm text-secondary">
                   <ClockIcon className="w-4 h-4" />
                   {new Date(workout.createdAt).toLocaleDateString()}
                 </div>
@@ -260,16 +260,16 @@ export default function FavoriteWorkouts() {
                     return acc
                   }, {})).map(([exerciseName, sets]) => (
                     <div key={exerciseName} className="space-y-2">
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300">
+                      <h4 className="font-medium text-primary">
                         {exerciseName}
                       </h4>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="grid grid-cols-3 gap-2 text-sm text-secondary">
                         {sets.map((set: Set, index: number) => (
                           <div 
                             key={set.id}
                             className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded"
                           >
-                            <span className="text-gray-500 dark:text-gray-400">
+                            <span className="text-accent">
                               Set {index + 1}:
                             </span>{' '}
                             {set.reps} reps @ {set.weight.toFixed(1)}kg
