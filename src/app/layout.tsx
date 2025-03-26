@@ -26,6 +26,8 @@ export default async function RootLayout({
   return (
     <ClerkProvider
       afterSignOutUrl="/login"
+      signInUrl="/login"
+      signUpUrl="/signup"
     >
       <html lang="en" suppressHydrationWarning>
         <body suppressHydrationWarning>

@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
+import { UserCircleIcon } from '@heroicons/react/24/outline'
+import { SignedIn, SignOutButton } from '@clerk/nextjs'
+import { PiSignOut } from 'react-icons/pi'
 
 interface ProfileFormData {
   name: string
@@ -256,24 +258,22 @@ export default function ProfileSetup() {
             </div>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <SignedIn>
+                <SignOutButton
+                  redirectUrl="/login"
+                >
+                  <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
+                    Sign Out
+                    <PiSignOut className="w-5 h-5" />
+                  </button>
+                </SignOutButton>
+              </SignedIn>
               <button
                 type="submit"
                 className="btn btn-primary flex-1"
                 disabled={loading}
               >
                 {loading ? 'Saving...' : 'Save Profile'}
-              </button>
-              
-              <button
-                type="button"
-                onClick={async () => {
-                  const response = await fetch('/auth/sign-out', { method: 'POST' })
-                  if (response.ok) router.push('/login')
-                }}
-                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
-              >
-                <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                Sign Out
               </button>
             </div>
           </form>

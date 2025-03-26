@@ -200,7 +200,9 @@ export default function Profile() {
                   <UserCircleIcon className="w-5 h-5" />
                   Manage Account
                 </Link>
-                <SignOutButton>
+                <SignOutButton
+                  redirectUrl="/login"
+                >
                   <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
                     Sign Out
                     <PiSignOut className="w-5 h-5" />

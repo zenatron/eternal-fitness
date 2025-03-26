@@ -41,7 +41,6 @@ export default function LoginPage() {
               }}
               routing="hash"
               signUpUrl="/signup"
-              forceRedirectUrl="/profile"
             />
           </div>
         </div>
