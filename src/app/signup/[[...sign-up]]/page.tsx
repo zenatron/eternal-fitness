@@ -15,13 +15,13 @@ export default function SignUpPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-lg"
       >
-        <div className="flex justify-center p-8">
+        <div className="flex justify-center">
           <SignUp
             path="/signup"
             appearance={{
               baseTheme: resolvedTheme === 'dark' ? dark : undefined,
               elements: {
-                rootBox: "w-full max-w-md",
+                rootBox: "flex items-center justify-center w-full max-w-md",
                 card: "bg-white dark:bg-gray-800 shadow-xl rounded-2xl",
                 headerTitle: "text-3xl font-bold text-heading",
                 headerSubtitle: "text-secondary mt-1",
