@@ -30,6 +30,15 @@ module.exports = {
           'apple-yellow': '#FFCC00',
           'apple-orange': '#FF9500',
           'apple-red': '#FF3B30',
+          // Theme colors
+          'app-bg': {
+            light: '#f9fafb', // Slightly lighter gray than gray-50
+            dark: '#111827', // Matches gray-900
+          },
+          'app-card': {
+            light: '#ffffff', // White for cards in light mode
+            dark: '#1f2937', // Gray-800 for cards in dark mode
+          },
         },
       },
   },

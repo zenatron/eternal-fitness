@@ -1,4 +1,4 @@
-import { SplitDatabase } from '@/types/exercises'
+import { SplitDatabase } from '@/types/workout'
 
 export const splits: SplitDatabase = {
   'TwoDay': {

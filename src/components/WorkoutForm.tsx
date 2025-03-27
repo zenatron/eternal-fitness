@@ -5,7 +5,7 @@ import FormSection from '@/components/FormSection'
 import ScheduleSection from '@/components/ScheduleSection'
 import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
-import type { WorkoutDay } from '@/types/exercises'
+import type { WorkoutDay } from '@/types/workout'
 import { motion } from 'framer-motion'
 
 export default function WorkoutForm() {
@@ -50,7 +50,7 @@ export default function WorkoutForm() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 py-12 px-4 overflow-hidden"
+      className="min-h-[calc(100vh-4rem)] py-12 px-4 overflow-hidden"
     >
       <div className="w-full">
         {workoutSchedule.length === 0 ? (

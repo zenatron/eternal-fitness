@@ -2,7 +2,6 @@
 
 import { FormData } from '@/types'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
 import { QuestionMarkCircleIcon, PencilIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
@@ -22,12 +21,12 @@ function TooltipLabel({ text, tooltip }: TooltipLabelProps) {
   return (
     <div className="flex items-center gap-1.5 mb-2 group">
       <span className="form-item-heading">{text}</span>
-      <div className="relative inline-flex items-center -mt-0.5">
+      <div className="relative inline-flex items-center mb-2">
         <QuestionMarkCircleIcon 
           className="h-4 w-4 text-blue-500 hover:text-blue-600 cursor-help transition-colors" 
           aria-hidden="true"
         />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible whitespace-nowrap transition-all duration-200 z-50 shadow-lg">
           {tooltip}
           <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-blue-600"></div>
         </div>
@@ -40,41 +39,6 @@ export default function FormSection({ formData, handleChange, handleSubmit, setF
   const [isLoading, setIsLoading] = useState(true)
   const [useMetric, setUseMetric] = useState(false)
 
-  useEffect(() => {
-    async function loadProfileData() {
-      setIsLoading(true)
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) return
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-
-        if (profile) {
-          setUseMetric(profile.useMetric || false)
-          setFormData(prev => ({
-            ...prev,
-            name: profile.name || '',
-            age: profile.age?.toString() || '',
-            gender: profile.gender || '',
-            height: profile.height?.toString() || '',
-            weight: profile.weight?.toString() || '',
-          }))
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadProfileData()
-  }, [setFormData])
 
   if (isLoading) {
     return (

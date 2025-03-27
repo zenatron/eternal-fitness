@@ -1,4 +1,4 @@
-import type { WorkoutDay } from '@/types/exercises'
+import type { WorkoutDay } from '@/types/workout'
 
 export function generateICalendarData(workoutSchedule: (WorkoutDay | 'Rest')[]): string {
   const lines: string[] = [];

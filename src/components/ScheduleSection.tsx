@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { FormData } from '@/types'
-import { getExerciseDetails, generateWorkoutSchedule, getModifiedExerciseDetails } from '@/services/workoutGenerator'
-import type { WorkoutDay } from '@/types/exercises'
+import { getExerciseDetails, generateWorkoutSchedule, getExerciseRecommendations } from '@/services/workoutGenerator'
+import type { WorkoutDay } from '@/types/workout'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CalendarDaysIcon, ArrowPathIcon, ArrowLeftIcon, PlusCircleIcon } from '@heroicons/react/24/outline'
 import { generateICalendarData, downloadCalendarFile } from '@/utils/calendar'
@@ -87,7 +87,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden"
+        className="app-card rounded-2xl shadow-xl overflow-hidden"
       >
         {/* Header */}
         <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
@@ -95,8 +95,8 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
           <div className="relative flex items-center gap-6">
             <CalendarDaysIcon className="w-20 h-20" />
             <div>
-              <h1 className="text-3xl font-bold">{formData.name}&apos;s Workout Plan</h1>
-              <p className="text-blue-100 mt-1">Your personalized weekly schedule</p>
+              <h1 className="text-3xl font-bold">{`${formData.name}'s Workout Plan`}</h1>
+              <p className="text-blue-100 mt-1">{"Your personalized weekly schedule"}</p>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               className="btn btn-secondary inline-flex items-center gap-2"
             >
               <PlusCircleIcon className="w-5 h-5" />
-              Add to Calendar
+              {"Add to Calendar"}
             </button>
           </div>
 
@@ -218,7 +218,7 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                         >
                           {workout.primary.map((exercise, exerciseIndex) => {
                             const details = getExerciseDetails(exercise)
-                            const modifiedDetails = getModifiedExerciseDetails(exercise, formData.intensity)
+                            const recommendations = getExerciseRecommendations(exercise, formData.intensity)
 
                             return (
                               <div 
@@ -232,13 +232,13 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
                                   <div className="bg-white dark:bg-gray-700 p-2 rounded-lg">
                                     <p className="text-sm text-gray-600 dark:text-gray-400">Sets</p>
                                     <p className="text-lg font-medium text-gray-900 dark:text-white">
-                                      {modifiedDetails?.sets.min}-{modifiedDetails?.sets.max}
+                                      {recommendations?.recommendedSets || 3}
                                     </p>
                                   </div>
                                   <div className="bg-white dark:bg-gray-700 p-2 rounded-lg">
                                     <p className="text-sm text-gray-600 dark:text-gray-400">Reps</p>
                                     <p className="text-lg font-medium text-gray-900 dark:text-white">
-                                      {modifiedDetails?.reps.min}-{modifiedDetails?.reps.max}
+                                      {recommendations?.recommendedReps || 10}
                                     </p>
                                   </div>
                                 </div>
@@ -268,14 +268,14 @@ export default function ScheduleSection({ formData, workoutSchedule, setWorkoutS
               className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
             >
               <ArrowLeftIcon className="w-5 h-5" />
-              Go Back
+              {"Go Back"}
             </button>
             <button
               onClick={handleRegenerateSchedule}
               className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
             >
               <ArrowPathIcon className="w-5 h-5" />
-              Regenerate Schedule
+              {"Regenerate Schedule"}
             </button>
           </div>
         </div>

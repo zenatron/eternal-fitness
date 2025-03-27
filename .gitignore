@@ -378,3 +378,9 @@ gradle-app.setting
 # Ignore all local history of files
 .history
 .ionide
+# clerk configuration (can include secrets)
+/.clerk/
+
+# Prisma
+.prisma/
+/prisma/migrations/

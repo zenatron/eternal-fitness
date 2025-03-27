@@ -1,33 +1,13 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ThemeSwitch from './ThemeSwitch'
-import { FaUser } from 'react-icons/fa'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { User } from '@supabase/auth-helpers-nextjs'
+import { SignedIn, UserButton } from '@clerk/nextjs'
 
-interface HeaderProps {
-  user: User | null
-}
-
-export function Header({ user }: HeaderProps) {
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut()
-      setIsMenuOpen(false)
-      router.push('/login')
-      router.refresh()
-    } catch (error) {
-      console.error('Error logging out:', error)
-    }
-  }
 
   const menuVariants = {
     closed: {
@@ -67,19 +47,12 @@ export function Header({ user }: HeaderProps) {
 
       {/* Desktop Navigation */}
       <nav className="hidden md:flex items-center space-x-6">
-        {user ? (
-          <Link 
-            href="/profile"
-            className="text-gray-100 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
-            title="View Profile"
-          >
-            <FaUser className="w-5 h-5" />
-          </Link>
-        ) : (
-          <Link href="/login" className="btn btn-primary">
-            Login
-          </Link>
-        )}
+        <SignedIn>
+          <UserButton 
+            userProfileMode="navigation" 
+            userProfileUrl="/profile"
+          />
+        </SignedIn>
         <ThemeSwitch />
       </nav>
 
@@ -128,32 +101,12 @@ export function Header({ user }: HeaderProps) {
               className="fixed right-0 top-0 h-screen w-64 bg-gray-800 dark:bg-gray-900 p-6 md:hidden shadow-lg"
             >
               <div className="flex flex-col space-y-6">
-                {user ? (
-                  <>
-                    <Link 
-                      href="/profile"
-                      className="flex items-center space-x-2 text-lg text-gray-100 dark:text-gray-200 hover:text-blue-400 dark:hover:text-blue-400 transition-colors duration-200"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <FaUser className="w-5 h-5" />
-                      <span>Profile</span>
-                    </Link>
-                    <button 
-                      onClick={handleLogout} 
-                      className="btn btn-danger w-full"
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <Link 
-                    href="/login" 
-                    className="btn btn-primary w-full"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                )}
+                <SignedIn>
+                  <UserButton 
+                    userProfileMode="navigation" 
+                    userProfileUrl="/profile"
+                  />
+                </SignedIn>
                 <div className="pt-4 border-t border-gray-700">
                   <ThemeSwitch />
                 </div>
