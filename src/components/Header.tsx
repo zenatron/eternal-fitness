@@ -5,9 +5,12 @@ import ThemeSwitch from './ThemeSwitch'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SignedIn, UserButton } from '@clerk/nextjs'
+import { useTheme } from 'next-themes'
+import { dark } from '@clerk/themes'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { resolvedTheme } = useTheme()
 
   const menuVariants = {
     closed: {
@@ -51,6 +54,9 @@ export function Header() {
           <UserButton 
             userProfileMode="navigation" 
             userProfileUrl="/profile"
+            appearance={{
+              baseTheme: resolvedTheme === 'dark' ? dark : undefined,
+            }}
           />
         </SignedIn>
         <ThemeSwitch />
@@ -105,6 +111,9 @@ export function Header() {
                   <UserButton 
                     userProfileMode="navigation" 
                     userProfileUrl="/profile"
+                    appearance={{
+                      baseTheme: resolvedTheme === 'dark' ? dark : undefined,
+                    }}
                   />
                 </SignedIn>
                 <div className="pt-4 border-t border-gray-700">
