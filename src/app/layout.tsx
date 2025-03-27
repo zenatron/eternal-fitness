@@ -25,7 +25,7 @@ export default async function RootLayout({
 }) {
   return (
     <ClerkProvider
-      afterSignOutUrl="/login"
+      afterSignOutUrl="/"
       signInUrl="/login"
       signUpUrl="/signup"
     >
