@@ -43,8 +43,8 @@ export default function Profile() {
   
   // Separate useEffect for the redirect
   useEffect(() => {
-    // Only redirect after loading is complete and profile is null
-    if (!loading && !profile) {
+    // Only redirect after loading is complete and profile is null or needs setup
+    if (!loading && (!profile || !profile.name)) {
       router.push('/profile/setup')
     }
   }, [loading, profile, router])
@@ -55,6 +55,11 @@ export default function Profile() {
       if (response.ok) {
         const data = await response.json()
         setProfile(data)
+      } else if (response.status === 404) {
+        const errorData = await response.json()
+        if (errorData.needsSetup) {
+          router.push('/profile/setup')
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error)

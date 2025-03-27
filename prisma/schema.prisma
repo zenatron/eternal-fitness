@@ -25,6 +25,7 @@ model User {
   gender String?
   height Float?
   weight Float?
+  useMetric Boolean @default(false)
   completedWorkouts Workout[]
   points Int @default(0)
 }

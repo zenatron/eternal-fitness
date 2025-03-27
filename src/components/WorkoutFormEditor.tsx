@@ -372,7 +372,7 @@ export default function WorkoutFormEditor({
       setTimeout(() => {
         setSaveMessage('');
         router.push('/profile');
-      }, 3000);
+      }, 100);
     } catch (error) {
       console.error(`Error ${mode}ing workout:`, error);
       setSaveMessage(error instanceof Error ? error.message : `Failed to ${mode} workout. Please try again.`);
