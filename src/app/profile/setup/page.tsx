@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { SignedIn, SignOutButton } from '@clerk/nextjs'
 import { PiSignOut } from 'react-icons/pi'
+import { Switch } from '@headlessui/react'
 
 interface ProfileFormData {
   name: string
@@ -24,7 +25,7 @@ export default function ProfileSetup() {
     height: 0,
     weight: 0,
     gender: '',
-    useMetric: false
+    useMetric: true // Default to metric
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,30 +36,10 @@ export default function ProfileSetup() {
   }
 
   const toggleUnit = () => {
-    setFormData(prev => {
-      const useMetric = !prev.useMetric
-      // Convert values when switching units
-      return {
-        ...prev,
-        useMetric,
-        height: prev.height ? convertHeight(prev.height, useMetric) : 0,
-        weight: prev.weight ? convertWeight(prev.weight, useMetric) : 0
-      }
-    })
-  }
-
-  const convertHeight = (value: number, toMetric: boolean) => {
-    if (!value) return 0
-    return toMetric ? 
-      (value * 2.54) as number : // inches to cm
-      (value / 2.54) as number   // cm to inches
-  }
-
-  const convertWeight = (value: number, toMetric: boolean) => {
-    if (!value) return 0
-    return toMetric ?
-      (value / 2.205) as number : // lbs to kg
-      (value * 2.205) as number   // kg to lbs
+    setFormData(prev => ({
+      ...prev,
+      useMetric: !prev.useMetric
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,14 +65,14 @@ export default function ProfileSetup() {
         throw new Error('Please enter a valid weight')
       }
 
-      // Ensure values are in metric for storage (our API expects metric)
+      // Prepare the request body
       const dataToSend = {
         name: formData.name,
         age: Number(formData.age),
         gender: formData.gender,
-        // Convert to metric if using imperial
-        height: formData.useMetric ? Number(formData.height) : convertHeight(Number(formData.height), true),
-        weight: formData.useMetric ? Number(formData.weight) : convertWeight(Number(formData.weight), true)
+        height: Number(formData.height),
+        weight: Number(formData.weight),
+        useMetric: formData.useMetric
       }
       // First check if we're authenticated
       const authCheck = await fetch('/api/auth/check')
@@ -216,20 +197,28 @@ export default function ProfileSetup() {
                 </select>
               </div>
 
-              <div className="flex justify-end mb-2">
-                <button
-                  type="button"
-                  onClick={toggleUnit}
-                  className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400"
-                >
-                  Switch to {formData.useMetric ? 'Imperial' : 'Metric'}
-                </button>
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="form-item-heading">Use Metric System</label>
+                  <Switch
+                    checked={formData.useMetric}
+                    onChange={toggleUnit}
+                    className={`${
+                      formData.useMetric ? 'bg-blue-600' : 'bg-gray-200'
+                    } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                  >
+                    <span className="sr-only">Use metric system</span>
+                    <span
+                      className={`${
+                        formData.useMetric ? 'translate-x-6' : 'translate-x-1'
+                      } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                </div>
               </div>
 
               <div>
-                <label className="form-item-heading">
-                  Height ({formData.useMetric ? 'cm' : 'inches'})
-                </label>
+                <label className="form-item-heading">Height ({formData.useMetric ? 'cm' : 'inches'})</label>
                 <input
                   type="number"
                   name="height"
@@ -242,9 +231,7 @@ export default function ProfileSetup() {
               </div>
 
               <div>
-                <label className="form-item-heading">
-                  Weight ({formData.useMetric ? 'kg' : 'lbs'})
-                </label>
+                <label className="form-item-heading">Weight ({formData.useMetric ? 'kg' : 'lbs'})</label>
                 <input
                   type="number"
                   name="weight"

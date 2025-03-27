@@ -29,6 +29,10 @@ interface Workout {
   sets: Set[]
 }
 
+interface UserProfile {
+  useMetric: boolean
+}
+
 export default function FavoriteWorkouts() {
   const router = useRouter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -38,10 +42,34 @@ export default function FavoriteWorkouts() {
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
+    fetchUserProfile()
     fetchWorkouts()
   }, [])
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch('/api/profile')
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile')
+      }
+      const data = await response.json()
+      setUserProfile(data)
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+    }
+  }
+
+  const formatWeight = (weight: number) => {
+    if (!userProfile) return weight.toFixed(1)
+    return weight.toFixed(1)
+  }
+
+  const getWeightUnit = () => {
+    return userProfile?.useMetric ? 'kg' : 'lbs'
+  }
 
   const fetchWorkouts = async () => {
     try {
@@ -272,7 +300,7 @@ export default function FavoriteWorkouts() {
                             <span className="text-accent">
                               Set {index + 1}:
                             </span>{' '}
-                            {set.reps} reps @ {set.weight.toFixed(1)}kg
+                            {set.reps} reps @ {formatWeight(set.weight)} {getWeightUnit()}
                           </div>
                         ))}
                       </div>

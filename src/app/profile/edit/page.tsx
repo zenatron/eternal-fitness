@@ -42,21 +42,16 @@ export default function ProfileEdit() {
         // This is what we are getting from the database
         console.log(data.height)
         console.log(data.weight)
-
-        if (data) {
-          // Convert metric values to imperial for display
-          const imperialHeight = data.height ? (data.height / 2.54) : null
-          const imperialWeight = data.weight ? (data.weight * 2.205) : null
-
-          setFormData({
+        console.log(data.useMetric)
+        
+        setFormData({
             name: data.name || '',
             age: data.age || 0,
-            height: imperialHeight || 0,
-            weight: imperialWeight || 0,
+            height: data.height || 0,
+            weight: data.weight || 0,
             gender: data.gender || '',
             useMetric: data.useMetric || false
-          })
-        }
+        })
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -75,25 +70,12 @@ export default function ProfileEdit() {
     setError(null)
 
     try {
-      // Convert string values to numbers
-      const heightValue = formData.height
-      const weightValue = formData.weight
-
-      // Only convert if we're in imperial mode
-      const height = formData.useMetric ? 
-        heightValue : // Already in cm
-        heightValue ? heightValue * 2.54 : 0 // Convert inches to cm
-
-      const weight = formData.useMetric ? 
-        weightValue : // Already in kg
-        weightValue ? weightValue / 2.205 : 0 // Convert lbs to kg
-
       const submitData = {
         name: formData.name,
         age: formData.age,
         gender: formData.gender,
-        height,
-        weight,
+        height: formData.height,
+        weight: formData.weight,
       }
 
       console.log(submitData)

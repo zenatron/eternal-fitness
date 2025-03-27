@@ -29,12 +29,12 @@ interface ProfileData {
   workoutsCompleted: number
   joinDate: string
   points: number | null
+  useMetric: boolean
 }
 
 export default function Profile() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [useMetricDisplay, setUseMetricDisplay] = useState(false)
   const router = useRouter();
   
   useEffect(() => {
@@ -68,17 +68,13 @@ export default function Profile() {
     }
   }
 
-  const getDisplayValue = (value: number | null, isHeight: boolean) => {
+  const getDisplayValue = (value: number | null) => {
     if (!value) return ''
-    if (useMetricDisplay) return value.toFixed(1)
-    // Convert metric to imperial for display
-    return isHeight ? 
-      (value / 2.54).toFixed(1) : // cm to inches
-      (value * 2.205).toFixed(1)  // kg to lbs
+    return value.toFixed(1)
   }
 
   const getUnitLabel = (isHeight: boolean) => {
-    return useMetricDisplay ? 
+    return profile?.useMetric ? 
       (isHeight ? 'cm' : 'kg') : 
       (isHeight ? 'in' : 'lbs')
   }
@@ -118,18 +114,6 @@ export default function Profile() {
 
           {/* Stats Grid */}
           <div className="p-8">
-            <div className="flex justify-end mb-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={useMetricDisplay}
-                  onChange={(e) => setUseMetricDisplay(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="ml-2 block text-sm text-primary">Use metric system</label>
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -157,7 +141,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-secondary">Current Weight</p>
                     <p className="text-2xl font-bold text-heading">
-                      {getDisplayValue(profile?.weight || 0, false)} {getUnitLabel(false)}
+                      {getDisplayValue(profile?.weight ?? null)} {getUnitLabel(false)}
                     </p>
                   </div>
                 </div>
@@ -174,7 +158,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-secondary">Height</p>
                     <p className="text-2xl font-bold text-heading">
-                      {getDisplayValue(profile?.height || 0, true)} {getUnitLabel(true)}
+                      {getDisplayValue(profile?.height ?? null)} {getUnitLabel(true)}
                     </p>
                   </div>
                 </div>
