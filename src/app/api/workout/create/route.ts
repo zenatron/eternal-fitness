@@ -56,13 +56,10 @@ export async function POST(request: Request) {
 
       // Create sets for this exercise
       for (const set of exerciseData.sets) {
-        // Convert weight to kg if needed and create set
-        const weightInKg = set.unit === 'lbs' ? set.weight / 2.205 : set.weight
-
         await prisma.set.create({
           data: {
             reps: set.reps,
-            weight: weightInKg,
+            weight: set.weight,
             workout: {
               connect: {
                 id: workout.id

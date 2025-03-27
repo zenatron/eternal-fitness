@@ -16,24 +16,20 @@ export async function GET() {
 
     console.log('GET profile for user:', userId)
 
-    // Find or create user profile
-    let dbUser = await prisma.user.findUnique({
+    // Find user profile
+    const dbUser = await prisma.user.findUnique({
       where: {
         id: userId
       }
     })
 
     if (!dbUser) {
-      console.log('No profile found, creating skeleton profile for:', userId)
-      // Create a new user profile if it doesn't exist
-      dbUser = await prisma.user.create({
-        data: {
-          id: userId,
-          email: '', // We'll update this when we get the user's email
-          name: '',
-          points: 0
-        }
-      })
+      console.log('No profile found for user:', userId)
+      return NextResponse.json({ 
+        error: true,
+        message: 'Profile not found',
+        needsSetup: true
+      }, { status: 404 })
     }
 
     // Get completed workouts count

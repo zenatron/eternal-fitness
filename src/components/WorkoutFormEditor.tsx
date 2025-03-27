@@ -95,6 +95,24 @@ export default function WorkoutFormEditor({
   const [saveMessage, setSaveMessage] = useState('');
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ useMetric: boolean } | null>(null);
+
+  // Fetch user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch('/api/profile')
+        if (!response.ok) {
+          throw new Error('Failed to fetch user profile')
+        }
+        const data = await response.json()
+        setUserProfile(data)
+      } catch (error) {
+        console.error('Error fetching user profile:', error)
+      }
+    }
+    fetchUserProfile()
+  }, [])
 
   // Update state if initialValues change (e.g. when data loads)
   useEffect(() => {
@@ -229,7 +247,7 @@ export default function WorkoutFormEditor({
       {
         reps: 0,
         weight: 0,
-        unit: 'lbs'
+        unit: userProfile?.useMetric ? 'kg' : 'lbs'
       }
     ];
     
@@ -372,7 +390,7 @@ export default function WorkoutFormEditor({
       setTimeout(() => {
         setSaveMessage('');
         router.push('/profile');
-      }, 3000);
+      }, 100);
     } catch (error) {
       console.error(`Error ${mode}ing workout:`, error);
       setSaveMessage(error instanceof Error ? error.message : `Failed to ${mode} workout. Please try again.`);
@@ -510,18 +528,17 @@ export default function WorkoutFormEditor({
                                 
                                 {/* Sets Section */}
                                 <div className="p-4">
-                                  <div className="mb-3 grid grid-cols-4 gap-3">
+                                  <div className="mb-3 grid grid-cols-3 gap-3">
                                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Set</div>
                                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Reps</div>
-                                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Weight</div>
-                                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Unit</div>
+                                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Weight ({userProfile?.useMetric ? 'kg' : 'lbs'})</div>
                                   </div>
                                   
                                   <div className="space-y-2">
                                     {exercise.sets?.map((set, setIndex) => (
                                       <div 
                                         key={`set-${exercise.id}-${setIndex}`}
-                                        className="grid grid-cols-4 gap-3 items-center p-3 rounded-lg bg-white dark:bg-gray-800/50"
+                                        className="grid grid-cols-3 gap-3 items-center p-3 rounded-lg bg-white dark:bg-gray-800/50"
                                       >
                                         <div className="flex items-center gap-2">
                                           <div className="flex space-x-1">
@@ -595,22 +612,6 @@ export default function WorkoutFormEditor({
                                             className="form-input"
                                             aria-label="Weight"
                                           />
-                                        </div>
-                                        <div>
-                                          <select
-                                            value={set.unit}
-                                            onChange={(e) => updateSet(
-                                              exerciseIndex,
-                                              setIndex,
-                                              'unit',
-                                              e.target.value as 'kg' | 'lbs'
-                                            )}
-                                            className="form-input"
-                                            aria-label="Weight unit"
-                                          >
-                                            <option value="lbs">lbs</option>
-                                            <option value="kg">kg</option>
-                                          </select>
                                         </div>
                                       </div>
                                     ))}
