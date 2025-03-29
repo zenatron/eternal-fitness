@@ -11,7 +11,7 @@ import {
   StarIcon as StarOutline 
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { Exercise, ExerciseSet } from '@/types/workout';
+import { Exercise } from '@/types/workout';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -73,7 +73,7 @@ function SortableItem({
 
 interface WorkoutFormEditorProps {
   initialWorkoutName?: string;
-  initialExercises?: (Exercise & { id: string })[];
+  initialExercises?: Exercise[];
   initialScheduledDate?: string;
   initialFavorite?: boolean;
   mode: 'create' | 'edit';
@@ -93,7 +93,7 @@ export default function WorkoutFormEditor({
   headerElement
 }: WorkoutFormEditorProps) {
   const [workoutName, setWorkoutName] = useState(initialWorkoutName);
-  const [workoutExercises, setWorkoutExercises] = useState<(Exercise & { id: string })[]>(initialExercises);
+  const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>(initialExercises);
   const [scheduledDate, setScheduledDate] = useState(initialScheduledDate);
   const [isFavorite, setIsFavorite] = useState(initialFavorite);
   const [searchQuery, setSearchQuery] = useState('');
@@ -166,11 +166,12 @@ export default function WorkoutFormEditor({
     const query = searchQuery.toLowerCase();
     const filtered = Object.entries(exercises)
       .filter(([key, exercise]) => {
-        const nameMatch = exercise.name.toLowerCase().includes(query);
-        const muscleMatch = exercise.muscles.some(muscle => 
+        const exerciseData = exercise as { name: string; muscles: string[]; equipment: string[] };
+        const nameMatch = exerciseData.name.toLowerCase().includes(query);
+        const muscleMatch = exerciseData.muscles.some((muscle: string) => 
           muscle.toLowerCase().includes(query)
         );
-        const equipmentMatch = exercise.equipment.some(item => 
+        const equipmentMatch = exerciseData.equipment.some((item: string) => 
           item.toLowerCase().includes(query)
         );
         return nameMatch || muscleMatch || equipmentMatch;
@@ -229,16 +230,22 @@ export default function WorkoutFormEditor({
   // Add a new exercise to the workout
   const addExercise = (exerciseKey: string) => {
     const exerciseDetails = exercises[exerciseKey as keyof typeof exercises];
-    const newExercise: Exercise & { id: string } = {
+    const newExercise: Exercise = {
       id: generateId(),
       name: exerciseDetails.name,
       muscles: exerciseDetails.muscles,
       equipment: exerciseDetails.equipment,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       sets: [
         {
+          id: generateId(),
+          workoutId: workoutId || generateId(),
           reps: 0,
           weight: 0,
-          unit: 'lbs'
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          exercises: []
         }
       ]
     };
@@ -258,9 +265,13 @@ export default function WorkoutFormEditor({
     exercise.sets = [
       ...(exercise.sets || []),
       {
+        id: generateId(),
+        workoutId: workoutId || generateId(),
         reps: 0,
         weight: 0,
-        unit: userProfile?.useMetric ? 'kg' : 'lbs'
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        exercises: []
       }
     ];
     
@@ -304,11 +315,11 @@ export default function WorkoutFormEditor({
     setWorkoutExercises(updatedExercises);
   };
 
-  // Update set details (reps, weight, unit)
+  // Update set details (reps, weight)
   const updateSet = (
     exerciseIndex: number, 
     setIndex: number, 
-    field: keyof ExerciseSet, 
+    field: 'reps' | 'weight', 
     value: any
   ) => {
     const updatedExercises = [...workoutExercises];
@@ -413,7 +424,7 @@ export default function WorkoutFormEditor({
         // Wait a moment to show success message
         setTimeout(() => {
           router.push('/workouts');
-        }, 1000);
+        }, 100);
       }
     } catch (error) {
       console.error('Error saving workout:', error);

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
-import { FiSun, FiMoon, FiMonitor } from 'react-icons/fi'
+import { MoonIcon, SunIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
 
 const themes = [
-  { id: 'system', icon: FiMonitor },
-  { id: 'light', icon: FiSun },
-  { id: 'dark', icon: FiMoon },
+  { id: 'system', icon: ComputerDesktopIcon },
+  { id: 'light', icon: SunIcon },
+  { id: 'dark', icon: MoonIcon },
 ] as const
 
 export default function ThemeSwitch() {

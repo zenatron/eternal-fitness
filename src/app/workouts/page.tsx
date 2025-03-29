@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   StarIcon, 
@@ -8,104 +7,38 @@ import {
   CheckCircleIcon,
   PlusCircleIcon,
   CalendarDaysIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  QuestionMarkCircleIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { motion } from 'framer-motion'
-
-// Types for our workout data
-interface Exercise {
-  name: string
-  muscles: string[]
-}
-
-interface Set {
-  id: string
-  reps: number
-  weight: number
-  unit?: 'kg' | 'lbs'
-  exercises: Exercise[]
-}
-
-interface Workout {
-  id: string
-  name: string
-  createdAt: string
-  completed?: boolean
-  favorite?: boolean
-  scheduledDate?: string
-  completedAt?: string
-  sets: Set[]
-}
+import { useWorkouts } from '@/lib/hooks/useWorkouts';
+import { useToggleFavorite } from '@/lib/hooks/useMutations';
 
 export default function WorkoutsPage() {
   const router = useRouter()
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  useEffect(() => {
-    fetchWorkouts()
-  }, [])
-  
-  const fetchWorkouts = async () => {
-    try {
-      const response = await fetch('/api/workout')
-      if (!response.ok) {
-        throw new Error('Failed to fetch workouts')
-      }
-      const data = await response.json()
-      setWorkouts(data)
-    } catch (error) {
-      setError('Failed to load workouts')
-      console.error('Error fetching workouts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-  
-  const toggleFavorite = async (workoutId: string) => {
-    try {
-      // Use the dedicated favorite toggle endpoint
-      const response = await fetch(`/api/workout/${workoutId}/favorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update favorite status');
-      }
-      
-      const data = await response.json();
-      
-      // Update local state
-      setWorkouts(workouts.map(w => 
-        w.id === workoutId ? {...w, favorite: data.favorite} : w
-      ));
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  };
+  const { workouts, isLoading, error, refetch } = useWorkouts();
+  const toggleFavoriteMutation = useToggleFavorite();
   
   // Filter workouts by type
-  const favoriteWorkouts = workouts.filter(w => w.favorite)
-  const upcomingWorkouts = workouts.filter(w => !w.completed && w.scheduledDate)
-  const completedWorkouts = workouts.filter(w => w.completed)
+  const favoriteWorkouts = workouts?.filter(w => w.favorite) || [];
+  const upcomingWorkouts = workouts?.filter(w => !w.completed && w.scheduledDate) || [];
+  const completedWorkouts = workouts?.filter(w => w.completed) || [];
+  const unscheduledWorkouts = workouts?.filter(w => !w.completed && !w.scheduledDate) || [];
   
   // Get today's and tomorrow's date strings for status labels
   const today = new Date().toISOString().split('T')[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
   
-  const getWorkoutStatus = (date?: string) => {
+  const getWorkoutStatus = (date?: string | Date) => {
     if (!date) return ''
-    if (date === today) return 'Today'
-    if (date === tomorrow) return 'Tomorrow'
+    const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0]
+    if (dateStr === today) return 'Today'
+    if (dateStr === tomorrow) return 'Tomorrow'
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
   
-  const getTimeAgo = (date?: string) => {
+  const getTimeAgo = (date?: string | Date) => {
     if (!date) return ''
     
     const now = new Date()
@@ -119,7 +52,37 @@ export default function WorkoutsPage() {
     return completedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
   
-  if (loading) {
+  // Helper function to count unique exercises in a workout
+  const countUniqueExercises = (workout: any) => {
+    // Use a set to track unique exercise names
+    const uniqueExerciseNames = new Set();
+    
+    if (workout.sets) {
+      workout.sets.forEach((set: any) => {
+        if (set.exercises) {
+          set.exercises.forEach((exercise: any) => {
+            uniqueExerciseNames.add(exercise.name);
+          });
+        }
+      });
+    }
+    
+    return uniqueExerciseNames.size;
+  };
+  
+  // Format volume to display with proper unit
+  const formatVolume = (volume: number) => {
+    if (volume >= 1000) {
+      return `${(volume / 1000).toFixed(1)}k`;
+    }
+    return Math.round(volume).toString();
+  };
+  
+  const handleToggleFavorite = (workoutId: string) => {
+    toggleFavoriteMutation.mutate(workoutId);
+  };
+  
+  if (isLoading) {
     return (
       <div className="min-h-screen app-bg py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -141,9 +104,9 @@ export default function WorkoutsPage() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
             <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Error</h2>
-            <p className="text-red-500 dark:text-red-300">{error}</p>
+            <p className="text-red-500 dark:text-red-300">{String(error)}</p>
             <button 
-              onClick={fetchWorkouts}
+              onClick={() => refetch()}
               className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               Try Again
@@ -198,15 +161,23 @@ export default function WorkoutsPage() {
                         {workout.name}
                       </h3>
                       <button
-                        onClick={() => toggleFavorite(workout.id)}
+                        onClick={() => handleToggleFavorite(workout.id)}
                         className="text-amber-400 hover:text-amber-500"
                       >
                         <StarIconSolid className="w-5 h-5" />
                       </button>
                     </div>
-                    <p className="text-sm text-secondary mt-1">
-                      {workout.sets.length} exercises
-                    </p>
+                    <div className="text-sm text-secondary mt-1 flex flex-wrap gap-2">
+                      <span>{countUniqueExercises(workout)} exercises</span>
+                      <span>•</span>
+                      <span>{workout.sets?.length || 0} sets</span>
+                      {workout.totalVolume > 0 && (
+                        <>
+                          <span>•</span>
+                          <span>{formatVolume(workout.totalVolume)} volume</span>
+                        </>
+                      )}
+                    </div>
                     <div className="mt-4 flex justify-between items-center">
                       <button
                         onClick={() => router.push(`/workout/${workout.id}`)}
@@ -229,7 +200,7 @@ export default function WorkoutsPage() {
         {/* Upcoming Workouts Section */}
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
-            <CalendarDaysIcon className="w-5 h-5 text-primary" />
+            <CalendarDaysIcon className="w-5 h-5 text-accent" />
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
               Upcoming Workouts
             </h2>
@@ -257,19 +228,20 @@ export default function WorkoutsPage() {
                         <h3 className="font-semibold text-gray-800 dark:text-white">
                           {workout.name}
                         </h3>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                             {getWorkoutStatus(workout.scheduledDate)}
                           </span>
                           <span className="text-xs text-secondary">
-                            {workout.sets.length} exercises
+                            {countUniqueExercises(workout)} exercises • {workout.sets?.length || 0} sets
+                            {workout.totalVolume > 0 && ` • ${formatVolume(workout.totalVolume)} volume`}
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => toggleFavorite(workout.id)}
+                        onClick={() => handleToggleFavorite(workout.id)}
                         className={`text-gray-400 hover:text-amber-400 ${workout.favorite ? 'text-amber-400' : ''}`}
                       >
                         {workout.favorite ? (
@@ -292,75 +264,152 @@ export default function WorkoutsPage() {
           )}
         </section>
         
-        {/* Completed Workouts Section */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircleIcon className="w-5 h-5 text-green-500" />
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Completed Workouts
-            </h2>
-          </div>
-          
-          {completedWorkouts.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-              <p className="text-secondary">No completed workouts yet. Mark workouts as complete to track your progress.</p>
+        {/* Two-Column Section for Completed and Unscheduled Workouts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Completed Workouts Column */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircleIcon className="w-5 h-5 text-green-500" />
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Completed Workouts
+              </h2>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {completedWorkouts.slice(0, 5).map(workout => (
-                <motion.div
-                  key={workout.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
-                >
-                  <div className="p-4 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-green-100 dark:bg-green-900/30 rounded-full w-12 h-12 flex items-center justify-center">
-                        <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+            
+            {completedWorkouts.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center h-32 flex items-center justify-center">
+                <p className="text-secondary">None completed yet, let's get started!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {completedWorkouts.slice(0, 3).map(workout => (
+                  <motion.div
+                    key={workout.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
+                  >
+                    <div className="p-4 flex justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-green-100 dark:bg-green-900/30 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
+                          <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-800 dark:text-white text-sm">
+                            {workout.name}
+                          </h3>
+                          <div className="flex flex-wrap gap-1 text-xs text-secondary mt-1">
+                            <span>Completed {getTimeAgo(workout.completedAt)}</span>
+                            <span>•</span>
+                            <span>{countUniqueExercises(workout)} exercises</span>
+                            {workout.totalVolume > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{formatVolume(workout.totalVolume)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-800 dark:text-white">
-                          {workout.name}
-                        </h3>
-                        <p className="text-xs text-secondary mt-1">
-                          Completed {getTimeAgo(workout.completedAt)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleFavorite(workout.id)}
-                        className={`text-gray-400 hover:text-amber-400 ${workout.favorite ? 'text-amber-400' : ''}`}
-                      >
-                        {workout.favorite ? (
-                          <StarIconSolid className="w-5 h-5" />
-                        ) : (
-                          <StarIcon className="w-5 h-5" />
-                        )}
-                      </button>
                       <button
                         onClick={() => router.push(`/workout/${workout.id}`)}
-                        className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                        className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors self-start"
                       >
-                        <ArrowRightIcon className="w-5 h-5" />
+                        <ArrowRightIcon className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {completedWorkouts.length > 5 && (
-                <button
-                  onClick={() => router.push('/workout/history')}
-                  className="mt-2 text-center p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-secondary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  View all {completedWorkouts.length} completed workouts
-                </button>
-              )}
+                  </motion.div>
+                ))}
+                
+                {completedWorkouts.length > 3 && (
+                  <button
+                    onClick={() => router.push('/workout/history')}
+                    className="text-center p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-secondary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-sm"
+                  >
+                    View all {completedWorkouts.length} completed workouts
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+          
+          {/* Unscheduled Workouts Column */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <QuestionMarkCircleIcon className="w-5 h-5 text-purple-500" />
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Unscheduled Workouts
+              </h2>
             </div>
-          )}
-        </section>
+            
+            {unscheduledWorkouts.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center h-32 flex items-center justify-center">
+                <p className="text-secondary">None unscheduled, well done!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {unscheduledWorkouts.slice(0, 3).map(workout => (
+                  <motion.div
+                    key={workout.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
+                  >
+                    <div className="p-4 flex justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-purple-100 dark:bg-purple-900/30 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0">
+                          <QuestionMarkCircleIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-800 dark:text-white text-sm">
+                            {workout.name}
+                          </h3>
+                          <div className="flex flex-wrap gap-1 text-xs text-secondary mt-1">
+                            <span>{countUniqueExercises(workout)} exercises</span>
+                            <span>•</span>
+                            <span>{workout.sets?.length || 0} sets</span>
+                            {workout.totalVolume > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{formatVolume(workout.totalVolume)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggleFavorite(workout.id)}
+                          className={`text-gray-400 hover:text-amber-400 ${workout.favorite ? 'text-amber-400' : ''}`}
+                        >
+                          {workout.favorite ? (
+                            <StarIconSolid className="w-4 h-4" />
+                          ) : (
+                            <StarIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => router.push(`/workout/${workout.id}`)}
+                          className="p-1 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                        >
+                          <ArrowRightIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+                
+                {unscheduledWorkouts.length > 3 && (
+                  <button
+                    onClick={() => router.push('/workouts/unscheduled')}
+                    className="text-center p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-secondary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-sm"
+                  >
+                    View all {unscheduledWorkouts.length} unscheduled workouts
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )

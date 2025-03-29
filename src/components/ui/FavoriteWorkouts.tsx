@@ -1,33 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
-  TrashIcon,
-  ClockIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  PencilSquareIcon,
-  XMarkIcon
+  ArrowRightIcon
 } from '@heroicons/react/24/outline'
-import { MdFavoriteBorder } from "react-icons/md";
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useRouter } from 'next/navigation'
-
-interface Set {
-  id: string
-  reps: number
-  weight: number
-  unit?: 'kg' | 'lbs'
-  exercises: Array<{
-    name: string
-    muscles: string[]
-  }>
-}
-
-interface Workout {
-  id: string
-  name: string
-  createdAt: string
-  sets: Set[]
-}
+import type { Workout } from '@/types/workout'
 
 interface UserProfile {
   useMetric: boolean
@@ -37,11 +15,7 @@ export default function FavoriteWorkouts() {
   const router = useRouter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
-  const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
-  const [editName, setEditName] = useState('')
-  const [saving, setSaving] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
@@ -62,15 +36,6 @@ export default function FavoriteWorkouts() {
     }
   }
 
-  const formatWeight = (weight: number) => {
-    if (!userProfile) return weight.toFixed(1)
-    return weight.toFixed(1)
-  }
-
-  const getWeightUnit = () => {
-    return userProfile?.useMetric ? 'kg' : 'lbs'
-  }
-
   const fetchWorkouts = async () => {
     try {
       const response = await fetch('/api/workout')
@@ -78,7 +43,9 @@ export default function FavoriteWorkouts() {
         throw new Error('Failed to fetch workouts')
       }
       const data = await response.json()
-      setWorkouts(data)
+      // Filter to only get favorited workouts
+      const favoriteWorkouts = data.filter((workout: Workout) => workout.favorite)
+      setWorkouts(favoriteWorkouts)
     } catch (error) {
       setError('Failed to load workouts')
       console.error('Error fetching workouts:', error)
@@ -87,104 +54,44 @@ export default function FavoriteWorkouts() {
     }
   }
 
-  const deleteWorkout = async (workoutId: string) => {
+  const toggleFavorite = async (workoutId: string) => {
     try {
-      const response = await fetch(`/api/workout/${workoutId}`, {
-        method: 'DELETE',
+      await fetch(`/api/workout/${workoutId}/favorite`, {
+        method: 'POST',
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete workout')
-      }
-
-      setWorkouts(workouts.filter(workout => workout.id !== workoutId))
-    } catch (error) {
-      console.error('Error deleting workout:', error)
-      setError('Failed to delete workout')
-    }
-  }
-
-  const toggleWorkout = (workoutId: string) => {
-    setExpandedWorkout(expandedWorkout === workoutId ? null : workoutId)
-  }
-
-  const startEditing = (workout: Workout) => {
-    setEditingWorkout(workout)
-    setEditName(workout.name)
-  }
-
-  const cancelEditing = () => {
-    setEditingWorkout(null)
-    setEditName('')
-  }
-
-  const editWorkout = async () => {
-    if (!editingWorkout) return
-
-    try {
-      setSaving(true)
-
-      // Prepare exercise data for the API in the expected format
-      const exercises = Object.entries(editingWorkout.sets.reduce((acc: { [key: string]: any }, set) => {
-        const exerciseName = set.exercises[0]?.name
-        if (exerciseName) {
-          if (!acc[exerciseName]) {
-            acc[exerciseName] = {
-              name: exerciseName,
-              muscles: set.exercises[0]?.muscles || [],
-              equipment: [],
-              sets: []
-            }
-          }
-          acc[exerciseName].sets.push({
-            reps: set.reps,
-            weight: set.weight,
-            unit: set.unit || 'kg'
-          })
-        }
-        return acc
-      }, {})).map(([_, exercise]) => exercise)
-
-      const response = await fetch(`/api/workout/${editingWorkout.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          workoutId: editingWorkout.id,
-          name: editName,
-          exercises
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update workout')
-      }
-
-      // Get the updated workout
-      const updatedWorkout = await response.json()
-
-      // Update the workout in the local state
-      setWorkouts(workouts.map(w => w.id === updatedWorkout.id ? updatedWorkout : w))
       
-      // Close the editing form
-      setEditingWorkout(null)
-      setEditName('')
-      
-      // Force refresh data
+      // Refresh the workouts list after toggling favorite
       fetchWorkouts()
     } catch (error) {
-      console.error('Error updating workout:', error)
-      setError('Failed to update workout')
-    } finally {
-      setSaving(false)
+      console.error('Error toggling favorite:', error)
     }
   }
 
-  const navigateToDetailedEdit = (workoutId: string) => {
-    router.push(`/workout/edit/${workoutId}`)
-  }
+  // Helper function to count unique exercises in a workout
+  const countUniqueExercises = (workout: any) => {
+    // Use a set to track unique exercise names
+    const uniqueExerciseNames = new Set();
+    
+    if (workout.sets) {
+      workout.sets.forEach((set: any) => {
+        if (set.exercises) {
+          set.exercises.forEach((exercise: any) => {
+            uniqueExerciseNames.add(exercise.name);
+          });
+        }
+      });
+    }
+    
+    return uniqueExerciseNames.size;
+  };
+  
+  // Format volume to display with proper unit
+  const formatVolume = (volume: number) => {
+    if (volume >= 1000) {
+      return `${(volume / 1000).toFixed(1)}k`;
+    }
+    return Math.round(volume).toString();
+  };
 
   if (loading) {
     return (
@@ -204,10 +111,8 @@ export default function FavoriteWorkouts() {
 
   if (workouts.length === 0) {
     return (
-      <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-xl">
-        <p className="text-secondary">
-          No saved workouts yet. Create your first workout to get started!
-        </p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
+        <p className="text-secondary">No favorite workouts yet. Mark a workout as favorite to see it here.</p>
       </div>
     )
   }
@@ -215,154 +120,57 @@ export default function FavoriteWorkouts() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-        <MdFavoriteBorder className="w-6 h-6 text-blue-500" />
-        My Workouts
+        <StarIconSolid className="w-5 h-5 text-amber-400" />
+        Favorite Workouts
       </h2>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {workouts.map((workout) => (
           <motion.div
             key={workout.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden"
           >
-            <div 
-              className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              onClick={() => toggleWorkout(workout.id)}
-            >
-              <div>
+            <div className="p-5">
+              <div className="flex justify-between items-start">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
                   {workout.name}
                 </h3>
-                <div className="flex items-center gap-2 mt-1 text-sm text-secondary">
-                  <ClockIcon className="w-4 h-4" />
-                  {new Date(workout.createdAt).toLocaleDateString()}
-                </div>
+                <button
+                  onClick={() => toggleFavorite(workout.id)}
+                  className="text-amber-400 hover:text-amber-500"
+                >
+                  <StarIconSolid className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    navigateToDetailedEdit(workout.id)
-                  }}
-                  className="p-2 text-blue-500 hover:text-blue-700 transition-colors"
-                  aria-label="Edit workout"
-                >
-                  <PencilSquareIcon className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteWorkout(workout.id)
-                  }}
-                  className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                  aria-label="Delete workout"
-                >
-                  <TrashIcon className="w-5 h-5" />
-                </button>
-                {expandedWorkout === workout.id ? (
-                  <ChevronUpIcon className="w-5 h-5 text-gray-400" />
-                ) : (
-                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+              <div className="text-sm text-secondary mt-1 flex flex-wrap gap-2">
+                <span>{countUniqueExercises(workout)} exercises</span>
+                <span>•</span>
+                <span>{workout.sets?.length || 0} sets</span>
+                {workout.totalVolume > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>{formatVolume(workout.totalVolume)} volume</span>
+                  </>
                 )}
               </div>
+              <div className="mt-4 flex justify-between items-center">
+                <button
+                  onClick={() => router.push(`/workout/${workout.id}`)}
+                  className="text-primary text-sm font-medium flex items-center gap-1 hover:underline"
+                >
+                  View Details
+                  <ArrowRightIcon className="w-4 h-4" />
+                </button>
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
+                  {workout.completed ? 'Completed' : 'Ready'}
+                </span>
+              </div>
             </div>
-
-            {expandedWorkout === workout.id && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="border-t border-gray-200 dark:border-gray-700"
-              >
-                <div className="p-4 space-y-4">
-                  {Object.entries(workout.sets.reduce((acc: { [key: string]: Set[] }, set) => {
-                    const exerciseName = set.exercises[0]?.name
-                    if (exerciseName) {
-                      if (!acc[exerciseName]) {
-                        acc[exerciseName] = []
-                      }
-                      acc[exerciseName].push(set)
-                    }
-                    return acc
-                  }, {})).map(([exerciseName, sets]) => (
-                    <div key={exerciseName} className="space-y-2">
-                      <h4 className="font-medium text-primary">
-                        {exerciseName}
-                      </h4>
-                      <div className="grid grid-cols-3 gap-2 text-sm text-secondary">
-                        {sets.map((set: Set, index: number) => (
-                          <div 
-                            key={set.id}
-                            className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded"
-                          >
-                            <span className="text-accent">
-                              Set {index + 1}:
-                            </span>{' '}
-                            {set.reps} reps @ {formatWeight(set.weight)} {getWeightUnit()}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
           </motion.div>
         ))}
       </div>
-
-      {/* Quick Edit Modal */}
-      {editingWorkout && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                Edit Workout
-              </h3>
-              <button 
-                onClick={cancelEditing}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Workout Name
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="form-input block w-full"
-                  placeholder="Workout name"
-                />
-              </div>
-              
-              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={cancelEditing}
-                  className="btn btn-secondary"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={editWorkout}
-                  className="btn btn-primary"
-                  disabled={saving || !editName.trim()}
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 } 

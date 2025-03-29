@@ -11,7 +11,7 @@ export function QuickActionsCard() {
   const actions = [
     { 
       href: '/workout/create', 
-      label: 'New Workout', 
+      label: 'Workout', 
       icon: <ClipboardDocumentListIcon className="h-5 w-5 mr-1" />,
       variant: 'primary'
     },
@@ -28,8 +28,8 @@ export function QuickActionsCard() {
       variant: 'tertiary'
     },
     { 
-      href: '/settings', 
-      label: 'Settings', 
+      href: '/account', 
+      label: 'Account', 
       icon: <Cog6ToothIcon className="h-5 w-5 mr-1" />,
       variant: 'secondary'
     },

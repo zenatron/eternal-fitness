@@ -13,105 +13,23 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-
-interface Exercise {
-  id: string;
-  name: string;
-  muscles: string[];
-  equipment: string[];
-}
-
-interface Set {
-  id: string;
-  reps: number;
-  weight: number;
-  exercises: Exercise[];
-}
-
-interface Workout {
-  id: string;
-  name: string;
-  description?: string;
-  completed: boolean;
-  completedAt?: string;
-  scheduledDate?: string;
-  favorite: boolean;
-  createdAt: string;
-  sets: Set[];
-}
+import { useWorkout } from '@/lib/hooks/useWorkout';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { useToggleFavorite, useDeleteWorkout } from '@/lib/hooks/useMutations';
+import { Exercise, Set, Workout } from '@/types/workout';
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = use(params);
   const router = useRouter();
-  const [workout, setWorkout] = useState<Workout | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ useMetric: boolean } | null>(null);
-
-  // Fetch user profile to determine weight unit
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch('/api/profile')
-        if (!response.ok) throw new Error('Failed to fetch user profile')
-        const data = await response.json()
-        setUserProfile(data)
-      } catch (error) {
-        console.error('Error fetching user profile:', error)
-      }
-    }
-    fetchUserProfile()
-  }, [])
-
-  // Fetch workout data
-  useEffect(() => {
-    const fetchWorkout = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/workout/${workoutId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch workout');
-        }
-        
-        const data = await response.json();
-        setWorkout(data);
-      } catch (error) {
-        console.error('Error fetching workout:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load workout details');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchWorkout();
-  }, [workoutId]);
-
-  // Toggle favorite status
-  const toggleFavorite = async () => {
-    if (!workout) return;
-    
-    try {
-      const response = await fetch(`/api/workout/${workoutId}/favorite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update favorite status');
-      }
-      
-      const data = await response.json();
-      setWorkout(prev => prev ? {...prev, favorite: data.favorite} : null);
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    }
-  };
-
+  
+  // Use our custom hooks instead of directly fetching data
+  const { workout, isLoading: workoutLoading, error: workoutError } = useWorkout(workoutId);
+  const { profile, isLoading: profileLoading } = useProfile();
+  const toggleFavoriteMutation = useToggleFavorite();
+  const deleteWorkoutMutation = useDeleteWorkout();
+  
   // Format date for display
-  const formatDate = (dateString?: string) => {
+  const formatDate = (dateString?: string | Date) => {
     if (!dateString) return 'Not scheduled';
     
     const date = new Date(dateString);
@@ -123,27 +41,24 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
     });
   };
 
+  // Toggle favorite status
+  const handleToggleFavorite = () => {
+    if (!workout) return;
+    toggleFavoriteMutation.mutate(workoutId);
+  };
+
   // Delete the workout
-  const deleteWorkout = async () => {
+  const handleDeleteWorkout = async () => {
     if (!confirm('Are you sure you want to delete this workout?')) return;
-    
-    try {
-      const response = await fetch(`/api/workout/${workoutId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete workout');
+    deleteWorkoutMutation.mutate(workoutId, {
+      onSuccess: () => {
+        router.push('/workouts');
       }
-      
-      router.push('/workouts');
-    } catch (error) {
-      console.error('Error deleting workout:', error);
-    }
+    });
   };
 
   // Group exercises by name
-  const exerciseGroups = workout?.sets.reduce<Record<string, { muscles: string[], equipment: string[], sets: Set[] }>>(
+  const exerciseGroups = workout?.sets?.reduce<Record<string, { muscles: string[], equipment: string[], sets: Set[] }>>(
     (groups, set) => {
       if (!set.exercises[0]) return groups;
       
@@ -152,8 +67,8 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
       
       if (!groups[name]) {
         groups[name] = {
-          muscles: exercise.muscles,
-          equipment: exercise.equipment,
+          muscles: exercise.muscles || [],
+          equipment: exercise.equipment || [],
           sets: []
         };
       }
@@ -165,7 +80,9 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   ) || {};
 
   // Loading state
-  if (loading) {
+  const isLoading = workoutLoading || profileLoading;
+  
+  if (isLoading) {
     return (
       <div className="w-full h-full py-12 px-4">
         <div className="max-w-4xl mx-auto">
@@ -178,12 +95,12 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   }
 
   // Error state
-  if (error || !workout) {
+  if (workoutError || !workout) {
     return (
       <div className="w-full h-full py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-            {error || 'Workout not found'}
+            {workoutError ? String(workoutError) : 'Workout not found'}
           </div>
         </div>
       </div>
@@ -227,7 +144,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
               </div>
               <div className="flex gap-2">
                 <button 
-                  onClick={toggleFavorite}
+                  onClick={handleToggleFavorite}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
                   aria-label={workout.favorite ? "Remove from favorites" : "Add to favorites"}
                 >
@@ -245,7 +162,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
                   <PencilIcon className="h-6 w-6 text-white" />
                 </button>
                 <button 
-                  onClick={deleteWorkout}
+                  onClick={handleDeleteWorkout}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
                   aria-label="Delete workout"
                 >
@@ -273,7 +190,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
                 {Object.keys(exerciseGroups).length} exercises
               </div>
               <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
-                {workout.sets.length} sets
+                {workout.sets?.length || 0} sets
               </div>
             </div>
           </div>
@@ -306,7 +223,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
                         <tr className="text-gray-500 dark:text-gray-400 border-b dark:border-gray-700">
                           <th className="px-2 py-2 text-left">Set</th>
                           <th className="px-2 py-2 text-right">Reps</th>
-                          <th className="px-2 py-2 text-right">Weight ({userProfile?.useMetric ? 'kg' : 'lbs'})</th>
+                          <th className="px-2 py-2 text-right">Weight ({profile?.useMetric ? 'kg' : 'lbs'})</th>
                         </tr>
                       </thead>
                       <tbody>

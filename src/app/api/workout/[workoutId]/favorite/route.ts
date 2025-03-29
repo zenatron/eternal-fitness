@@ -7,7 +7,7 @@ const prisma = new PrismaClient()
 // POST to toggle favorite status
 export async function POST(
   request: Request,
-  { params }: { params: { workoutId: string } }
+  { params }: { params: Promise<{ workoutId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -16,7 +16,7 @@ export async function POST(
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    const workoutId = params.workoutId
+    const workoutId = (await params).workoutId
     
     // Check if the workout exists and belongs to the user
     const existingWorkout = await prisma.workout.findFirst({

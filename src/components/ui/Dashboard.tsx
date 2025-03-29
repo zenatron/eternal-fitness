@@ -44,7 +44,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen app-bg pb-12">
       <div className="w-full max-w-6xl mx-auto px-4 pt-8">
-        <DashboardHeader title="Dashboard" />
+        <DashboardHeader title="Dashboard (WIP)" />
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StreakCard 
