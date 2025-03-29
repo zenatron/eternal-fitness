@@ -2,11 +2,8 @@
 
 import { FlagIcon } from '@heroicons/react/24/outline';
 import WorkoutFormEditor from '@/components/ui/WorkoutFormEditor';
-import { useSearchParams } from 'next/navigation';
 
 export default function CreateWorkoutPage() {
-  const searchParams = useSearchParams();
-  const scheduledDate = searchParams.get('date') || '';
 
   const headerElement = (
     <div className="app-card rounded-2xl shadow-xl overflow-hidden mb-6">
@@ -26,7 +23,7 @@ export default function CreateWorkoutPage() {
   return (
     <WorkoutFormEditor
       mode="create"
-      initialScheduledDate={scheduledDate}
+      initialScheduledDate={''}
       initialFavorite={false}
       headerElement={headerElement}
     />
