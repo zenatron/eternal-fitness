@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import FormSection from '@/components/FormSection'
-import ScheduleSection from '@/components/ScheduleSection'
+import FormSection from '@/components/ui/FormSection'
+import ScheduleSection from '@/components/ui/ScheduleSection'
 import { generateWorkoutSchedule } from '@/services/workoutGenerator'
 import type { FormData } from '@/types'
 import type { WorkoutDay } from '@/types/workout'

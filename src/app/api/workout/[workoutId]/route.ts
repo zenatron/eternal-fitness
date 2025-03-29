@@ -60,7 +60,7 @@ export async function PUT(
     
     // Parse the request body
     const body = await request.json()
-    const { name, exercises } = body
+    const { name, exercises, scheduledDate, favorite } = body
     
     if (!name || !exercises || !Array.isArray(exercises)) {
       return new NextResponse('Invalid workout data', { status: 400 })
@@ -80,10 +80,21 @@ export async function PUT(
     
     // Transaction to ensure all operations succeed or fail together
     await prisma.$transaction(async (tx) => {
-      // Update the workout name
+      // Prepare update data with TypeScript workaround
+      const updateData: any = { 
+        name,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined
+      }
+
+      // Only add favorite field if provided
+      if (favorite !== undefined) {
+        updateData.favorite = favorite
+      }
+
+      // Update the workout
       await tx.workout.update({
         where: { id: workoutId },
-        data: { name }
+        data: updateData
       })
       
       // Delete all existing sets for this workout

@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { SignOutButton, useUser } from '@clerk/nextjs'
 import { SignedIn } from '@clerk/nextjs'
-import SavedWorkouts from '@/components/FavoriteWorkouts'
+import SavedWorkouts from '@/components/ui/FavoriteWorkouts'
 
 interface ProfileData {
   name: string

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, exercises } = body
+    const { name, exercises, scheduledDate, favorite } = body
 
     if (!name || !exercises || !Array.isArray(exercises)) {
       return new NextResponse(
@@ -28,7 +28,9 @@ export async function POST(request: Request) {
         name,
         userId,
         completed: false,
-      }
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+        favorite: favorite !== undefined ? favorite : false,
+      } as any
     })
 
     // Create or find exercises and create sets

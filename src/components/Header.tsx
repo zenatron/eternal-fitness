@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import ThemeSwitch from './ThemeSwitch'
+import ThemeSwitch from './theme/ThemeSwitch'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SignedIn, UserButton } from '@clerk/nextjs'

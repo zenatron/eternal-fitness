@@ -6,8 +6,11 @@ import {
   TrashIcon, 
   ExclamationCircleIcon,
   CheckCircleIcon,
-  Bars2Icon
+  Bars2Icon,
+  CalendarDaysIcon,
+  StarIcon as StarOutline 
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { Exercise, ExerciseSet } from '@/types/workout';
 import { useRouter } from 'next/navigation';
 import {
@@ -71,6 +74,8 @@ function SortableItem({
 interface WorkoutFormEditorProps {
   initialWorkoutName?: string;
   initialExercises?: (Exercise & { id: string })[];
+  initialScheduledDate?: string;
+  initialFavorite?: boolean;
   mode: 'create' | 'edit';
   workoutId?: string;
   onSaveSuccess?: () => void;
@@ -80,6 +85,8 @@ interface WorkoutFormEditorProps {
 export default function WorkoutFormEditor({
   initialWorkoutName = '',
   initialExercises = [],
+  initialScheduledDate = '',
+  initialFavorite = false,
   mode,
   workoutId,
   onSaveSuccess,
@@ -87,6 +94,8 @@ export default function WorkoutFormEditor({
 }: WorkoutFormEditorProps) {
   const [workoutName, setWorkoutName] = useState(initialWorkoutName);
   const [workoutExercises, setWorkoutExercises] = useState<(Exercise & { id: string })[]>(initialExercises);
+  const [scheduledDate, setScheduledDate] = useState(initialScheduledDate);
+  const [isFavorite, setIsFavorite] = useState(initialFavorite);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -122,7 +131,11 @@ export default function WorkoutFormEditor({
     if (initialExercises.length > 0) {
       setWorkoutExercises(initialExercises);
     }
-  }, [initialWorkoutName, initialExercises]);
+    if (initialScheduledDate) {
+      setScheduledDate(initialScheduledDate);
+    }
+    setIsFavorite(initialFavorite);
+  }, [initialWorkoutName, initialExercises, initialScheduledDate, initialFavorite]);
 
   // Simple sensors configuration with activation constraints to improve usability
   const sensors = useSensors(
@@ -334,66 +347,77 @@ export default function WorkoutFormEditor({
   // Validate and save the workout
   const saveWorkout = async () => {
     if (!workoutName.trim()) {
-      setSaveMessage('Please give your workout a name');
+      setSaveMessage('Please enter a workout name');
       return;
     }
 
     if (workoutExercises.length === 0) {
-      setSaveMessage('Please add at least one exercise to your workout');
+      setSaveMessage('Please add at least one exercise');
       return;
     }
 
-    if (workoutExercises.some(exercise => exercise.sets?.some(set => set.reps === 0 || set.weight === 0))) {
-      setSaveMessage('Please add reps and weight to your sets');
-      return;
+    // Validate that all sets have values > 0
+    for (const exercise of workoutExercises) {
+      if (!exercise.sets || exercise.sets.length === 0) {
+        setSaveMessage(`Please add at least one set to ${exercise.name}`);
+        return;
+      }
+
+      for (const set of exercise.sets) {
+        if (set.reps <= 0) {
+          setSaveMessage(`Please enter reps for ${exercise.name}`);
+          return;
+        }
+      }
     }
 
     setIsSaving(true);
+    const endpoint = mode === 'create' 
+      ? '/api/workout/create' 
+      : `/api/workout/${workoutId}`;
     
+    const method = mode === 'create' ? 'POST' : 'PUT';
+
     try {
-      const endpoint = mode === 'create' 
-        ? '/api/workout/create' 
-        : `/api/workout/${workoutId}`;
-      
-      const method = mode === 'create' ? 'POST' : 'PUT';
-      
-      // Prepare the request body
-      const requestBody = {
-        ...(mode === 'edit' && { workoutId }),
-        name: workoutName,
-        exercises: workoutExercises,
-      };
-      console.log(requestBody);
+      // Format the data for the API
+      const formattedExercises = workoutExercises.map(exercise => ({
+        name: exercise.name,
+        muscles: exercise.muscles,
+        equipment: exercise.equipment,
+        sets: exercise.sets || []
+      }));
 
       const response = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          name: workoutName,
+          exercises: formattedExercises,
+          scheduledDate: scheduledDate || undefined,
+          favorite: isFavorite
+        }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || `Failed to ${mode} workout`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save workout');
       }
 
-      setSaveMessage(`Workout ${mode === 'create' ? 'created' : 'updated'} successfully!`);
+      setSaveMessage('Workout saved successfully!');
       
-      // Call the success callback if provided
       if (onSaveSuccess) {
         onSaveSuccess();
+      } else {
+        // Wait a moment to show success message
+        setTimeout(() => {
+          router.push('/workouts');
+        }, 1000);
       }
-      
-      // Clear message after 3 seconds and redirect to profile
-      setTimeout(() => {
-        setSaveMessage('');
-        router.push('/profile');
-      }, 100);
     } catch (error) {
-      console.error(`Error ${mode}ing workout:`, error);
-      setSaveMessage(error instanceof Error ? error.message : `Failed to ${mode} workout. Please try again.`);
+      console.error('Error saving workout:', error);
+      setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to save workout'}`);
     } finally {
       setIsSaving(false);
     }
@@ -408,7 +432,21 @@ export default function WorkoutFormEditor({
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
           <form>
             <div className="mb-6">
-              <label htmlFor="workout-name" className="form-item-heading">Workout Name</label>
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="workout-name" className="form-item-heading">Workout Name</label>
+                <button 
+                  type="button"
+                  onClick={() => setIsFavorite(!isFavorite)}
+                  className={`p-1 transition-colors focus:outline-none`}
+                  aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {isFavorite ? (
+                    <StarSolid className="h-6 w-6 text-amber-400" />
+                  ) : (
+                    <StarOutline className="h-6 w-6 text-gray-400 hover:text-amber-400" />
+                  )}
+                </button>
+              </div>
               <input
                 id="workout-name"
                 type="text"
@@ -418,6 +456,25 @@ export default function WorkoutFormEditor({
                 className="form-input"
                 required
               />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="scheduledDate" className="block text-sm font-medium text-secondary mb-1">
+                Schedule Workout (Optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <CalendarDaysIcon className="w-5 h-5 text-primary" />
+                <input
+                  type="date"
+                  id="scheduledDate"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                />
+              </div>
+              <p className="text-xs text-secondary mt-1">
+                Setting a date will add this to your upcoming workouts
+              </p>
             </div>
 
             {/* Exercise Selector */}

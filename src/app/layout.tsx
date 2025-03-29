@@ -1,7 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Providers } from '@/components/Providers'
-import { ThemeHandler } from '@/components/ThemeHandler'
+import { ThemeHandler } from '@/components/theme/ThemeHandler'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import {
