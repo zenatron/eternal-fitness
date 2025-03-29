@@ -183,12 +183,8 @@ export default function Profile() {
       </div>
 
       {/* Saved Workouts Section */}
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mt-6">
-          <div className="p-8">
-            <SavedWorkouts />
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto mt-6">
+        <SavedWorkouts />
       </div>
     </div>
   )
