@@ -1,9 +1,10 @@
 'use client';
 
 import { FlagIcon } from '@heroicons/react/24/outline';
-import WorkoutFormEditor from '@/components/WorkoutFormEditor';
+import WorkoutFormEditor from '@/components/ui/WorkoutFormEditor';
 
 export default function CreateWorkoutPage() {
+
   const headerElement = (
     <div className="app-card rounded-2xl shadow-xl overflow-hidden mb-6">
       <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
@@ -22,6 +23,8 @@ export default function CreateWorkoutPage() {
   return (
     <WorkoutFormEditor
       mode="create"
+      initialScheduledDate={''}
+      initialFavorite={false}
       headerElement={headerElement}
     />
   );

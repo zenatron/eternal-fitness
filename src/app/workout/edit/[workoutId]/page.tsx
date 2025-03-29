@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { FlagIcon } from '@heroicons/react/24/outline';
-import WorkoutFormEditor from '@/components/WorkoutFormEditor';
+import WorkoutFormEditor from '@/components/ui/WorkoutFormEditor';
 import { Exercise } from '@/types/workout';
 
 // Generate a simple unique ID
@@ -15,6 +15,8 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
   const { workoutId } = use(params);
   const [initialWorkoutName, setInitialWorkoutName] = useState('');
   const [initialExercises, setInitialExercises] = useState<(Exercise & { id: string })[]>([]);
+  const [initialScheduledDate, setInitialScheduledDate] = useState('');
+  const [initialFavorite, setInitialFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,17 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
         
         // Set workout name
         setInitialWorkoutName(workout.name);
+        
+        // Set scheduled date if exists
+        if (workout.scheduledDate) {
+          // Format date to YYYY-MM-DD for input
+          const date = new Date(workout.scheduledDate);
+          const formattedDate = date.toISOString().split('T')[0];
+          setInitialScheduledDate(formattedDate);
+        }
+
+        // Set favorite status
+        setInitialFavorite(workout.favorite || false);
         
         // Convert from DB format to the format used in the edit form
         const formattedExercises = convertDbWorkoutToFormWorkout(workout);
@@ -127,6 +140,8 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
       workoutId={workoutId}
       initialWorkoutName={initialWorkoutName}
       initialExercises={initialExercises}
+      initialScheduledDate={initialScheduledDate}
+      initialFavorite={initialFavorite}
       headerElement={headerElement}
     />
   );

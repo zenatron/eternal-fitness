@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { SignedIn, SignOutButton } from '@clerk/nextjs'
-import { PiSignOut } from 'react-icons/pi'
+import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline'
 import { Switch } from '@headlessui/react'
 
 interface ProfileFormData {
@@ -251,7 +251,7 @@ export default function ProfileSetup() {
                 >
                   <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
                     Sign Out
-                    <PiSignOut className="w-5 h-5" />
+                    <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
                   </button>
                 </SignOutButton>
               </SignedIn>

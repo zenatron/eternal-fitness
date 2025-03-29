@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, exercises } = body
+    const { name, exercises, scheduledDate, favorite } = body
 
     if (!name || !exercises || !Array.isArray(exercises)) {
       return new NextResponse(
@@ -28,8 +28,14 @@ export async function POST(request: Request) {
         name,
         userId,
         completed: false,
-      }
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+        favorite: favorite !== undefined ? favorite : false,
+        totalVolume: 0 // Initialize with 0, will update after calculating
+      } as any
     })
+
+    // Track total volume as we create sets
+    let totalVolume = 0;
 
     // Create or find exercises and create sets
     for (const exerciseData of exercises) {
@@ -37,29 +43,58 @@ export async function POST(request: Request) {
         throw new Error(`Invalid exercise data: ${JSON.stringify(exerciseData)}`)
       }
 
-      // Find or create the exercise
+      // Enhanced deduplication: Find by name AND matching muscles AND equipment
       let exercise = await prisma.exercise.findFirst({
         where: {
           name: exerciseData.name,
+          // Only include these conditions if the arrays are provided
+          ...(exerciseData.muscles?.length > 0 ? {
+            muscles: {
+              equals: exerciseData.muscles || []
+            }
+          } : {}),
+          ...(exerciseData.equipment?.length > 0 ? {
+            equipment: {
+              equals: exerciseData.equipment || []
+            }
+          } : {})
         }
       })
 
       if (!exercise) {
-        exercise = await prisma.exercise.create({
-          data: {
+        // If no exact match, see if there's a name match with similar content
+        exercise = await prisma.exercise.findFirst({
+          where: {
             name: exerciseData.name,
-            muscles: exerciseData.muscles || [],
-            equipment: exerciseData.equipment || [],
           }
-        })
+        });
+
+        // If even that doesn't exist, create a new exercise
+        if (!exercise) {
+          exercise = await prisma.exercise.create({
+            data: {
+              name: exerciseData.name,
+              muscles: exerciseData.muscles || [],
+              equipment: exerciseData.equipment || [],
+            }
+          })
+        }
       }
 
       // Create sets for this exercise
       for (const set of exerciseData.sets) {
+        const reps = set.reps || 0;
+        const weight = set.weight || 0;
+        const setVolume = reps * weight;
+        
+        // Add to total volume
+        totalVolume += setVolume;
+        
         await prisma.set.create({
           data: {
-            reps: set.reps,
-            weight: set.weight,
+            reps,
+            weight,
+            volume: setVolume, // Store the volume for this set
             workout: {
               connect: {
                 id: workout.id
@@ -70,10 +105,16 @@ export async function POST(request: Request) {
                 id: exercise.id
               }
             }
-          }
+          } as any
         })
       }
     }
+    
+    // Update the workout with the calculated total volume
+    await prisma.workout.update({
+      where: { id: workout.id },
+      data: { totalVolume } as any
+    });
 
     // Return the created workout with its sets
     const createdWorkout = await prisma.workout.findUnique({

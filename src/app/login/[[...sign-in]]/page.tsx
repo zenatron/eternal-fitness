@@ -37,7 +37,7 @@ export default function LoginPage() {
               },
               variables: {
                 colorPrimary: resolvedTheme === 'dark' ? "#60a5fa" : "#3b82f6",
-                colorBackground: resolvedTheme === 'dark' ? "#1f2937" : "#ffffff",
+                colorBackground: resolvedTheme === 'dark' ? "#101828" : "#f9fafb",
                 colorText: resolvedTheme === 'dark' ? "#f3f4f6" : "#1f2937",
                 colorTextSecondary: resolvedTheme === 'dark' ? "#9ca3af" : "#6b7280",
                 borderRadius: "1rem",

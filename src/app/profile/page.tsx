@@ -1,72 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { IoScaleOutline } from "react-icons/io5";
-import { LuPersonStanding } from "react-icons/lu";
-import { CgGym } from "react-icons/cg";
-import { PiSignOut } from "react-icons/pi";
 import { useRouter } from 'next/navigation';
 
 import { 
   UserCircleIcon, 
-  ChartBarIcon,
   CalendarDaysIcon,
-  PencilSquareIcon,
-  TrophyIcon
+  TrophyIcon,
+  ArrowLeftIcon,
+  Cog6ToothIcon,
+  ArrowRightStartOnRectangleIcon,
+  ScaleIcon,
+  BoltIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
-import { SignOutButton, useUser } from '@clerk/nextjs'
-import { SignedIn } from '@clerk/nextjs'
-import SavedWorkouts from '@/components/FavoriteWorkouts'
 
-interface ProfileData {
-  name: string
-  age: number | null
-  gender: string | null
-  height: number | null
-  weight: number | null
-  workoutsCompleted: number
-  joinDate: string
-  points: number | null
-  useMetric: boolean
-}
+import { SignedIn } from '@clerk/nextjs'
+import SavedWorkouts from '@/components/ui/FavoriteWorkouts'
+import { useProfile } from '@/lib/hooks/useProfile';
+import { SignOutButton } from '@clerk/nextjs'
 
 export default function Profile() {
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
   const router = useRouter();
+  const { profile, isLoading, error } = useProfile();
   
+  // Redirect if profile doesn't exist or needs setup
   useEffect(() => {
-    fetchProfile()
-  }, [])
-  
-  // Separate useEffect for the redirect
-  useEffect(() => {
-    // Only redirect after loading is complete and profile is null or needs setup
-    if (!loading && (!profile || !profile.name)) {
+    if (!isLoading && (!profile || !profile.name)) {
       router.push('/profile/setup')
     }
-  }, [loading, profile, router])
-
-  const fetchProfile = async () => {
-    try {
-      const response = await fetch('/api/profile')
-      if (response.ok) {
-        const data = await response.json()
-        setProfile(data)
-      } else if (response.status === 404) {
-        const errorData = await response.json()
-        if (errorData.needsSetup) {
-          router.push('/profile/setup')
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [isLoading, profile, router])
 
   const getDisplayValue = (value: number | null) => {
     if (!value) return ''
@@ -79,109 +43,124 @@ export default function Profile() {
       (isHeight ? 'in' : 'lbs')
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
       </div>
     )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen app-bg py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
+            <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Error</h2>
+            <p className="text-red-500 dark:text-red-300">{String(error)}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Back to Dashboard Button */}
+        <div className="mb-6">
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-2 text-primary hover:text-primary-dark transition-colors py-2 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
+        
         {/* Profile Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
           <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <UserCircleIcon className="w-24 h-24" />
-                <div>
-                  <h1 className="text-3xl font-bold">{profile?.name}</h1>
-                  <p className="text-blue-100 mt-1">Member since {new Date(profile?.joinDate || "").toLocaleDateString()}</p>
+            <div className="relative flex flex-col space-y-4">
+              {/* Top row with name and points */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <UserCircleIcon className="w-24 h-24" />
+                  <div>
+                    <h1 className="text-3xl font-bold">{profile?.name}</h1>
+                    <p className="text-blue-100 mt-1">Member since {new Date(profile?.joinDate || "").toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
+                  <TrophyIcon className="w-8 h-8 text-yellow-300" />
+                  <div>
+                    <p className="text-sm text-blue-100">Total Points</p>
+                    <p className="text-2xl font-bold">{profile?.points || 0}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-                <TrophyIcon className="w-8 h-8 text-yellow-300" />
-                <div>
-                  <p className="text-sm text-blue-100">Total Points</p>
-                  <p className="text-2xl font-bold">{profile?.points || 0}</p>
+              
+              {/* Bottom row with user parameters */}
+              <div className="flex items-center justify-between mt-6">
+                <div className="flex items-center gap-6">
+                  <div className="flex flex-wrap gap-4">
+                    {profile?.age && (
+                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                        <span className="text-blue-100 text-sm">Age:</span>
+                        <span className="font-medium">{profile.age} yrs</span>
+                      </div>
+                    )}
+                    {profile?.weight && (
+                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                        <ScaleIcon className="w-4 h-4 text-blue-100" />
+                        <span className="font-medium">{getDisplayValue(profile.weight)} {getUnitLabel(false)}</span>
+                      </div>
+                    )}
+                    {profile?.height && (
+                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                        <SparklesIcon className="w-4 h-4 text-blue-100" />
+                        <span className="font-medium">{getDisplayValue(profile.height)} {getUnitLabel(true)}</span>
+                      </div>
+                    )}
+                    {profile?.gender && (
+                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
+                        <span className="text-blue-100 text-sm">Gender:</span>
+                        <span className="font-medium">{profile.gender}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <Link
+                  href="/profile/edit"
+                  className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                  aria-label="Edit Profile"
+                >
+                  <Cog6ToothIcon className="w-5 h-5" />
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
-              >
-                <div className="flex items-center gap-4">
-                  <CgGym className="w-8 h-8 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-secondary">Workouts Completed</p>
-                    <p className="text-2xl font-bold text-heading">{profile?.workoutsCompleted || 0}</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
-              >
-                <div className="flex items-center gap-4">
-                  <IoScaleOutline className="w-8 h-8 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-secondary">Current Weight</p>
-                    <p className="text-2xl font-bold text-heading">
-                      {getDisplayValue(profile?.weight ?? null)} {getUnitLabel(false)}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6"
-              >
-                <div className="flex items-center gap-4">
-                  <LuPersonStanding className="w-8 h-8 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-secondary">Height</p>
-                    <p className="text-2xl font-bold text-heading">
-                      {getDisplayValue(profile?.height ?? null)} {getUnitLabel(true)}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/workout/create"
-                className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
-              >
-                <CalendarDaysIcon className="w-5 h-5" />
-                Create Workout
-              </Link>
-              <Link
-                href="/profile/edit"
-                className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
-              >
-                <PencilSquareIcon className="w-5 h-5" />
-                Edit Profile
-              </Link>
+          {/* Stats Grid - Now only shows workouts completed */}
+          <div className="p-4">
+            {/* Action Buttons - Removed the Edit Profile button */}
+            <div className="flex flex-col sm:flex-row gap-4">
               <SignedIn>
+                <Link
+                  href="/workout/create"
+                  className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <CalendarDaysIcon className="w-5 h-5" />
+                  Create Workout
+                </Link>
+                <Link
+                  href="/workouts"
+                  className="btn btn-tertiary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <BoltIcon className="w-5 h-5" />
+                  View Activity
+                </Link>
                 <Link 
                   href="/account"
                   className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
@@ -194,7 +173,7 @@ export default function Profile() {
                 >
                   <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
                     Sign Out
-                    <PiSignOut className="w-5 h-5" />
+                    <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
                   </button>
                 </SignOutButton>
               </SignedIn>
@@ -204,12 +183,8 @@ export default function Profile() {
       </div>
 
       {/* Saved Workouts Section */}
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mt-6">
-          <div className="p-8">
-            <SavedWorkouts />
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto mt-6">
+        <SavedWorkouts />
       </div>
     </div>
   )
