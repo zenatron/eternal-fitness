@@ -54,23 +54,21 @@ export async function GET() {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // Fetch user with full details
-    const user = await prisma.$queryRaw`
-      SELECT * FROM "User" WHERE id = ${userId}
-    ` as any[];
-
-    if (!user || user.length === 0) {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId
+      }
+    });
+    if (!user) {
       return new NextResponse('User not found', { status: 404 });
     }
 
-    const userData = user[0];
-
     // Get user stats
-    const userStatsResult = await prisma.$queryRaw`
-      SELECT * FROM "UserStats" WHERE "userId" = ${userId}
-    ` as any[];
-    
-    const userStats = userStatsResult && userStatsResult.length > 0 ? userStatsResult[0] : null;
+    const userStats = await prisma.userStats.findUnique({
+      where: {
+        userId
+      }
+    });
 
     // Get current date info for monthly stats query
     const now = new Date();
@@ -199,11 +197,11 @@ export async function GET() {
         workoutsCompleted: userStats?.totalWorkouts || 0,
         personalRecords: 0, // We're not tracking PRs yet
         weightProgress: {
-          current: userData.weight || 0,
-          goal: userData.weightGoal || 0,
-          unit: userData.useMetric ? 'kg' : 'lbs',
-          percentage: userData.weightGoal && userData.weight 
-            ? Math.min(100, Math.round((userData.weight / userData.weightGoal) * 100))
+          current: user.weight || 0,
+          goal: user.weightGoal || 0,
+          unit: user.useMetric ? 'kg' : 'lbs',
+          percentage: user.weightGoal && user.weight 
+            ? Math.min(100, Math.round((user.weight / user.weightGoal) * 100))
             : 0
         }
       },
@@ -227,7 +225,7 @@ export async function GET() {
         activeWeeks: userStats?.activeWeeks || 0,
         totalVolume: {
           amount: userStats?.totalVolume || 0,
-          unit: userData.useMetric ? 'kg' : 'lbs',
+          unit: user.useMetric ? 'kg' : 'lbs',
           percentIncrease: volumeChange,
           displayPercentage: 65 // This would be determined by your UI needs
         }

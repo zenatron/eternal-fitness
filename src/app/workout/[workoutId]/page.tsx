@@ -16,7 +16,7 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { useWorkout } from '@/lib/hooks/useWorkout';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteWorkout } from '@/lib/hooks/useMutations';
-import { Exercise, Set, Workout } from '@/types/workout';
+import { Set as WorkoutSet } from '@/types/workout';
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = use(params);
@@ -58,7 +58,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   };
 
   // Group exercises by name
-  const exerciseGroups = workout?.sets?.reduce<Record<string, { muscles: string[], equipment: string[], sets: Set[] }>>(
+  const exerciseGroups = workout?.sets?.reduce<Record<string, { muscles: string[], equipment: string[], sets: WorkoutSet[] }>>(
     (groups, set) => {
       if (!set.exercises[0]) return groups;
       

@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.23.1",
+  "version": "0.25.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -38,9 +38,12 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
+    "@heroui/date-picker": "^2.3.16",
+    "@internationalized/date": "^3.7.0",
     "@prisma/client": "^6.5.0",
     "@tanstack/react-query": "^5.70.0",
     "@types/react-beautiful-dnd": "^13.1.8",
+    "@types/react-datepicker": "^7.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.6.0",
@@ -51,6 +54,7 @@
     "prisma": "^6.5.0",
     "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
+    "react-datepicker": "^8.2.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.5.0",
     "svix": "^1.62.0",

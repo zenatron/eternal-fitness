@@ -13,6 +13,8 @@ import {
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { Exercise } from '@/types/workout';
 import { useRouter } from 'next/navigation';
+import { DatePicker } from '@heroui/date-picker';
+import { CalendarDate, parseDate } from '@internationalized/date';
 import {
   DndContext,
   closestCenter,
@@ -105,6 +107,7 @@ export default function WorkoutFormEditor({
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<{ useMetric: boolean } | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Fetch user profile
   useEffect(() => {
@@ -355,6 +358,20 @@ export default function WorkoutFormEditor({
     }
   };
 
+  // Handle date selection from calendar
+  const handleDateSelect = (value: CalendarDate | null) => {
+    if (!value) {
+      setScheduledDate('');
+      setIsCalendarOpen(false);
+      return;
+    }
+    
+    // Format CalendarDate to YYYY-MM-DD string
+    const formattedDate = `${value.year}-${value.month.toString().padStart(2, '0')}-${value.day.toString().padStart(2, '0')}`;
+    setScheduledDate(formattedDate);
+    setIsCalendarOpen(false);
+  };
+
   // Validate and save the workout
   const saveWorkout = async () => {
     if (!workoutName.trim()) {
@@ -473,15 +490,33 @@ export default function WorkoutFormEditor({
               <label htmlFor="scheduledDate" className="block text-sm font-medium text-secondary mb-1">
                 Schedule Workout (Optional)
               </label>
-              <div className="flex items-center gap-2">
-                <CalendarDaysIcon className="w-5 h-5 text-primary" />
-                <input
-                  type="date"
-                  id="scheduledDate"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
+              <div className="flex items-center gap-2 relative">
+                <div className="flex-1 flex items-center">
+                  <CalendarDaysIcon className="w-5 h-5 text-primary absolute left-3 z-10" />
+                  <input
+                    type="date"
+                    id="scheduledDate"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white"
+                  />
+                </div>
+                
+                {isCalendarOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50">
+                    <div 
+                      className="fixed inset-0 bg-black/20" 
+                      onClick={() => setIsCalendarOpen(false)}
+                    />
+                    <div className="relative bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                      <DatePicker
+                        value={scheduledDate ? parseDate(scheduledDate) : undefined}
+                        onChange={handleDateSelect}
+                        className="bg-gray-800 dark:bg-gray-50 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-secondary mt-1">
                 Setting a date will add this to your upcoming workouts

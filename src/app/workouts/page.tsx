@@ -14,6 +14,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { motion } from 'framer-motion'
 import { useWorkouts } from '@/lib/hooks/useWorkouts';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
+import { Set as WorkoutSet, Exercise, Workout } from '@/types/workout'
 
 export default function WorkoutsPage() {
   const router = useRouter()
@@ -53,14 +54,14 @@ export default function WorkoutsPage() {
   }
   
   // Helper function to count unique exercises in a workout
-  const countUniqueExercises = (workout: any) => {
+  const countUniqueExercises = (workout: Workout) => {
     // Use a set to track unique exercise names
     const uniqueExerciseNames = new Set();
     
     if (workout.sets) {
-      workout.sets.forEach((set: any) => {
+      workout.sets.forEach((set: WorkoutSet) => {
         if (set.exercises) {
-          set.exercises.forEach((exercise: any) => {
+          set.exercises.forEach((exercise: Exercise) => {
             uniqueExerciseNames.add(exercise.name);
           });
         }
