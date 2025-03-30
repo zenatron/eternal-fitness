@@ -4,14 +4,7 @@ import { Providers } from '@/components/Providers'
 import { ThemeHandler } from '@/components/theme/ThemeHandler'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from '@clerk/nextjs'
+import { ClerkProvider } from '@clerk/nextjs'
 
 export const metadata: Metadata = {
   title: 'Eternal Fitness',

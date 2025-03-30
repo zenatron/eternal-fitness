@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { FlagIcon } from '@heroicons/react/24/outline';
 import WorkoutFormEditor from '@/components/ui/WorkoutFormEditor';
 import { Exercise } from '@/types/workout';
+import { useWorkout } from '@/lib/hooks/useWorkout';
 
 // Generate a simple unique ID
 function generateId() {
@@ -13,53 +14,34 @@ function generateId() {
 export default function EditWorkoutPage({ params }: { params: Promise<{ workoutId: string }> }) {
 
   const { workoutId } = use(params);
+  const { workout, isLoading, error } = useWorkout(workoutId);
   const [initialWorkoutName, setInitialWorkoutName] = useState('');
   const [initialExercises, setInitialExercises] = useState<(Exercise & { id: string })[]>([]);
   const [initialScheduledDate, setInitialScheduledDate] = useState('');
   const [initialFavorite, setInitialFavorite] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch existing workout data
+  // Process workout data when it loads
   useEffect(() => {
-    const fetchWorkout = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/workout/${workoutId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch workout');
-        }
-        
-        const workout = await response.json();
-        
-        // Set workout name
-        setInitialWorkoutName(workout.name);
-        
-        // Set scheduled date if exists
-        if (workout.scheduledDate) {
-          // Format date to YYYY-MM-DD for input
-          const date = new Date(workout.scheduledDate);
-          const formattedDate = date.toISOString().split('T')[0];
-          setInitialScheduledDate(formattedDate);
-        }
-
-        // Set favorite status
-        setInitialFavorite(workout.favorite || false);
-        
-        // Convert from DB format to the format used in the edit form
-        const formattedExercises = convertDbWorkoutToFormWorkout(workout);
-        setInitialExercises(formattedExercises);
-      } catch (error) {
-        console.error('Error fetching workout:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load workout details');
-      } finally {
-        setLoading(false);
+    if (workout) {
+      // Set workout name
+      setInitialWorkoutName(workout.name);
+      
+      // Set scheduled date if exists
+      if (workout.scheduledDate) {
+        // Format date to YYYY-MM-DD for input
+        const date = new Date(workout.scheduledDate);
+        const formattedDate = date.toISOString().split('T')[0];
+        setInitialScheduledDate(formattedDate);
       }
-    };
-    
-    fetchWorkout();
-  }, [workoutId]);
+
+      // Set favorite status
+      setInitialFavorite(workout.favorite || false);
+      
+      // Convert from DB format to the format used in the edit form
+      const formattedExercises = convertDbWorkoutToFormWorkout(workout);
+      setInitialExercises(formattedExercises);
+    }
+  }, [workout]);
 
   // Convert DB format to form format
   const convertDbWorkoutToFormWorkout = (workout: any) => {
@@ -110,7 +92,7 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
     </div>
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="w-full h-full py-12 px-4">
         <div className="max-w-4xl mx-auto">
@@ -127,7 +109,7 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
       <div className="w-full h-full py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-            {error}
+            {String(error)}
           </div>
         </div>
       </div>

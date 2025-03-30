@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { PrismaClient, Prisma, User } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -80,15 +80,21 @@ export async function GET() {
     const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
 
     // Fetch monthly stats for current and previous month
-    const monthlyStats = await prisma.$queryRaw`
-      SELECT * FROM "MonthlyStats"
-      WHERE "userId" = ${userId}
-      AND (
-        ("year" = ${currentYear} AND "month" = ${currentMonth})
-        OR
-        ("year" = ${prevYear} AND "month" = ${prevMonth})
-      )
-    ` as any[];
+    const monthlyStats = await prisma.monthlyStats.findMany({
+      where: {
+        userId,
+        month: {
+          in: [currentMonth]
+        },
+        year: {
+          in: [currentYear]
+        }
+      },
+      orderBy: {
+        year: 'desc',
+        month: 'desc'
+      }
+    });
 
     const currentMonthStats = Array.isArray(monthlyStats) 
       ? monthlyStats.find((stats: any) => stats.year === currentYear && stats.month === currentMonth)

@@ -1,7 +1,4 @@
-import { useState, useEffect } from 'react';
 import { DashboardData } from '@/types/dashboard';
-// Remove the mock data import
-// import { getDashboardData } from '@/lib/dashboardData';
 import { useQuery } from '@tanstack/react-query';
 
 /**

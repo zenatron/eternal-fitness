@@ -191,6 +191,132 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    // Get both auth and user data
+    const authData = await auth()
+    const user = await currentUser()
+    const userId = authData.userId
+    
+    console.log('PUT profile - Auth data:', { 
+      userId, 
+      isSignedIn: !!userId,
+      userEmail: user?.emailAddresses?.[0]?.emailAddress 
+    })
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: true, 
+        message: 'Unauthorized - you must be logged in' 
+      }, { status: 401 })
+    }
+
+    // Parse the request body
+    const bodyText = await request.text()
+    console.log('Raw request body:', bodyText)
+    
+    let body
+    try {
+      body = JSON.parse(bodyText)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      return NextResponse.json({ 
+        error: true, 
+        message: 'Invalid request format - JSON parsing failed',
+        details: String(parseError)
+      }, { status: 400 })
+    }
+    
+    const { name, age, gender, height, weight, useMetric, weightGoal } = body
+
+    // Validate required fields
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return NextResponse.json({ 
+        error: true, 
+        message: 'Name is required' 
+      }, { status: 400 })
+    }
+
+    // Convert numeric values
+    const numericAge = age ? Number(age) : null
+    const numericHeight = height ? Number(height) : null
+    const numericWeight = weight ? Number(weight) : null
+    const numericWeightGoal = weightGoal ? Number(weightGoal) : null
+
+    console.log('Processed profile data:', { 
+      userId, 
+      name, 
+      age: numericAge, 
+      gender, 
+      height: numericHeight, 
+      weight: numericWeight,
+      useMetric,
+      weightGoal: numericWeightGoal
+    })
+
+    // Check if user exists in DB
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!existingUser) {
+      return NextResponse.json({ 
+        error: true, 
+        message: 'Profile not found. Please set up your profile first.' 
+      }, { status: 404 })
+    }
+
+    try {
+      // Update existing user
+      console.log('Updating user profile in database')
+      
+      const result = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          name,
+          age: numericAge,
+          gender,
+          height: numericHeight,
+          weight: numericWeight,
+          useMetric: useMetric !== undefined ? useMetric : existingUser.useMetric,
+          weightGoal: numericWeightGoal
+        }
+      })
+
+      // Get completed workouts count
+      const workoutsCompleted = await prisma.workout.count({
+        where: {
+          userId,
+          completed: true
+        }
+      })
+
+      console.log('Profile updated successfully for user:', userId)
+      
+      // Return success response
+      return NextResponse.json({
+        ...result,
+        workoutsCompleted,
+        joinDate: result.createdAt
+      })
+    } catch (dbError) {
+      console.error('Database error:', dbError)
+      return NextResponse.json({ 
+        error: true, 
+        message: 'Database error while updating profile', 
+        details: String(dbError) 
+      }, { status: 500 })
+    }
+  } catch (error) {
+    console.error('Unexpected error in PUT /api/profile:', error)
+    return NextResponse.json({ 
+      error: true, 
+      message: 'Internal server error', 
+      details: String(error) 
+    }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const url = new URL(request.url)

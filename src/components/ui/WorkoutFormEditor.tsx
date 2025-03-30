@@ -31,6 +31,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useProfile } from '@/lib/hooks/useProfile';
 
 // Generate a simple unique ID
 function generateId() {
@@ -106,25 +107,8 @@ export default function WorkoutFormEditor({
   const [saveMessage, setSaveMessage] = useState('');
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  const [userProfile, setUserProfile] = useState<{ useMetric: boolean } | null>(null);
+  const { profile } = useProfile();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  // Fetch user profile
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch('/api/profile')
-        if (!response.ok) {
-          throw new Error('Failed to fetch user profile')
-        }
-        const data = await response.json()
-        setUserProfile(data)
-      } catch (error) {
-        console.error('Error fetching user profile:', error)
-      }
-    }
-    fetchUserProfile()
-  }, [])
 
   // Update state if initialValues change (e.g. when data loads)
   useEffect(() => {
@@ -634,7 +618,7 @@ export default function WorkoutFormEditor({
                                   <div className="mb-3 grid grid-cols-3 gap-3">
                                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Set</div>
                                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Reps</div>
-                                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Weight ({userProfile?.useMetric ? 'kg' : 'lbs'})</div>
+                                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">Weight ({profile?.useMetric ? 'kg' : 'lbs'})</div>
                                   </div>
                                   
                                   <div className="space-y-2">

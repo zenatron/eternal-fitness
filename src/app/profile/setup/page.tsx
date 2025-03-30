@@ -7,6 +7,7 @@ import { UserCircleIcon } from '@heroicons/react/24/outline'
 import { SignedIn, SignOutButton } from '@clerk/nextjs'
 import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline'
 import { Switch } from '@headlessui/react'
+import { useUpdateProfile } from '@/lib/hooks/useMutations'
 
 interface ProfileFormData {
   name: string
@@ -19,15 +20,15 @@ interface ProfileFormData {
 
 export default function ProfileSetup() {
   const router = useRouter()
+  const updateProfileMutation = useUpdateProfile()
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
     age: 0,
     height: 0,
     weight: 0,
     gender: '',
-    useMetric: true // Default to metric
+    useMetric: false // Default to imperial
   })
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -44,7 +45,6 @@ export default function ProfileSetup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
 
     try {
@@ -74,56 +74,15 @@ export default function ProfileSetup() {
         weight: Number(formData.weight),
         useMetric: formData.useMetric
       }
-      // First check if we're authenticated
-      const authCheck = await fetch('/api/auth/check')
-      const authResult = await authCheck.json()
+
+      // Use the mutation to update profile
+      await updateProfileMutation.mutateAsync(dataToSend)
       
-      if (!authResult.authenticated) {
-        console.error('Authentication check failed:', authResult)
-        throw new Error('Not authenticated - please sign in again')
-      }
-      
-      console.log('Auth check passed, user ID:', authResult.userId)
-
-      // Send data to the API
-      const response = await fetch('/api/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(dataToSend),
-        // Make sure to include credentials
-        credentials: 'include'
-      })
-
-      console.log('Profile API response status:', response.status)
-      
-      if (response.status === 401) {
-        throw new Error('Authentication error - please sign in again')
-      }
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to save profile'
-        
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.message || `Server error (${response.status})`
-          console.error('API error response:', errorData)
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError)
-          errorMessage = `Server error (${response.status}): Failed to parse error response`
-        }
-        
-        throw new Error(errorMessage)
-      }
-
       // Redirect to profile page on success
       router.push('/profile')
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unexpected error occurred')
       console.error('Profile setup error:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -258,9 +217,9 @@ export default function ProfileSetup() {
               <button
                 type="submit"
                 className="btn btn-primary flex-1"
-                disabled={loading}
+                disabled={updateProfileMutation.isPending}
               >
-                {loading ? 'Saving...' : 'Save Profile'}
+                {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
               </button>
             </div>
           </form>
