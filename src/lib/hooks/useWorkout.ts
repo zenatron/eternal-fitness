@@ -23,7 +23,6 @@ export const useWorkout = (workoutId: string) => {
       return response.json();
     },
     staleTime: 60 * 1000, // 1 minute
-    refetchOnWindowFocus: true,
     enabled: !!workoutId, // Only run if workoutId exists
   });
 

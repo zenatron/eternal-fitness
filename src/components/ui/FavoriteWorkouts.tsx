@@ -1,81 +1,31 @@
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   ArrowRightIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useRouter } from 'next/navigation'
-import type { Workout } from '@/types/workout'
-
-interface UserProfile {
-  useMetric: boolean
-}
+import type { Workout, Set as WorkoutSet, Exercise } from '@/types/workout'
+import { useWorkouts } from '@/lib/hooks/useWorkouts'
+import { useToggleFavorite } from '@/lib/hooks/useMutations'
+import { formatVolume } from '@/utils/formatters'
 
 export default function FavoriteWorkouts() {
   const router = useRouter()
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-
-  useEffect(() => {
-    fetchUserProfile()
-    fetchWorkouts()
-  }, [])
-
-  const fetchUserProfile = async () => {
-    try {
-      const response = await fetch('/api/profile')
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile')
-      }
-      const data = await response.json()
-      setUserProfile(data)
-    } catch (error) {
-      console.error('Error fetching user profile:', error)
-    }
-  }
-
-  const fetchWorkouts = async () => {
-    try {
-      const response = await fetch('/api/workout')
-      if (!response.ok) {
-        throw new Error('Failed to fetch workouts')
-      }
-      const data = await response.json()
-      // Filter to only get favorited workouts
-      const favoriteWorkouts = data.filter((workout: Workout) => workout.favorite)
-      setWorkouts(favoriteWorkouts)
-    } catch (error) {
-      setError('Failed to load workouts')
-      console.error('Error fetching workouts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const toggleFavorite = async (workoutId: string) => {
-    try {
-      await fetch(`/api/workout/${workoutId}/favorite`, {
-        method: 'POST',
-      })
-      
-      // Refresh the workouts list after toggling favorite
-      fetchWorkouts()
-    } catch (error) {
-      console.error('Error toggling favorite:', error)
-    }
-  }
+  const { workouts: allWorkouts, isLoading, error } = useWorkouts()
+  const toggleFavoriteMutation = useToggleFavorite()
+  
+  // Filter to only get favorited workouts
+  const workouts = allWorkouts.filter(workout => workout.favorite)
 
   // Helper function to count unique exercises in a workout
-  const countUniqueExercises = (workout: any) => {
+  const countUniqueExercises = (workout: Workout) => {
     // Use a set to track unique exercise names
     const uniqueExerciseNames = new Set();
     
     if (workout.sets) {
-      workout.sets.forEach((set: any) => {
+      workout.sets.forEach((set: WorkoutSet) => {
         if (set.exercises) {
-          set.exercises.forEach((exercise: any) => {
+          set.exercises.forEach((exercise: Exercise) => {
             uniqueExerciseNames.add(exercise.name);
           });
         }
@@ -84,16 +34,12 @@ export default function FavoriteWorkouts() {
     
     return uniqueExerciseNames.size;
   };
-  
-  // Format volume to display with proper unit
-  const formatVolume = (volume: number) => {
-    if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}k`;
-    }
-    return Math.round(volume).toString();
+
+  const handleToggleFavorite = (workoutId: string) => {
+    toggleFavoriteMutation.mutate(workoutId);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
@@ -104,7 +50,7 @@ export default function FavoriteWorkouts() {
   if (error) {
     return (
       <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-        {error}
+        {String(error)}
       </div>
     )
   }
@@ -138,7 +84,7 @@ export default function FavoriteWorkouts() {
                   {workout.name}
                 </h3>
                 <button
-                  onClick={() => toggleFavorite(workout.id)}
+                  onClick={() => handleToggleFavorite(workout.id)}
                   className="text-amber-400 hover:text-amber-500"
                 >
                   <StarIconSolid className="w-5 h-5" />

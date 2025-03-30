@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
@@ -10,13 +10,17 @@ import {
   TrashIcon,
   StarIcon as StarOutline,
   ClockIcon,
-  CheckIcon
+  CheckIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
+
 import { useWorkout } from '@/lib/hooks/useWorkout';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { useToggleFavorite, useDeleteWorkout } from '@/lib/hooks/useMutations';
+import { useToggleFavorite, useDeleteWorkout, useToggleComplete } from '@/lib/hooks/useMutations';
 import { Set as WorkoutSet } from '@/types/workout';
+import { formatVolume } from '@/utils/formatters';
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = use(params);
@@ -26,6 +30,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   const { workout, isLoading: workoutLoading, error: workoutError } = useWorkout(workoutId);
   const { profile, isLoading: profileLoading } = useProfile();
   const toggleFavoriteMutation = useToggleFavorite();
+  const toggleCompleteMutation = useToggleComplete();
   const deleteWorkoutMutation = useDeleteWorkout();
   
   // Format date for display
@@ -45,6 +50,12 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   const handleToggleFavorite = () => {
     if (!workout) return;
     toggleFavoriteMutation.mutate(workoutId);
+  };
+
+  // Toggle completion status
+  const handleToggleComplete = () => {
+    if (!workout) return;
+    toggleCompleteMutation.mutate(workoutId);
   };
 
   // Delete the workout
@@ -144,6 +155,17 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
               </div>
               <div className="flex gap-2">
                 <button 
+                  onClick={handleToggleComplete}
+                  className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
+                  aria-label={workout.completed ? "Mark as not completed" : "Mark as completed"}
+                >
+                  {workout.completed ? (
+                    <CheckCircleSolid className="h-6 w-6 text-green-400" />
+                  ) : (
+                    <CheckCircleIcon className="h-6 w-6 text-white" />
+                  )}
+                </button>
+                <button 
                   onClick={handleToggleFavorite}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
                   aria-label={workout.favorite ? "Remove from favorites" : "Add to favorites"}
@@ -191,6 +213,9 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
               </div>
               <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
                 {workout.sets?.length || 0} sets
+              </div>
+              <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
+                {formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'} volume
               </div>
             </div>
           </div>

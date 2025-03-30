@@ -11,16 +11,19 @@ import {
   QuestionMarkCircleIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
+
 import { motion } from 'framer-motion'
+import { Set as WorkoutSet, Exercise, Workout } from '@/types/workout'
 import { useWorkouts } from '@/lib/hooks/useWorkouts';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
-import { Set as WorkoutSet, Exercise, Workout } from '@/types/workout'
+import { useProfile } from '@/lib/hooks/useProfile';
+import { formatVolume } from '@/utils/formatters';
 
 export default function WorkoutsPage() {
   const router = useRouter()
   const { workouts, isLoading, error, refetch } = useWorkouts();
   const toggleFavoriteMutation = useToggleFavorite();
-  
+  const { profile } = useProfile();
   // Filter workouts by type
   const favoriteWorkouts = workouts?.filter(w => w.favorite) || [];
   const upcomingWorkouts = workouts?.filter(w => !w.completed && w.scheduledDate) || [];
@@ -69,14 +72,6 @@ export default function WorkoutsPage() {
     }
     
     return uniqueExerciseNames.size;
-  };
-  
-  // Format volume to display with proper unit
-  const formatVolume = (volume: number) => {
-    if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}k`;
-    }
-    return Math.round(volume).toString();
   };
   
   const handleToggleFavorite = (workoutId: string) => {
@@ -145,7 +140,7 @@ export default function WorkoutsPage() {
           
           {favoriteWorkouts.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-              <p className="text-secondary">No favorite workouts yet. Mark a workout as favorite to see it here.</p>
+              <p className="text-secondary">{"No favorite workouts yet. Mark a workout as favorite to see it here."}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,7 +170,7 @@ export default function WorkoutsPage() {
                       {workout.totalVolume > 0 && (
                         <>
                           <span>•</span>
-                          <span>{formatVolume(workout.totalVolume)} volume</span>
+                          <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                         </>
                       )}
                     </div>
@@ -209,7 +204,7 @@ export default function WorkoutsPage() {
           
           {upcomingWorkouts.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-              <p className="text-secondary">No upcoming workouts scheduled. Plan your fitness routine by scheduling workouts.</p>
+              <p className="text-secondary">{"No upcoming workouts scheduled. Plan your fitness routine by scheduling workouts."}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -235,7 +230,7 @@ export default function WorkoutsPage() {
                           </span>
                           <span className="text-xs text-secondary">
                             {countUniqueExercises(workout)} exercises • {workout.sets?.length || 0} sets
-                            {workout.totalVolume > 0 && ` • ${formatVolume(workout.totalVolume)} volume`}
+                            {formatVolume(workout.totalVolume)} ${profile?.useMetric ? 'kg' : 'lbs'}
                           </span>
                         </div>
                       </div>
@@ -278,7 +273,7 @@ export default function WorkoutsPage() {
             
             {completedWorkouts.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center h-32 flex items-center justify-center">
-                <p className="text-secondary">None completed yet, let's get started!</p>
+                <p className="text-secondary">{"None completed yet, let's get started!"}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
@@ -305,7 +300,7 @@ export default function WorkoutsPage() {
                             {workout.totalVolume > 0 && (
                               <>
                                 <span>•</span>
-                                <span>{formatVolume(workout.totalVolume)}</span>
+                                <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                               </>
                             )}
                           </div>
@@ -326,7 +321,7 @@ export default function WorkoutsPage() {
                     onClick={() => router.push('/workout/history')}
                     className="text-center p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-secondary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-sm"
                   >
-                    View all {completedWorkouts.length} completed workouts
+                    {"View all " + completedWorkouts.length + " completed workouts"}
                   </button>
                 )}
               </div>
@@ -344,7 +339,7 @@ export default function WorkoutsPage() {
             
             {unscheduledWorkouts.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center h-32 flex items-center justify-center">
-                <p className="text-secondary">None unscheduled, well done!</p>
+                <p className="text-secondary">{"None unscheduled, well done!"}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
@@ -371,7 +366,7 @@ export default function WorkoutsPage() {
                             {workout.totalVolume > 0 && (
                               <>
                                 <span>•</span>
-                                <span>{formatVolume(workout.totalVolume)}</span>
+                                <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                               </>
                             )}
                           </div>
@@ -404,7 +399,7 @@ export default function WorkoutsPage() {
                     onClick={() => router.push('/workouts/unscheduled')}
                     className="text-center p-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-secondary hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-sm"
                   >
-                    View all {unscheduledWorkouts.length} unscheduled workouts
+                    {"View all " + unscheduledWorkouts.length + " unscheduled workouts"}
                   </button>
                 )}
               </div>

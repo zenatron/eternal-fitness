@@ -222,4 +222,87 @@ export const useDeduplicateExercises = () => {
       queryClient.invalidateQueries({ queryKey: ['workout'] });
     }
   });
+};
+
+/**
+ * Hook for toggling completion status of a workout
+ */
+export const useToggleComplete = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (workoutId: string) => {
+      const response = await fetch(`/api/workout/${workoutId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to toggle completion status');
+      }
+      
+      return response.json();
+    },
+    
+    // When mutate is called:
+    onMutate: async (workoutId) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['workouts'] });
+      await queryClient.cancelQueries({ queryKey: ['workout', workoutId] });
+      
+      // Snapshot the previous values
+      const previousWorkouts = queryClient.getQueryData<Workout[]>(['workouts']);
+      const previousWorkout = queryClient.getQueryData<Workout>(['workout', workoutId]);
+      
+      // Optimistically update the workouts list
+      if (previousWorkouts) {
+        queryClient.setQueryData(['workouts'], 
+          previousWorkouts.map(w => {
+            if (w.id === workoutId) {
+              const completed = !w.completed;
+              return {
+                ...w, 
+                completed,
+                completedAt: completed ? new Date().toISOString() : null
+              };
+            }
+            return w;
+          })
+        );
+      }
+      
+      // Optimistically update the single workout
+      if (previousWorkout) {
+        const completed = !previousWorkout.completed;
+        queryClient.setQueryData(['workout', workoutId], {
+          ...previousWorkout, 
+          completed,
+          completedAt: completed ? new Date().toISOString() : null
+        });
+      }
+      
+      // Return the snapshots so we can restore if something goes wrong
+      return { previousWorkouts, previousWorkout };
+    },
+    
+    // If the mutation fails, use the context returned from onMutate to roll back
+    onError: (err, workoutId, context) => {
+      if (context?.previousWorkouts) {
+        queryClient.setQueryData(['workouts'], context.previousWorkouts);
+      }
+      
+      if (context?.previousWorkout) {
+        queryClient.setQueryData(['workout', workoutId], context.previousWorkout);
+      }
+    },
+    
+    // Always refetch after error or success to ensure our local data is correct
+    onSettled: (data, error, workoutId) => {
+      queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['workout', workoutId] });
+    },
+  });
 }; 
