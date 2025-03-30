@@ -89,10 +89,6 @@ export async function GET() {
         year: {
           in: [currentYear]
         }
-      },
-      orderBy: {
-        year: 'desc',
-        month: 'desc'
       }
     });
 
@@ -103,13 +99,6 @@ export async function GET() {
     const prevMonthStats = Array.isArray(monthlyStats)
       ? monthlyStats.find((stats: any) => stats.year === prevYear && stats.month === prevMonth)
       : null;
-    
-    const defaultStats = {
-      workoutsCount: 0,
-      volume: 0,
-      trainingHours: 0,
-      exercisesCount: 0
-    };
 
     // Calculate percentage changes
     const volumeChange = prevMonthStats && prevMonthStats.volume > 0 

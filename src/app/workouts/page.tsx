@@ -11,16 +11,19 @@ import {
   QuestionMarkCircleIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
+
 import { motion } from 'framer-motion'
+import { Set as WorkoutSet, Exercise, Workout } from '@/types/workout'
 import { useWorkouts } from '@/lib/hooks/useWorkouts';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
-import { Set as WorkoutSet, Exercise, Workout } from '@/types/workout'
+import { useProfile } from '@/lib/hooks/useProfile';
+import { formatVolume } from '@/utils/formatters';
 
 export default function WorkoutsPage() {
   const router = useRouter()
   const { workouts, isLoading, error, refetch } = useWorkouts();
   const toggleFavoriteMutation = useToggleFavorite();
-  
+  const { profile } = useProfile();
   // Filter workouts by type
   const favoriteWorkouts = workouts?.filter(w => w.favorite) || [];
   const upcomingWorkouts = workouts?.filter(w => !w.completed && w.scheduledDate) || [];
@@ -69,14 +72,6 @@ export default function WorkoutsPage() {
     }
     
     return uniqueExerciseNames.size;
-  };
-  
-  // Format volume to display with proper unit
-  const formatVolume = (volume: number) => {
-    if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}k`;
-    }
-    return Math.round(volume).toString();
   };
   
   const handleToggleFavorite = (workoutId: string) => {
@@ -175,7 +170,7 @@ export default function WorkoutsPage() {
                       {workout.totalVolume > 0 && (
                         <>
                           <span>•</span>
-                          <span>{formatVolume(workout.totalVolume)} volume</span>
+                          <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                         </>
                       )}
                     </div>
@@ -235,7 +230,7 @@ export default function WorkoutsPage() {
                           </span>
                           <span className="text-xs text-secondary">
                             {countUniqueExercises(workout)} exercises • {workout.sets?.length || 0} sets
-                            {workout.totalVolume > 0 && ` • ${formatVolume(workout.totalVolume)} volume`}
+                            {formatVolume(workout.totalVolume)} ${profile?.useMetric ? 'kg' : 'lbs'}
                           </span>
                         </div>
                       </div>
@@ -305,7 +300,7 @@ export default function WorkoutsPage() {
                             {workout.totalVolume > 0 && (
                               <>
                                 <span>•</span>
-                                <span>{formatVolume(workout.totalVolume)}</span>
+                                <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                               </>
                             )}
                           </div>
@@ -371,7 +366,7 @@ export default function WorkoutsPage() {
                             {workout.totalVolume > 0 && (
                               <>
                                 <span>•</span>
-                                <span>{formatVolume(workout.totalVolume)}</span>
+                                <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
                               </>
                             )}
                           </div>

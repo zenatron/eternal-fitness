@@ -1,6 +1,8 @@
-import type { WorkoutDay } from '@/types/workout'
+//TODO: make this work
 
-export function generateICalendarData(workoutSchedule: (WorkoutDay | 'Rest')[]): string {
+import type { Workout } from '@/types/workout'
+
+export function generateICalendarData(workoutSchedule: (Workout | 'Rest')[]): string {
   const lines: string[] = [];
   lines.push("BEGIN:VCALENDAR");
   lines.push("VERSION:2.0");
@@ -35,7 +37,7 @@ export function generateICalendarData(workoutSchedule: (WorkoutDay | 'Rest')[]):
     } else {
       summary = `Workout: ${workout.name}`;
       // List primary exercises in the description
-      const primaryExercises = workout.primary.join(', ');
+      const primaryExercises = workout.sets.map(set => set.exercises.map(exercise => exercise.name).join(', ')).join(', ');
       description = `Exercises: ${primaryExercises}`;
     }
 

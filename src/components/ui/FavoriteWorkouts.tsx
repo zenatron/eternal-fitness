@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { Workout, Set as WorkoutSet, Exercise } from '@/types/workout'
 import { useWorkouts } from '@/lib/hooks/useWorkouts'
 import { useToggleFavorite } from '@/lib/hooks/useMutations'
+import { formatVolume } from '@/utils/formatters'
 
 export default function FavoriteWorkouts() {
   const router = useRouter()
@@ -32,14 +33,6 @@ export default function FavoriteWorkouts() {
     }
     
     return uniqueExerciseNames.size;
-  };
-  
-  // Format volume to display with proper unit
-  const formatVolume = (volume: number) => {
-    if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}k`;
-    }
-    return Math.round(volume).toString();
   };
 
   const handleToggleFavorite = (workoutId: string) => {

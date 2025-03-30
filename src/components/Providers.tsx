@@ -10,7 +10,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       queries: {
         staleTime: 60 * 1000, // 1 minute
         gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: 'always',
         retry: 1,
       },
     },
