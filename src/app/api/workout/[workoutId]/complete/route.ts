@@ -44,6 +44,7 @@ export async function POST(
       data: {
         completed,
         completedAt,
+        status: completed ? 'COMPLETED' : 'PLANNED',
       },
     })
 

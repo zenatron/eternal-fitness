@@ -1,8 +1,8 @@
 import { CalendarIcon, PlusIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { DashboardCard } from './DashboardCard';
-import { UpcomingWorkout } from '@/types/dashboard';
 import Link from 'next/link';
-
+import { Workout } from '@/types/workout';
+import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 // Status badge colors
 const statusColors = {
   today: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
@@ -10,15 +10,8 @@ const statusColors = {
   upcoming: 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-300'
 };
 
-// Status labels
-const statusLabels: Record<UpcomingWorkout['status'], string> = {
-  today: 'Today',
-  tomorrow: 'Tomorrow',
-  upcoming: 'Upcoming'
-};
-
 interface UpcomingWorkoutsCardProps {
-  workouts: UpcomingWorkout[];
+  workouts: Workout[];
 }
 
 export function UpcomingWorkoutsCard({ workouts }: UpcomingWorkoutsCardProps) {
@@ -33,13 +26,13 @@ export function UpcomingWorkoutsCard({ workouts }: UpcomingWorkoutsCardProps) {
           <div key={workout.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-medium text-heading">{workout.title}</h3>
+                <h3 className="font-medium text-heading">{workout.name}</h3>
                 <p className="text-sm text-secondary mt-1">
-                  {workout.exercises} exercises • {workout.duration} mins
+                  {workout.sets?.length} sets • {workout.duration || 0} mins
                 </p>
               </div>
-              <span className={`${statusColors[workout.status]} text-xs px-2 py-1 rounded-full`}>
-                {statusLabels[workout.status]}
+              <span className={`${statusColors.today} text-xs px-2 py-1 rounded-full`}>
+                {workout.scheduledDate ? formatUTCDateToLocalDateFriendly(workout.scheduledDate) : 'No date'}
               </span>
             </div>
           </div>

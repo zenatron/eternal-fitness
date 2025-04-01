@@ -10,10 +10,11 @@ import { StatsCard } from './dashboard/StatsCard'
 import { QuickActionsCard } from './dashboard/QuickActionsCard'
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton'
 import { useDashboardData } from '@/lib/hooks/useDashboardData'
-
+import { useWorkouts } from '@/lib/hooks/useWorkouts'
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false)
   const { data, loading, error, refetch } = useDashboardData()
+  const { workouts } = useWorkouts()
   
   // Fix hydration issues
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function Dashboard() {
           />
           
           <UpcomingWorkoutsCard 
-            workouts={data.upcomingWorkouts} 
+            workouts={workouts.filter(w => w.scheduledDate !== null && w.status !== 'COMPLETED')}
           />
           
           <StatsCard 
