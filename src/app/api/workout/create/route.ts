@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { PrismaClient } from '@prisma/client'
+import { parseDateStringToUTC } from '@/utils/dateUtils'
 
 const prisma = new PrismaClient()
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
         name,
         userId,
         completed: false,
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+        scheduledDate: parseDateStringToUTC(scheduledDate),
         favorite: favorite !== undefined ? favorite : false,
         totalVolume: 0 // Initialize with 0, will update after calculating
       } as any

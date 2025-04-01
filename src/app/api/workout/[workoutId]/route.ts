@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { PrismaClient } from '@prisma/client'
+import { parseDateStringToUTC } from '@/utils/dateUtils'
 
 const prisma = new PrismaClient()
 
@@ -88,7 +89,7 @@ export async function PUT(
         where: { id: workoutId },
         data: {
           name,
-          scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+          scheduledDate: parseDateStringToUTC(scheduledDate),
           favorite: favorite !== undefined ? favorite : undefined
         } as any
       })

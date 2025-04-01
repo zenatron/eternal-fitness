@@ -21,6 +21,7 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteWorkout, useToggleComplete } from '@/lib/hooks/useMutations';
 import { Set as WorkoutSet } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
+import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 
 export default function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = use(params);
@@ -33,19 +34,6 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
   const toggleCompleteMutation = useToggleComplete();
   const deleteWorkoutMutation = useDeleteWorkout();
   
-  // Format date for display
-  const formatDate = (dateString?: string | Date) => {
-    if (!dateString) return 'Not scheduled';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   // Toggle favorite status
   const handleToggleFavorite = () => {
     if (!workout) return;
@@ -150,7 +138,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
                 </h2>
                 <div className="flex items-center gap-2 text-blue-100">
                   <CalendarDaysIcon className="h-5 w-5" />
-                  <span>{formatDate(workout.scheduledDate)}</span>
+                  <span>{formatUTCDateToLocalDateFriendly(workout.scheduledDate) || 'Not scheduled'}</span>
                 </div>
               </div>
               <div className="flex gap-2">

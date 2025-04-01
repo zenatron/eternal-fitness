@@ -18,6 +18,10 @@ import { useWorkouts } from '@/lib/hooks/useWorkouts';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
+import { 
+  formatUTCDateToLocalDateFriendly, 
+  formatUTCDateToLocalDateShort 
+} from '@/utils/dateUtils';
 
 export default function WorkoutsPage() {
   const router = useRouter()
@@ -30,30 +34,35 @@ export default function WorkoutsPage() {
   const completedWorkouts = workouts?.filter(w => w.completed) || [];
   const unscheduledWorkouts = workouts?.filter(w => !w.completed && !w.scheduledDate) || [];
   
-  // Get today's and tomorrow's date strings for status labels
-  const today = new Date().toISOString().split('T')[0]
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  // Get today's and tomorrow's date strings for status labels (using UTC for consistency)
+  const today = formatUTCDateToLocalDateShort(new Date()); 
+  const tomorrow = formatUTCDateToLocalDateShort(new Date(Date.now() + 86400000));
   
   const getWorkoutStatus = (date?: string | Date) => {
-    if (!date) return ''
-    const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0]
-    if (dateStr === today) return 'Today'
-    if (dateStr === tomorrow) return 'Tomorrow'
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    if (!date) return '';
+    const dateStr = formatUTCDateToLocalDateShort(date); // Format consistently
+    if (dateStr === today) return 'Today';
+    if (dateStr === tomorrow) return 'Tomorrow';
+    return formatUTCDateToLocalDateFriendly(date); // Use friendly format
   }
   
   const getTimeAgo = (date?: string | Date) => {
     if (!date) return ''
     
-    const now = new Date()
-    const completedDate = new Date(date)
-    const diffMs = now.getTime() - completedDate.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const now = new Date();
+    const completedDate = new Date(date); // Keep as Date object for comparison
+
+    // Use UTC dates for comparison to avoid timezone shifts affecting "days ago"
+    const todayUTCStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const completedDateUTCStart = new Date(Date.UTC(completedDate.getUTCFullYear(), completedDate.getUTCMonth(), completedDate.getUTCDate()));
+
+    const diffMs = todayUTCStart.getTime() - completedDateUTCStart.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    return completedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return formatUTCDateToLocalDateFriendly(date); // Use friendly format for older dates
   }
   
   // Helper function to count unique exercises in a workout
@@ -230,7 +239,12 @@ export default function WorkoutsPage() {
                           </span>
                           <span className="text-xs text-secondary">
                             {countUniqueExercises(workout)} exercises • {workout.sets?.length || 0} sets
-                            {formatVolume(workout.totalVolume)} ${profile?.useMetric ? 'kg' : 'lbs'}
+                            {workout.totalVolume > 0 && (
+                              <>
+                                <span> • </span>
+                                <span>{formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
+                              </>
+                            )}
                           </span>
                         </div>
                       </div>

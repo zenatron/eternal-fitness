@@ -5,6 +5,7 @@ import { FlagIcon } from '@heroicons/react/24/outline';
 import WorkoutFormEditor from '@/components/ui/WorkoutFormEditor';
 import { Exercise } from '@/types/workout';
 import { useWorkout } from '@/lib/hooks/useWorkout';
+import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils';
 
 // Generate a simple unique ID
 function generateId() {
@@ -28,9 +29,8 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
       
       // Set scheduled date if exists
       if (workout.scheduledDate) {
-        // Format date to YYYY-MM-DD for input
-        const date = new Date(workout.scheduledDate);
-        const formattedDate = date.toISOString().split('T')[0];
+        // Format date to YYYY-MM-DD for input using the utility
+        const formattedDate = formatUTCDateToLocalDateShort(workout.scheduledDate);
         setInitialScheduledDate(formattedDate);
       }
 
