@@ -32,11 +32,10 @@ export async function GET() {
       }, { status: 404 })
     }
 
-    // Get completed workouts count
-    const workoutsCompleted = await prisma.workout.count({
+    // Get completed workout sessions count
+    const workoutsCompleted = await prisma.workoutSession.count({
       where: {
         userId: userId,
-        completed: true
       }
     })
 
@@ -157,11 +156,10 @@ export async function POST(request: Request) {
         })
       }
 
-      // Get completed workouts count
-      const workoutsCompleted = await prisma.workout.count({
+      // Get completed workout sessions count
+      const workoutsCompleted = await prisma.workoutSession.count({
         where: {
           userId,
-          completed: true
         }
       })
 
@@ -283,11 +281,10 @@ export async function PUT(request: Request) {
         }
       })
 
-      // Get completed workouts count
-      const workoutsCompleted = await prisma.workout.count({
+      // Get completed workout sessions count
+      const workoutsCompleted = await prisma.workoutSession.count({
         where: {
           userId,
-          completed: true
         }
       })
 
@@ -355,48 +352,52 @@ export async function DELETE(request: Request) {
 
     // Start database transaction to ensure all related data is deleted
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Find all the user's workouts
-      const userWorkouts = await tx.workout.findMany({
+      // 1. Delete UserStats (references user)
+      await tx.userStats.deleteMany({
         where: { userId: userIdToDelete }
-      })
-      
-      const workoutIds = userWorkouts.map(workout => workout.id)
-      
-      // 2. Delete all sets associated with the user's workouts
-      if (workoutIds.length > 0) {
-        await tx.set.deleteMany({
-          where: { workoutId: { in: workoutIds } }
-        })
-        console.log(`Deleted sets for ${workoutIds.length} workouts`)
-      }
-      
-      // 3. Delete all workouts
-      const deletedWorkouts = await tx.workout.deleteMany({
+      });
+      console.log(`Deleted UserStats for user ${userIdToDelete}`);
+
+      // 2. Delete MonthlyStats (references user)
+      await tx.monthlyStats.deleteMany({
         where: { userId: userIdToDelete }
-      })
-      console.log(`Deleted ${deletedWorkouts.count} workouts for user ${userIdToDelete}`)
+      });
+      console.log(`Deleted MonthlyStats for user ${userIdToDelete}`);
+
+      // 3. Delete WorkoutSessions (references user and template)
+      await tx.workoutSession.deleteMany({
+          where: { userId: userIdToDelete }
+      });
+      console.log(`Deleted WorkoutSessions for user ${userIdToDelete}`);
       
-      // 4. Finally, delete the user profile
+      // 4. Delete WorkoutTemplates (references user)
+      // Cascading deletes (if set up in schema) should handle related Exercises/Sets
+      const deletedTemplates = await tx.workoutTemplate.deleteMany({
+        where: { userId: userIdToDelete }
+      });
+      console.log(`Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userIdToDelete}`);
+      
+      // 5. Finally, delete the user profile
       const deletedUser = await tx.user.delete({
         where: { id: userIdToDelete }
-      })
+      });
       
-      return { deletedUser, workoutsDeleted: deletedWorkouts.count }
-    })
+      return { deletedUser, templatesDeleted: deletedTemplates.count };
+    });
     
-    console.log(`Successfully deleted user ${userIdToDelete} from database`)
+    console.log(`Successfully deleted user ${userIdToDelete} from database`);
     
     return NextResponse.json({
       success: true,
-      message: 'User profile deleted successfully',
+      message: 'User profile and all associated data deleted successfully',
       data: {
         userId: userIdToDelete,
-        workoutsDeleted: result.workoutsDeleted
+        templatesDeleted: result.templatesDeleted
       }
-    })
-    
+    });
+
   } catch (error) {
-    console.error('Error in DELETE /api/profile:', error)
+    console.error('Error in DELETE /api/profile:', error);
     
     // Check if this is a "record not found" error
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
@@ -423,39 +424,43 @@ export async function deleteUserById(userId: string) {
   try {
     // Start database transaction to ensure all related data is deleted
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Find all the user's workouts
-      const userWorkouts = await tx.workout.findMany({
+      // 1. Delete UserStats (references user)
+      await tx.userStats.deleteMany({
         where: { userId }
-      })
-      
-      const workoutIds = userWorkouts.map(workout => workout.id)
-      
-      // 2. Delete all sets associated with the user's workouts
-      if (workoutIds.length > 0) {
-        await tx.set.deleteMany({
-          where: { workoutId: { in: workoutIds } }
-        })
-        console.log(`Deleted sets for ${workoutIds.length} workouts`)
-      }
-      
-      // 3. Delete all workouts
-      const deletedWorkouts = await tx.workout.deleteMany({
+      });
+      console.log(`Deleted UserStats for user ${userId}`);
+
+      // 2. Delete MonthlyStats (references user)
+      await tx.monthlyStats.deleteMany({
         where: { userId }
-      })
-      console.log(`Deleted ${deletedWorkouts.count} workouts for user ${userId}`)
+      });
+      console.log(`Deleted MonthlyStats for user ${userId}`);
+
+      // 3. Delete WorkoutSessions (references user and template)
+      await tx.workoutSession.deleteMany({
+          where: { userId }
+      });
+      console.log(`Deleted WorkoutSessions for user ${userId}`);
       
-      // 4. Finally, delete the user profile
+      // 4. Delete WorkoutTemplates (references user)
+      // Cascading deletes (if set up in schema) should handle related Exercises/Sets
+      const deletedTemplates = await tx.workoutTemplate.deleteMany({
+        where: { userId }
+      });
+      console.log(`Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userId}`);
+      
+      // 5. Finally, delete the user profile
       const deletedUser = await tx.user.delete({
         where: { id: userId }
-      })
+      });
       
-      return { deletedUser, workoutsDeleted: deletedWorkouts.count }
-    })
+      return { deletedUser, templatesDeleted: deletedTemplates.count };
+    });
     
-    console.log(`Successfully deleted user ${userId} from database`)
-    return { success: true, userId, workoutsDeleted: result.workoutsDeleted }
+    console.log(`Successfully deleted user ${userId} from database`);
+    return { success: true, userId, templatesDeleted: result.templatesDeleted };
   } catch (error) {
-    console.error(`Error deleting user ${userId}:`, error)
-    throw error
+    console.error(`Error deleting user ${userId}:`, error);
+    throw error;
   }
 } 

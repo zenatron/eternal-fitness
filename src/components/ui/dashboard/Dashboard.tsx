@@ -1,28 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DashboardHeader } from './dashboard/DashboardHeader'
-import { StreakCard } from './dashboard/StreakCard'
-import { ProgressCard } from './dashboard/ProgressCard'
-import { RecentActivityCard } from './dashboard/RecentActivityCard'
-import { UpcomingWorkoutsCard } from './dashboard/UpcomingWorkoutsCard'
-import { StatsCard } from './dashboard/StatsCard'
-import { QuickActionsCard } from './dashboard/QuickActionsCard'
-import { DashboardSkeleton } from './dashboard/DashboardSkeleton'
+import { DashboardHeader } from './DashboardHeader'
+import { StreakCard } from './StreakCard'
+import { ProgressCard } from './ProgressCard'
+import { RecentActivityCard } from './RecentActivityCard'
+import { StatsCard } from './StatsCard'
+import { QuickActionsCard } from './QuickActionsCard'
+import { DashboardSkeletonLoader } from './DashboardSkeletonLoader'
 import { useDashboardData } from '@/lib/hooks/useDashboardData'
-import { useWorkouts } from '@/lib/hooks/useWorkouts'
+import { UpcomingWorkoutsCard } from './UpcomingWorkoutsCard'
+
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false)
   const { data, loading, error, refetch } = useDashboardData()
-  const { workouts } = useWorkouts()
   
-  // Fix hydration issues
   useEffect(() => {
     setMounted(true)
   }, [])
   
   if (!mounted || loading || !data) {
-    return <DashboardSkeleton />
+    return <DashboardSkeletonLoader />
   }
   
   if (error) {
@@ -60,9 +58,9 @@ export default function Dashboard() {
           <RecentActivityCard 
             activities={data.recentActivity} 
           />
-          
+
           <UpcomingWorkoutsCard 
-            workouts={workouts.filter(w => w.scheduledDate !== null && w.status !== 'COMPLETED')}
+            templates={data.upcomingWorkouts} 
           />
           
           <StatsCard 

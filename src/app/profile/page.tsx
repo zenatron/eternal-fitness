@@ -148,14 +148,21 @@ export default function Profile() {
             <div className="flex flex-col sm:flex-row gap-4">
               <SignedIn>
                 <Link
-                  href="/workout/create"
+                  href="/template/create"
                   className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
                 >
                   <CalendarDaysIcon className="w-5 h-5" />
-                  Create Workout
+                  Create Template
                 </Link>
                 <Link
-                  href="/workouts"
+                  href="/templates"
+                  className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
+                >
+                  <CalendarDaysIcon className="w-5 h-5" />
+                  View Templates
+                </Link>
+                <Link
+                  href="/activity"
                   className="btn btn-tertiary flex-1 inline-flex items-center justify-center gap-2"
                 >
                   <BoltIcon className="w-5 h-5" />

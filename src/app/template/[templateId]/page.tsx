@@ -5,63 +5,54 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeftIcon, 
-  CalendarDaysIcon, 
   PencilIcon, 
   TrashIcon,
   StarIcon as StarOutline,
   ClockIcon,
-  CheckIcon,
-  CheckCircleIcon
+  PlayCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
+import { toast } from 'react-hot-toast';
 
-import { useWorkout } from '@/lib/hooks/useWorkout';
+import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { useToggleFavorite, useDeleteWorkout, useToggleComplete } from '@/lib/hooks/useMutations';
-import { Set as WorkoutSet } from '@/types/workout';
+import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
+import { Set as WorkoutSet, WorkoutTemplate, Exercise } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 
-export default function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
-  const { workoutId } = use(params);
+export default function TemplateDetailPage({ params }: { params: Promise<{ templateId: string }> }) {
+  const { templateId } = use(params);
   const router = useRouter();
   
-  // Use our custom hooks instead of directly fetching data
-  const { workout, isLoading: workoutLoading, error: workoutError } = useWorkout(workoutId);
+  const { template, isLoading: templateLoading, error: templateError } = useTemplate(templateId);
   const { profile, isLoading: profileLoading } = useProfile();
   const toggleFavoriteMutation = useToggleFavorite();
-  const toggleCompleteMutation = useToggleComplete();
-  const deleteWorkoutMutation = useDeleteWorkout();
+  const deleteTemplateMutation = useDeleteTemplate();
   
-  // Toggle favorite status
   const handleToggleFavorite = () => {
-    if (!workout) return;
-    toggleFavoriteMutation.mutate(workoutId);
+    if (!template) return;
+    toggleFavoriteMutation.mutate(templateId);
   };
 
-  // Toggle completion status
-  const handleToggleComplete = () => {
-    if (!workout) return;
-    toggleCompleteMutation.mutate(workoutId);
+  const handleDeleteTemplate = async () => {
+    if (!template) return;
+    if (!confirm(`Are you sure you want to delete the template "${template.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteTemplateMutation.mutateAsync(templateId);
+      toast.success('Template deleted successfully!');
+      router.push('/');
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast.error('Failed to delete template.');
+    }
   };
 
-  // Delete the workout
-  const handleDeleteWorkout = async () => {
-    if (!confirm('Are you sure you want to delete this workout?')) return;
-    deleteWorkoutMutation.mutate(workoutId, {
-      onSuccess: () => {
-        router.push('/workouts');
-      }
-    });
-  };
-
-  // Group exercises by name
-  const exerciseGroups = workout?.sets?.reduce<Record<string, { muscles: string[], equipment: string[], sets: WorkoutSet[] }>>(
-    (groups, set) => {
-      if (!set.exercises[0]) return groups;
+  const exerciseGroups = template?.sets?.reduce<Record<string, { muscles: string[], equipment: string[], sets: WorkoutSet[] }>>(
+    (groups: Record<string, { muscles: string[], equipment: string[], sets: WorkoutSet[] }>, set: WorkoutSet) => {
+      const exercise = set.exercises?.[0] as Exercise | undefined;
+      if (!exercise) return groups;
       
-      const exercise = set.exercises[0];
       const name = exercise.name;
       
       if (!groups[name]) {
@@ -78,8 +69,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
     {}
   ) || {};
 
-  // Loading state
-  const isLoading = workoutLoading || profileLoading;
+  const isLoading = templateLoading || profileLoading;
   
   if (isLoading) {
     return (
@@ -93,13 +83,12 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
     );
   }
 
-  // Error state
-  if (workoutError || !workout) {
+  if (templateError || !template) {
     return (
       <div className="w-full h-full py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-            {workoutError ? String(workoutError) : 'Workout not found'}
+            {templateError ? String(templateError) : 'Template not found'}
           </div>
         </div>
       </div>
@@ -113,7 +102,6 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
       className="w-full min-h-screen py-12 px-4 bg-gray-50 dark:bg-gray-900"
     >
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-4">
           <button 
             onClick={() => router.back()}
@@ -123,113 +111,84 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex-1">
-            Workout Details
+            Template Details
           </h1>
         </div>
 
-        {/* Workout Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden mb-8">
-          {/* Hero Section */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
             <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-3xl font-bold text-white mb-2">
-                  {workout.name}
+                  {template.name}
                 </h2>
                 <div className="flex items-center gap-2 text-blue-100">
-                  <CalendarDaysIcon className="h-5 w-5" />
-                  <span>{formatUTCDateToLocalDateFriendly(workout.scheduledDate) || 'Not scheduled'}</span>
+                  <ClockIcon className="h-5 w-5" />
+                  <span>Created: {formatUTCDateToLocalDateFriendly(template.createdAt, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button 
-                  onClick={handleToggleComplete}
-                  className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label={workout.completed ? "Mark as not completed" : "Mark as completed"}
-                >
-                  {workout.completed ? (
-                    <CheckCircleSolid className="h-6 w-6 text-green-400" />
-                  ) : (
-                    <CheckCircleIcon className="h-6 w-6 text-white" />
-                  )}
-                </button>
-                <button 
                   onClick={handleToggleFavorite}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label={workout.favorite ? "Remove from favorites" : "Add to favorites"}
+                  aria-label={template.favorite ? "Remove from favorites" : "Add to favorites"}
                 >
-                  {workout.favorite ? (
+                  {template.favorite ? (
                     <StarSolid className="h-6 w-6 text-amber-400" />
                   ) : (
                     <StarOutline className="h-6 w-6 text-white" />
                   )}
                 </button>
                 <button 
-                  onClick={() => router.push(`/workout/edit/${workoutId}`)}
+                  onClick={() => router.push(`/template/edit/${templateId}`)}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label="Edit workout"
+                  aria-label="Edit template"
                 >
                   <PencilIcon className="h-6 w-6 text-white" />
                 </button>
                 <button 
-                  onClick={handleDeleteWorkout}
+                  onClick={handleDeleteTemplate}
                   className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label="Delete workout"
+                  aria-label="Delete template"
                 >
                   <TrashIcon className="h-6 w-6 text-white" />
                 </button>
               </div>
             </div>
             
-            {/* Status and metadata */}
-            <div className="flex gap-4 mt-4">
-              <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white flex items-center gap-1">
-                {workout.completed ? (
-                  <>
-                    <CheckIcon className="h-4 w-4" />
-                    Completed
-                  </>
-                ) : (
-                  <>
-                    <ClockIcon className="h-4 w-4" />
-                    {workout.scheduledDate ? 'Scheduled' : 'Not started'}
-                  </>
-                )}
-              </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
+            <div className="flex flex-wrap gap-4 mt-4 text-sm text-white">
+              <div className="bg-white/20 rounded-lg px-3 py-1">
                 {Object.keys(exerciseGroups).length} exercises
               </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
-                {workout.sets?.length || 0} sets
+              <div className="bg-white/20 rounded-lg px-3 py-1">
+                {template.sets?.length || 0} sets
               </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1 text-sm text-white">
-                {formatVolume(workout.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'} volume
+              <div className="bg-white/20 rounded-lg px-3 py-1">
+                {formatVolume(template.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'} typical volume
               </div>
             </div>
           </div>
           
-          {/* Exercises */}
           <div className="p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Exercises
+              Exercises in Template
             </h3>
             
             <div className="space-y-6">
-              {Object.entries(exerciseGroups).map(([name, { muscles, equipment, sets }]) => (
+              {Object.entries(exerciseGroups).map(([name, data]: [string, { muscles: string[], equipment: string[], sets: WorkoutSet[] }]) => (
                 <div key={name} className="border dark:border-gray-700 rounded-xl overflow-hidden">
                   <div className="bg-gray-100 dark:bg-gray-700 p-4">
                     <h4 className="font-semibold text-gray-900 dark:text-white">
                       {name}
                     </h4>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      <span className="font-medium">Muscles:</span> {muscles.join(', ')}
+                      <span className="font-medium">Muscles:</span> {data.muscles.join(', ')}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      <span className="font-medium">Equipment:</span> {equipment.join(', ')}
+                      <span className="font-medium">Equipment:</span> {data.equipment.join(', ')}
                     </div>
                   </div>
                   
-                  {/* Sets Table */}
                   <div className="p-4">
                     <table className="w-full text-sm">
                       <thead>
@@ -240,7 +199,7 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
                         </tr>
                       </thead>
                       <tbody>
-                        {sets.map((set, index) => (
+                        {data.sets.map((set: WorkoutSet, index: number) => (
                           <tr key={set.id} className="border-b dark:border-gray-700 last:border-0">
                             <td className="px-2 py-3 text-left font-medium text-gray-900 dark:text-white">
                               Set {index + 1}
@@ -262,23 +221,14 @@ export default function WorkoutDetailPage({ params }: { params: Promise<{ workou
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+        <div className="text-center">
           <button
-            onClick={() => router.push('/workouts')}
-            className="btn btn-secondary flex-1"
+            onClick={() => router.push(`/session/active/${templateId}`)}
+            className="btn btn-success btn-lg flex items-center gap-2 mx-auto"
           >
-            Back to Workouts
+            <PlayCircleIcon className="w-6 h-6" />
+            Start Session with this Template
           </button>
-          
-          {!workout.completed && (
-            <button 
-              onClick={() => router.push(`/workout/start/${workoutId}`)} 
-              className="btn btn-primary flex-1"
-            >
-              Start Workout
-            </button>
-          )}
         </div>
       </div>
     </motion.div>

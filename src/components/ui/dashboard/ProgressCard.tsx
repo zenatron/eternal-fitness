@@ -16,7 +16,7 @@ export function ProgressCard({ data }: ProgressCardProps) {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
           <p className="text-3xl font-bold text-heading">{data.workoutsCompleted}</p>
-          <p className="text-secondary text-sm">workouts completed</p>
+          <p className="text-secondary text-sm">sessions completed</p>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
           <p className="text-3xl font-bold text-heading">{data.personalRecords}</p>

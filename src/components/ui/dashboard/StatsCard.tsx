@@ -10,8 +10,8 @@ interface StatsCardProps {
 
 export function StatsCard({ data }: StatsCardProps) {
   const statsItems = [
-    { value: data.totalWorkouts, label: 'workouts' },
-    { value: data.hoursTrained, label: 'hours' },
+    { value: data.totalWorkouts, label: 'sessions' },
+    { value: data.hoursTrained.toFixed(1), label: 'hours' },
     { value: data.totalExercises, label: 'exercises' },
     { value: data.activeWeeks, label: 'weeks' }
   ];

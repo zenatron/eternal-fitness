@@ -1,23 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { Workout } from '@/types/workout';
+import { WorkoutTemplate } from '@/types/workout';
 
 /**
- * Custom hook to fetch and provide all user workouts
+ * Custom hook to fetch and provide all user workout templates
  */
-export const useWorkouts = () => {
+export const useTemplates = () => {
   const {
-    data: workouts = [],
+    data: templates = [],
     isLoading,
     error,
     refetch
-  } = useQuery<Workout[]>({
-    queryKey: ['workouts'],
+  } = useQuery<WorkoutTemplate[]>({
+    queryKey: ['templates'],
     queryFn: async () => {
-      const response = await fetch('/api/workout');
+      const response = await fetch('/api/template');
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to fetch workouts');
+        throw new Error(errorData?.error || 'Failed to fetch templates');
       }
       
       return response.json();
@@ -26,7 +26,7 @@ export const useWorkouts = () => {
   });
 
   return {
-    workouts,
+    templates,
     isLoading,
     error,
     refetch

@@ -12,30 +12,25 @@ export async function GET() {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    const workouts = await prisma.workout.findMany({
+    const templates = await prisma.workoutTemplate.findMany({
       where: {
         userId
       },
       include: {
         sets: {
           include: {
-            exercises: {
-              select: {
-                name: true,
-                muscles: true
-              }
-            }
+            exercises: true
           }
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        name: 'asc'
       }
     })
 
-    return NextResponse.json(workouts)
+    return NextResponse.json(templates)
   } catch (error) {
-    console.error('Error in GET /api/workout:', error)
+    console.error('Error in GET /api/template:', error)
     return new NextResponse(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }), 
       { status: 500, headers: { 'Content-Type': 'application/json' } }

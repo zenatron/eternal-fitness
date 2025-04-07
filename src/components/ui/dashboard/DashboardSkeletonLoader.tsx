@@ -1,4 +1,4 @@
-export function DashboardSkeleton() {
+export function DashboardSkeletonLoader() {
   return (
     <div className="min-h-screen app-bg flex flex-col items-center justify-center px-4">
       <div className="animate-pulse w-full max-w-6xl mx-auto">

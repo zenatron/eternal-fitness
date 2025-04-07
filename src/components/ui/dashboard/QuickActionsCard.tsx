@@ -1,8 +1,8 @@
 import { 
   Cog6ToothIcon, 
-  ChartBarIcon, 
+  ChartBarIcon,
   UserIcon, 
-  ClipboardDocumentListIcon 
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { DashboardCard } from './DashboardCard';
 import Link from 'next/link';
@@ -10,8 +10,8 @@ import Link from 'next/link';
 export function QuickActionsCard() {
   const actions = [
     { 
-      href: '/workout/create', 
-      label: 'Workout', 
+      href: '/template/create',
+      label: 'Create Template',
       icon: <ClipboardDocumentListIcon className="h-5 w-5 mr-1" />,
       variant: 'primary'
     },
@@ -22,8 +22,8 @@ export function QuickActionsCard() {
       variant: 'secondary'
     },
     { 
-      href: '/workouts', 
-      label: 'History', 
+      href: '/activity',
+      label: 'View Activity',
       icon: <ChartBarIcon className="h-5 w-5 mr-1" />,
       variant: 'tertiary'
     },

@@ -1,3 +1,5 @@
+import { WorkoutTemplate } from "./workout";
+
 // Activity data for workout calendar
 export interface ActivityDay {
   date: string;
@@ -11,16 +13,6 @@ export interface ActivityEntry {
   details: string;
   timeAgo: string;
 }
-
-// Upcoming workout
-export interface UpcomingWorkout {
-  id: number;
-  title: string;
-  exercises: number;
-  duration: number;
-  status: 'today' | 'tomorrow' | 'upcoming';
-}
-
 // Progress data
 export interface ProgressData {
   workoutsCompleted: number;
@@ -53,6 +45,6 @@ export interface DashboardData {
   streak: number;
   progress: ProgressData;
   recentActivity: ActivityEntry[];
-  upcomingWorkouts: UpcomingWorkout[];
+  upcomingWorkouts: WorkoutTemplate[];
   stats: StatsData;
 } 

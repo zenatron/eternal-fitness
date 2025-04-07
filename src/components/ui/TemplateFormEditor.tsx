@@ -7,14 +7,11 @@ import {
   ExclamationCircleIcon,
   CheckCircleIcon,
   Bars2Icon,
-  CalendarDaysIcon,
   StarIcon as StarOutline 
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { Exercise } from '@/types/workout';
+import { Exercise, Set as WorkoutSet } from '@/types/workout';
 import { useRouter } from 'next/navigation';
-import { DatePicker } from '@heroui/date-picker';
-import { CalendarDate, parseDate } from '@internationalized/date';
 import {
   DndContext,
   closestCenter,
@@ -74,30 +71,27 @@ function SortableItem({
   );
 }
 
-interface WorkoutFormEditorProps {
-  initialWorkoutName?: string;
+interface TemplateFormEditorProps {
+  initialTemplateName?: string;
   initialExercises?: Exercise[];
-  initialScheduledDate?: string;
   initialFavorite?: boolean;
   mode: 'create' | 'edit';
-  workoutId?: string;
+  templateId?: string;
   onSaveSuccess?: () => void;
   headerElement: React.ReactNode;
 }
 
-export default function WorkoutFormEditor({
-  initialWorkoutName = '',
+export default function TemplateFormEditor({
+  initialTemplateName = '',
   initialExercises = [],
-  initialScheduledDate = '',
   initialFavorite = false,
   mode,
-  workoutId,
+  templateId,
   onSaveSuccess,
   headerElement
-}: WorkoutFormEditorProps) {
-  const [workoutName, setWorkoutName] = useState(initialWorkoutName);
-  const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>(initialExercises);
-  const [scheduledDate, setScheduledDate] = useState(initialScheduledDate);
+}: TemplateFormEditorProps) {
+  const [templateName, setTemplateName] = useState(initialTemplateName);
+  const [templateExercises, setTemplateExercises] = useState<Exercise[]>(initialExercises);
   const [isFavorite, setIsFavorite] = useState(initialFavorite);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
@@ -108,21 +102,17 @@ export default function WorkoutFormEditor({
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const { profile } = useProfile();
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Update state if initialValues change (e.g. when data loads)
   useEffect(() => {
-    if (initialWorkoutName) {
-      setWorkoutName(initialWorkoutName);
+    if (initialTemplateName) {
+      setTemplateName(initialTemplateName);
     }
     if (initialExercises.length > 0) {
-      setWorkoutExercises(initialExercises);
-    }
-    if (initialScheduledDate) {
-      setScheduledDate(initialScheduledDate);
+      setTemplateExercises(initialExercises);
     }
     setIsFavorite(initialFavorite);
-  }, [initialWorkoutName, initialExercises, initialScheduledDate, initialFavorite]);
+  }, [initialTemplateName, initialExercises, initialFavorite]);
 
   // Simple sensors configuration with activation constraints to improve usability
   const sensors = useSensors(
@@ -214,11 +204,11 @@ export default function WorkoutFormEditor({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Add a new exercise to the workout
+  // Add a new exercise to the template
   const addExercise = (exerciseKey: string) => {
     const exerciseDetails = exercises[exerciseKey as keyof typeof exercises];
     const newExercise: Exercise = {
-      id: generateId(),
+      id: exerciseKey, // Use the real exercise ID from the database
       name: exerciseDetails.name,
       muscles: exerciseDetails.muscles,
       equipment: exerciseDetails.equipment,
@@ -227,7 +217,7 @@ export default function WorkoutFormEditor({
       sets: [
         {
           id: generateId(),
-          workoutId: workoutId || generateId(),
+          workoutTemplateId: templateId || generateId(),
           reps: 0,
           weight: 0,
           createdAt: new Date(),
@@ -237,14 +227,21 @@ export default function WorkoutFormEditor({
       ]
     };
     
-    setWorkoutExercises([...workoutExercises, newExercise]);
+    // Log the exercise being added
+    console.log("Adding exercise:", { 
+      key: exerciseKey, 
+      id: newExercise.id, 
+      name: newExercise.name 
+    });
+    
+    setTemplateExercises([...templateExercises, newExercise]);
     setSearchQuery('');
     setShowResults(false);
   };
 
   // Add a new set to an exercise
   const addSet = (exerciseIndex: number) => {
-    const updatedExercises = [...workoutExercises];
+    const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
     
     if (!exercise) return;
@@ -253,7 +250,7 @@ export default function WorkoutFormEditor({
       ...(exercise.sets || []),
       {
         id: generateId(),
-        workoutId: workoutId || generateId(),
+        workoutTemplateId: templateId || generateId(),
         reps: 0,
         weight: 0,
         createdAt: new Date(),
@@ -262,30 +259,30 @@ export default function WorkoutFormEditor({
       }
     ];
     
-    setWorkoutExercises(updatedExercises);
+    setTemplateExercises(updatedExercises);
   };
 
-  // Remove an exercise from the workout
+  // Remove an exercise from the template
   const removeExercise = (exerciseIndex: number) => {
-    const updatedExercises = [...workoutExercises];
+    const updatedExercises = [...templateExercises];
     updatedExercises.splice(exerciseIndex, 1);
-    setWorkoutExercises(updatedExercises);
+    setTemplateExercises(updatedExercises);
   };
 
   // Remove a set from an exercise
   const removeSet = (exerciseIndex: number, setIndex: number) => {
-    const updatedExercises = [...workoutExercises];
+    const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
     
     if (!exercise || !exercise.sets) return;
     
     exercise.sets = exercise.sets.filter((_, i) => i !== setIndex);
-    setWorkoutExercises(updatedExercises);
+    setTemplateExercises(updatedExercises);
   };
 
   // Move a set up or down
   const moveSet = (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => {
-    const updatedExercises = [...workoutExercises];
+    const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
     
     if (!exercise || !exercise.sets) return;
@@ -299,7 +296,7 @@ export default function WorkoutFormEditor({
     updatedSets.splice(newIndex, 0, movedSet);
     
     exercise.sets = updatedSets;
-    setWorkoutExercises(updatedExercises);
+    setTemplateExercises(updatedExercises);
   };
 
   // Update set details (reps, weight)
@@ -309,7 +306,7 @@ export default function WorkoutFormEditor({
     field: 'reps' | 'weight', 
     value: any
   ) => {
-    const updatedExercises = [...workoutExercises];
+    const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
     
     if (!exercise || !exercise.sets) return;
@@ -321,7 +318,7 @@ export default function WorkoutFormEditor({
       return set;
     });
     
-    setWorkoutExercises(updatedExercises);
+    setTemplateExercises(updatedExercises);
   };
 
   // Handle drag end event
@@ -329,7 +326,7 @@ export default function WorkoutFormEditor({
     const {active, over} = event;
     
     if (over && active.id !== over.id) {    
-      setWorkoutExercises((items) => {
+      setTemplateExercises((items) => {
         const oldIndex = items.findIndex(item => item.id === active.id);
         const newIndex = items.findIndex(item => item.id === over.id);
                 
@@ -342,34 +339,20 @@ export default function WorkoutFormEditor({
     }
   };
 
-  // Handle date selection from calendar
-  const handleDateSelect = (value: CalendarDate | null) => {
-    if (!value) {
-      setScheduledDate('');
-      setIsCalendarOpen(false);
-      return;
-    }
-    
-    // Format CalendarDate to YYYY-MM-DD string
-    const formattedDate = `${value.year}-${value.month.toString().padStart(2, '0')}-${value.day.toString().padStart(2, '0')}`;
-    setScheduledDate(formattedDate);
-    setIsCalendarOpen(false);
-  };
-
-  // Validate and save the workout
-  const saveWorkout = async () => {
-    if (!workoutName.trim()) {
-      setSaveMessage('Please enter a workout name');
+  // Validate and save the template
+  const saveTemplate = async () => {
+    if (!templateName.trim()) {
+      setSaveMessage('Please enter a template name');
       return;
     }
 
-    if (workoutExercises.length === 0) {
+    if (templateExercises.length === 0) {
       setSaveMessage('Please add at least one exercise');
       return;
     }
 
     // Validate that all sets have values > 0
-    for (const exercise of workoutExercises) {
+    for (const exercise of templateExercises) {
       if (!exercise.sets || exercise.sets.length === 0) {
         setSaveMessage(`Please add at least one set to ${exercise.name}`);
         return;
@@ -385,19 +368,42 @@ export default function WorkoutFormEditor({
 
     setIsSaving(true);
     const endpoint = mode === 'create' 
-      ? '/api/workout/create' 
-      : `/api/workout/${workoutId}`;
+      ? '/api/template/create' 
+      : `/api/template/${templateId}`;
     
     const method = mode === 'create' ? 'POST' : 'PUT';
 
     try {
-      // Format the data for the API
-      const formattedExercises = workoutExercises.map(exercise => ({
-        name: exercise.name,
-        muscles: exercise.muscles,
-        equipment: exercise.equipment,
-        sets: exercise.sets || []
-      }));
+      // Prepare sets data for API - each set contains exercise IDs
+      const setsData = [];
+      
+      for (const exercise of templateExercises) {
+        if (!exercise.sets) continue;
+        
+        for (const set of exercise.sets) {
+          setsData.push({
+            reps: set.reps,
+            weight: set.weight,
+            exercises: [exercise.id] // Connect this set to the exercise
+          });
+        }
+      }
+
+      // Log what we're sending
+      console.log("Submitting template with data:", {
+        name: templateName,
+        sets: setsData.map(s => ({
+          reps: s.reps,
+          weight: s.weight,
+          exerciseCount: s.exercises?.length
+        })),
+        favorite: isFavorite
+      });
+      
+      // Log a sample exercise ID to verify
+      if (setsData.length > 0 && setsData[0].exercises.length > 0) {
+        console.log("Sample exercise ID:", setsData[0].exercises[0]);
+      }
 
       const response = await fetch(endpoint, {
         method,
@@ -405,31 +411,30 @@ export default function WorkoutFormEditor({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: workoutName,
-          exercises: formattedExercises,
-          scheduledDate: scheduledDate || undefined,
+          name: templateName,
+          sets: setsData,
           favorite: isFavorite
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save workout');
+        throw new Error(errorData.error || 'Failed to save template');
       }
 
-      setSaveMessage('Workout saved successfully!');
+      setSaveMessage('Template saved successfully!');
       
       if (onSaveSuccess) {
         onSaveSuccess();
       } else {
         // Wait a moment to show success message
         setTimeout(() => {
-          router.push('/workouts');
-        }, 100);
+          router.push('/templates');
+        }, 250);
       }
     } catch (error) {
-      console.error('Error saving workout:', error);
-      setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to save workout'}`);
+      console.error('Error saving template:', error);
+      setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to save template'}`);
     } finally {
       setIsSaving(false);
     }
@@ -445,7 +450,7 @@ export default function WorkoutFormEditor({
           <form>
             <div className="mb-6">
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="workout-name" className="form-item-heading">Workout Name</label>
+                <label htmlFor="template-name" className="form-item-heading">Template Name</label>
                 <button 
                   type="button"
                   onClick={() => setIsFavorite(!isFavorite)}
@@ -460,51 +465,14 @@ export default function WorkoutFormEditor({
                 </button>
               </div>
               <input
-                id="workout-name"
+                id="template-name"
                 type="text"
-                value={workoutName}
-                onChange={(e) => setWorkoutName(e.target.value)}
-                placeholder="e.g., Monday Upper Body"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g., Upper Body Strength"
                 className="form-input"
                 required
               />
-            </div>
-
-            <div className="mb-4">
-              <label htmlFor="scheduledDate" className="block text-sm font-medium text-secondary mb-1">
-                Schedule Workout (Optional)
-              </label>
-              <div className="flex items-center gap-2 relative">
-                <div className="flex-1 flex items-center">
-                  <CalendarDaysIcon className="w-5 h-5 text-primary absolute left-3 z-10" />
-                  <input
-                    type="date"
-                    id="scheduledDate"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white"
-                  />
-                </div>
-                
-                {isCalendarOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50">
-                    <div 
-                      className="fixed inset-0 bg-black/20" 
-                      onClick={() => setIsCalendarOpen(false)}
-                    />
-                    <div className="relative bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                      <DatePicker
-                        value={scheduledDate ? parseDate(scheduledDate) : undefined}
-                        onChange={handleDateSelect}
-                        className="bg-gray-800 dark:bg-gray-50 rounded-lg"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-secondary mt-1">
-                Setting a date will add this to your upcoming workouts
-              </p>
             </div>
 
             {/* Exercise Selector */}
@@ -556,15 +524,15 @@ export default function WorkoutFormEditor({
             {/* Exercise List */}
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-                Your Workout Plan{" "}
+                Your Template Plan{" "}
                 <span className="text-gray-500 dark:text-gray-400 font-normal text-sm">
-                  ({workoutExercises.length} exercises)
+                  ({templateExercises.length} exercises)
                 </span>
               </h2>
 
-              {workoutExercises.length === 0 ? (
+              {templateExercises.length === 0 ? (
                 <div className="text-center p-10 border border-dashed rounded-lg text-gray-500 dark:text-gray-400">
-                  <p>No exercises added yet. Start building your workout by adding exercises above.</p>
+                  <p>No exercises added yet. Start building your template by adding exercises above.</p>
                 </div>
               ) : (
                 <DndContext 
@@ -573,11 +541,11 @@ export default function WorkoutFormEditor({
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
-                    items={workoutExercises.map(exercise => exercise.id)}
+                    items={templateExercises.map(exercise => exercise.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-6">
-                      {workoutExercises.map((exercise, exerciseIndex) => {
+                      {templateExercises.map((exercise, exerciseIndex) => {
                         return (
                           <SortableItem 
                             key={exercise.id} 
@@ -724,7 +692,7 @@ export default function WorkoutFormEditor({
               )}
 
               {/* Save Button */}
-              {workoutExercises.length > 0 && (
+              {templateExercises.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -747,21 +715,21 @@ export default function WorkoutFormEditor({
                   
                   <button 
                     type="button"
-                    onClick={saveWorkout} 
+                    onClick={saveTemplate} 
                     className="btn btn-tertiary w-full py-3 text-lg inline-flex items-center justify-center gap-2"
                     disabled={isSaving}
                   >
                     {isSaving ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-200 border-t-white"></div>
-                        {mode === 'create' ? 'Saving Workout...' : 'Updating Workout...'}
+                        {mode === 'create' ? 'Saving Template...' : 'Updating Template...'}
                       </>
                     ) : (
                       <>
                         <CheckCircleIcon className="h-6 w-6" />
-                        {mode === 'create' ? 'Save Workout' : 'Update Workout'}
+                        {mode === 'create' ? 'Save Template' : 'Update Template'}
                         <span className="font-normal text-sm">
-                          ({workoutExercises.length} exercises)
+                          ({templateExercises.length} exercises)
                         </span>
                       </>
                     )}

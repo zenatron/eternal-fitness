@@ -1,9 +1,8 @@
 import { CalendarIcon, PlusIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { DashboardCard } from './DashboardCard';
 import Link from 'next/link';
-import { Workout } from '@/types/workout';
-import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-// Status badge colors
+import { WorkoutTemplate } from '@/types/workout';
+
 const statusColors = {
   today: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
   tomorrow: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
@@ -11,10 +10,10 @@ const statusColors = {
 };
 
 interface UpcomingWorkoutsCardProps {
-  workouts: Workout[];
+  templates: WorkoutTemplate[] | undefined;
 }
 
-export function UpcomingWorkoutsCard({ workouts }: UpcomingWorkoutsCardProps) {
+export function UpcomingWorkoutsCard({ templates }: UpcomingWorkoutsCardProps) {
   return (
     <DashboardCard
       title="Upcoming Workouts"
@@ -22,44 +21,41 @@ export function UpcomingWorkoutsCard({ workouts }: UpcomingWorkoutsCardProps) {
       color="amber"
     >
       <div className="space-y-4">
-        {workouts.map((workout) => (
-          <div key={workout.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+        {Array.isArray(templates) && templates.map((template) => (
+          <div key={template.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-medium text-heading">{workout.name}</h3>
+                <h3 className="font-medium text-heading">{template.name}</h3>
                 <p className="text-sm text-secondary mt-1">
-                  {workout.sets?.length} sets • {workout.duration || 0} mins
+                  {template.sets?.length} sets
                 </p>
               </div>
-              <span className={`${statusColors.today} text-xs px-2 py-1 rounded-full`}>
-                {workout.scheduledDate ? formatUTCDateToLocalDateFriendly(workout.scheduledDate) : 'No date'}
-              </span>
             </div>
           </div>
         ))}
       </div>
       
-      {workouts.length === 0 && (
+      {(!Array.isArray(templates) || templates.length === 0) && (
         <div className="text-center py-6">
-          <p className="text-secondary">No upcoming workouts</p>
+          <p className="text-secondary">No upcoming workouts scheduled.</p>
         </div>
       )}
       
       <div className="flex flex-col gap-3 mt-4">
         <Link 
-          href="/workout/create" 
+          href="/template/create" 
           className="btn btn-primary w-full inline-flex items-center justify-center"
         >
           <PlusIcon className="h-5 w-5 mr-1" />
-          Schedule Workout
+          Create Template
         </Link>
         
         <Link 
-          href="/workouts" 
+          href="/templates" 
           className="btn btn-secondary w-full inline-flex items-center justify-center"
         >
           <ArrowRightIcon className="h-5 w-5 mr-1" />
-          View All Workouts
+          View Templates
         </Link>
       </div>
     </DashboardCard>
