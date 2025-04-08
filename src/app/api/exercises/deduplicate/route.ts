@@ -40,7 +40,7 @@ export async function POST() {
     }
 
     // Process each group of exercises with the same name
-    for (const [name, exercises] of Object.entries(exercisesByName)) {
+    for (const [, exercises] of Object.entries(exercisesByName)) {
       // Skip if no duplicates
       if (exercises.length <= 1) {
         continue

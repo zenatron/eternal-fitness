@@ -1,77 +1,82 @@
-'use client';
+"use client";
 
-import { useState, useEffect, use } from 'react';
-import { FlagIcon } from '@heroicons/react/24/outline';
-import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
-import { WorkoutTemplate, Exercise, Set as WorkoutSet } from '@/types/workout';
-import { useTemplate } from '@/lib/hooks/useTemplate';
+import { useState, useEffect, useCallback, use } from "react";
+import { FlagIcon } from "@heroicons/react/24/outline";
+import TemplateFormEditor from "@/components/ui/TemplateFormEditor";
+import { WorkoutTemplate, Exercise, Set as WorkoutSet } from "@/types/workout";
+import { useTemplate } from "@/lib/hooks/useTemplate";
 
 // Generate a simple unique ID
 function generateId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-export default function EditTemplatePage({ params }: { params: Promise<{ templateId: string }> }) {
-
+export default function EditTemplatePage({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) {
   const { templateId } = use(params);
   const { template, isLoading, error } = useTemplate(templateId);
-  const [initialTemplateName, setInitialTemplateName] = useState('');
+  const [initialTemplateName, setInitialTemplateName] = useState("");
   const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
   const [initialFavorite, setInitialFavorite] = useState(false);
+
+  // Convert DB WorkoutTemplate format to FormExercise[] format for the editor
+  const convertTemplateToFormExercises = useCallback(
+    (templateData: WorkoutTemplate): Exercise[] => {
+      const exerciseMap: Record<string, Exercise> = {};
+
+      templateData.sets?.forEach((workoutSet: WorkoutSet) => {
+        const primaryExercise = workoutSet.exercises?.[0];
+        if (!primaryExercise) return;
+
+        const exerciseName = primaryExercise.name;
+
+        if (!exerciseMap[exerciseName]) {
+          exerciseMap[exerciseName] = {
+            id: primaryExercise.id || generateId(),
+            name: exerciseName,
+            muscles: primaryExercise.muscles || [],
+            equipment: primaryExercise.equipment || [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            sets: [],
+          };
+        }
+
+        // Add the set details (reps/weight) to the exercise
+        exerciseMap[exerciseName].sets?.push({
+          id: workoutSet.id || generateId(),
+          workoutTemplateId: templateId,
+          reps: workoutSet.reps,
+          weight: workoutSet.weight,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          exercises: [],
+        });
+      });
+
+      // Convert the map to an array
+      return Object.values(exerciseMap);
+    },
+    [templateId]
+  );
 
   // Process template data when it loads
   useEffect(() => {
     if (template) {
       // Set template name
       setInitialTemplateName(template.name);
-      
+
       // Set favorite status
       setInitialFavorite(template.favorite || false);
-      
+
       // Convert template data to the format expected by TemplateFormEditor
       const formattedExercises = convertTemplateToFormExercises(template);
       setInitialExercises(formattedExercises);
     }
-  }, [template]);
-
-  // Convert DB WorkoutTemplate format to FormExercise[] format for the editor
-  const convertTemplateToFormExercises = (templateData: WorkoutTemplate): Exercise[] => {
-    const exerciseMap: Record<string, Exercise> = {};
-    
-    templateData.sets?.forEach((set: WorkoutSet) => {
-      // Assuming each set links to one exercise primarily
-      const exerciseInfo = set.exercises?.[0] as Exercise | undefined;
-      if (!exerciseInfo) return;
-      
-      const exerciseName = exerciseInfo.name;
-      
-      if (!exerciseMap[exerciseName]) {
-        exerciseMap[exerciseName] = {
-          id: exerciseInfo.id || generateId(),
-          name: exerciseName,
-          muscles: exerciseInfo.muscles || [],
-          equipment: exerciseInfo.equipment || [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          sets: []
-        };
-      }
-      
-      // Add the set details (reps/weight) to the exercise
-      exerciseMap[exerciseName].sets?.push({
-        id: set.id || generateId(),
-        workoutTemplateId: templateId,
-        reps: set.reps,
-        weight: set.weight,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        exercises: []
-      });
-    });
-    
-    // Convert the map to an array
-    return Object.values(exerciseMap);
-  };
+  }, [template, convertTemplateToFormExercises]);
 
   const headerElement = (
     <div className="app-card rounded-2xl shadow-xl overflow-hidden mb-6">
@@ -81,7 +86,9 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
           <FlagIcon className="w-20 h-20" />
           <div>
             <h1 className="text-3xl font-bold">Edit Workout Template</h1>
-            <p className="text-blue-100 mt-1">Update your workout template details</p>
+            <p className="text-blue-100 mt-1">
+              Update your workout template details
+            </p>
           </div>
         </div>
       </div>
@@ -122,4 +129,4 @@ export default function EditTemplatePage({ params }: { params: Promise<{ templat
       headerElement={headerElement}
     />
   );
-} 
+}

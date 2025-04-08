@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { 
   StarIcon, 
-  ClockIcon, 
   PlusCircleIcon,
   ArrowRightIcon,
   QuestionMarkCircleIcon,
@@ -17,10 +16,6 @@ import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
-import { 
-  formatUTCDateToLocalDateFriendly, 
-  formatUTCDateToLocalDateShort 
-} from '@/utils/dateUtils';
 
 export default function TemplatesPage() {
   const router = useRouter()

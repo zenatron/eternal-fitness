@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import { Switch } from '@headlessui/react'
 import { ArrowLeftIcon, UserCircleIcon } from '@heroicons/react/24/outline'
 

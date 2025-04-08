@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
-import { Set as WorkoutSet, WorkoutTemplate, Exercise } from '@/types/workout';
+import { Set as WorkoutSet, Exercise } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 

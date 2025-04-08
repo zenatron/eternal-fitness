@@ -3,9 +3,9 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTemplate } from '@/lib/hooks/useTemplate';
-import { WorkoutTemplate, Exercise, Set as WorkoutSet } from '@/types/workout';
+import { Set as WorkoutSet } from '@/types/workout';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, PlayIcon, PauseIcon, StopIcon, DocumentTextIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, PlayIcon, PauseIcon, DocumentTextIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 // Type for storing session performance data
 type SessionSetPerformance = {

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useScheduledSessions } from '@/lib/hooks/useScheduledSessions';
-import { WorkoutTemplate } from '@/types/workout';
 import { PlusCircleIcon, MagnifyingGlassIcon, PlayCircleIcon, CalendarDaysIcon, XMarkIcon, ClockIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -60,7 +59,7 @@ function ScheduleModal({
                 </button>
               </div>
               
-              <p className="mb-4 text-secondary">Select a date to schedule "{templateName}"</p>
+              <p className="mb-4 text-secondary">{`Select a date to schedule "${templateName}"`}</p>
               
               <div className="mb-6 flex justify-center">
                 <DatePicker

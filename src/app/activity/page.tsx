@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { WorkoutSession, WorkoutTemplate } from '@/types/workout'; // Adjust if needed
+import { WorkoutSession } from '@/types/workout'; // Adjust if needed
 import { ArrowLeftIcon, CalendarDaysIcon, ClockIcon, DocumentTextIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 import { formatVolume } from '@/utils/formatters';
@@ -64,7 +64,7 @@ function DeleteConfirmModal({
                             <div className="mb-4">
                                 <h3 className="text-xl font-bold text-heading">Delete Session</h3>
                                 <p className="text-secondary mt-2">
-                                    Are you sure you want to delete the "{sessionName}" session? This action cannot be undone.
+                                    {`Are you sure you want to delete the "${sessionName}" session? This action cannot be undone.`}
                                 </p>
                             </div>
                             

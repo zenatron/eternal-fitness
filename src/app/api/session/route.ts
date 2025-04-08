@@ -4,25 +4,6 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Type expected from the frontend for session performance
-type SessionSetPerformanceInput = {
-    setId: string; // Original set ID from template (optional, for reference)
-    reps: number | null;
-    weight: number | null;
-};
-type SessionExercisePerformanceInput = {
-    exerciseName: string;
-    sets: SessionSetPerformanceInput[];
-};
-interface SessionInputData {
-    templateId?: string; // Can be undefined if starting blank (not implemented yet)
-    duration?: number;
-    notes?: string;
-    performance?: SessionExercisePerformanceInput[];
-    scheduledAt?: string; // Add scheduledAt parameter for scheduled sessions
-}
-
-
 export async function POST(request: Request) {
   try {
     const { userId } = await auth()
@@ -213,7 +194,7 @@ export async function POST(request: Request) {
 }
 
 // GET function to fetch session history (for /activity page later)
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const { userId } = await auth();
         if (!userId) {
