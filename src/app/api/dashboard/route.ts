@@ -108,7 +108,7 @@ export async function GET() {
 
     // Get recent completed workouts
     const recentSessions = await prisma.workoutSession.findMany({
-      where: { userId },
+      where: { userId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       take: 3,
       include: {
@@ -128,7 +128,8 @@ export async function GET() {
       where: {
         userId,
         completedAt: {
-          gte: thirtyDaysAgo
+          gte: thirtyDaysAgo,
+          not: null
         }
       },
       select: {
@@ -164,7 +165,7 @@ export async function GET() {
     if (!userStats) {
        // Fetch all session dates if needed (can be expensive)
        // Optimization: Fetch only needed dates around the latest session if implementing fully
-       const allSessionDates = sessionsLast30Days.map(s => s.completedAt); // Use recent for approximation if no stats
+       const allSessionDates = sessionsLast30Days.map(s => s.completedAt).filter(Boolean) as Date[]; // Use recent for approximation if no stats
        currentStreak = calculateStreak(allSessionDates);
     }
 
@@ -177,6 +178,11 @@ export async function GET() {
       },
       orderBy: {
         scheduledAt: 'asc'
+      },
+      include: {
+        workoutTemplate: {
+          select: { name: true }
+        }
       }
     });
     // Format the response

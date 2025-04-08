@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { WorkoutTemplate, Exercise, Set as WorkoutSet } from '@/types/workout';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, PlayIcon, PauseIcon, StopIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, PlayIcon, PauseIcon, StopIcon, DocumentTextIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 // Type for storing session performance data
 type SessionSetPerformance = {
@@ -22,6 +22,9 @@ type SessionExercisePerformance = {
 export default function ActiveSessionPage({ params }: { params: Promise<{ templateId: string }> }) {
     const { templateId } = use(params);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const scheduledSessionId = searchParams.get('scheduledSessionId');
+
     const { template, isLoading: templateLoading, error: templateError } = useTemplate(templateId);
     const { profile, isLoading: profileLoading } = useProfile();
 
@@ -49,8 +52,12 @@ export default function ActiveSessionPage({ params }: { params: Promise<{ templa
                 if (!exerciseMap[exercise.name]) {
                     exerciseMap[exercise.name] = [];
                 }
-                // Initialize performance with null values or template values? Let's start null.
-                exerciseMap[exercise.name].push({ setId: set.id, reps: null, weight: null });
+                // Auto-populate with template values instead of null
+                exerciseMap[exercise.name].push({ 
+                    setId: set.id, 
+                    reps: set.reps, 
+                    weight: set.weight 
+                });
             });
 
             for (const name in exerciseMap) {
@@ -110,6 +117,8 @@ export default function ActiveSessionPage({ params }: { params: Promise<{ templa
              duration: finalDurationMinutes,
              notes: sessionNotes,
              performance: sessionPerformance, // Send the detailed performance data
+             // If we have a scheduled session ID, include it to update that session
+             scheduledSessionId: scheduledSessionId || undefined
          };
           
          // Basic validation: Check if templateId exists
@@ -212,6 +221,14 @@ export default function ActiveSessionPage({ params }: { params: Promise<{ templa
                          Active Session: {template.name}
                     </h1>
                  </div>
+
+                 {/* Session Type Indicator (Scheduled vs New) */}
+                 {scheduledSessionId && (
+                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                         <CalendarIcon className="h-5 w-5" />
+                         <span>You are completing a scheduled workout</span>
+                     </div>
+                 )}
 
                  {/* Timer Display and Controls */}
                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 flex items-center justify-between flex-wrap gap-2">

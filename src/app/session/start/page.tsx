@@ -4,11 +4,15 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTemplates } from '@/lib/hooks/useTemplates';
+import { useScheduledSessions } from '@/lib/hooks/useScheduledSessions';
 import { WorkoutTemplate } from '@/types/workout';
-import { PlusCircleIcon, MagnifyingGlassIcon, PlayCircleIcon, CalendarDaysIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusCircleIcon, MagnifyingGlassIcon, PlayCircleIcon, CalendarDaysIcon, XMarkIcon, ClockIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatVolume } from '@/utils/formatters';
+import { useProfile } from '@/lib/hooks/useProfile';
+import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
 
 // Modal component for scheduling
 function ScheduleModal({ 
@@ -95,13 +99,16 @@ function ScheduleModal({
 
 export default function StartSessionPage() {
   const router = useRouter();
-  const { templates, isLoading, error } = useTemplates();
+  const { templates, isLoading: templatesLoading, error: templatesError } = useTemplates();
+  const { sessions: scheduledSessions, isLoading: scheduledLoading, error: scheduledError } = useScheduledSessions();
   const [searchTerm, setSearchTerm] = useState('');
   
   // State for schedule modal
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
+
+  const { profile } = useProfile();
 
   const filteredTemplates = templates?.filter(template =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -148,12 +155,26 @@ export default function StartSessionPage() {
     }
   };
 
+  // Start a scheduled session - updates the session and navigates to active session
+  const handleStartScheduledSession = async (scheduledSessionId: string, templateId: string) => {
+    try {
+      // We'll start the scheduled session using the template ID
+      // The existing session will be updated when we complete the workout
+      router.push(`/session/active/${templateId}?scheduledSessionId=${scheduledSessionId}`);
+    } catch (error) {
+      console.error('Error starting scheduled session:', error);
+    }
+  };
+
+  const isLoading = templatesLoading || scheduledLoading;
+  const error = templatesError || scheduledError;
+
   if (isLoading) {
     return (
         <div className="min-h-screen app-bg py-12 px-4">
             <div className="max-w-2xl mx-auto text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
-                <p className="mt-4 text-secondary">Loading templates...</p>
+                <p className="mt-4 text-secondary">Loading...</p>
             </div>
         </div>
     );
@@ -164,7 +185,7 @@ export default function StartSessionPage() {
         <div className="min-h-screen app-bg py-12 px-4">
             <div className="max-w-2xl mx-auto">
                  <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
-                    Error loading templates: {String(error)}
+                    Error loading data: {String(error)}
                  </div>
             </div>
         </div>
@@ -177,6 +198,40 @@ export default function StartSessionPage() {
         <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
           Start a New Session
         </h1>
+
+        {/* Scheduled Sessions Section */}
+        {scheduledSessions && scheduledSessions.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-heading mb-4 flex items-center">
+              <ClockIcon className="w-5 h-5 mr-2" />
+              Scheduled Sessions
+            </h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+              <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                {scheduledSessions.map((session) => (
+                  <li key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-semibold text-heading">{session.workoutTemplate?.name}</p>
+                        <p className="text-sm text-secondary mt-1">
+                          Scheduled for: {session.scheduledAt ? formatUTCDateToLocalDateFriendly(session.scheduledAt) : 'Unknown date'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleStartScheduledSession(session.id, session.workoutTemplateId)}
+                        className="btn btn-quaternary btn-sm flex items-center gap-1"
+                        aria-label="Start scheduled session"
+                      >
+                        <PlayCircleIcon className="w-4 h-4" />
+                        Start
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Search and Create Buttons */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -197,47 +252,50 @@ export default function StartSessionPage() {
         </div>
 
         {/* Template List */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredTemplates && filteredTemplates.length > 0 ? (
-              filteredTemplates.map((template) => (
-                <li key={template.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold text-heading">{template.name}</p>
-                      <p className="text-sm text-secondary mt-1">
-                        {template.sets?.length || 0} sets • {template.totalVolume > 0 ? `${template.totalVolume} kg/lbs` : 'No volume recorded'}
-                      </p>
+        <div>
+          <h2 className="text-xl font-semibold text-heading mb-4">Your Templates</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredTemplates && filteredTemplates.length > 0 ? (
+                filteredTemplates.map((template) => (
+                  <li key={template.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-semibold text-heading">{template.name}</p>
+                        <p className="text-sm text-secondary mt-1">
+                          {template.sets?.length || 0} sets • {template.totalVolume > 0 ? `${formatVolume(template.totalVolume)} ${profile?.useMetric ? 'kg' : 'lbs'}` : 'No volume recorded'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleScheduleTemplate(template.id, template.name)}
+                          className="btn btn-secondary btn-sm flex items-center gap-1"
+                          aria-label="Schedule session"
+                        >
+                          <CalendarDaysIcon className="w-4 h-4" />
+                          Schedule
+                        </button>
+                        <button
+                          onClick={() => handleSelectTemplate(template.id)}
+                          className="btn btn-quaternary btn-sm flex items-center gap-1"
+                          aria-label="Start session"
+                        >
+                          <PlayCircleIcon className="w-4 h-4" />
+                          Start
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleScheduleTemplate(template.id, template.name)}
-                        className="btn btn-secondary btn-sm flex items-center gap-1"
-                        aria-label="Schedule session"
-                      >
-                        <CalendarDaysIcon className="w-4 h-4" />
-                        Schedule
-                      </button>
-                      <button
-                        onClick={() => handleSelectTemplate(template.id)}
-                        className="btn btn-quaternary btn-sm flex items-center gap-1"
-                        aria-label="Start session"
-                      >
-                        <PlayCircleIcon className="w-4 h-4" />
-                        Start
-                      </button>
-                    </div>
-                  </div>
+                  </li>
+                ))
+              ) : (
+                <li className="p-6 text-center text-secondary">
+                  {templates && templates.length === 0
+                    ? "You haven't created any workout templates yet."
+                    : "No templates match your search."}
                 </li>
-              ))
-            ) : (
-              <li className="p-6 text-center text-secondary">
-                {templates && templates.length === 0
-                  ? "You haven't created any workout templates yet."
-                  : "No templates match your search."}
-              </li>
-            )}
-          </ul>
+              )}
+            </ul>
+          </div>
         </div>
       </div>
       

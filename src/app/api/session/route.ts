@@ -30,21 +30,86 @@ export async function POST(request: Request) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    const body: SessionInputData = await request.json()
-    const { templateId, duration, notes, performance, scheduledAt } = body
+    // Check if this is a scheduled session we're completing
+    const { scheduledSessionId, templateId, scheduledAt, performance, notes, duration } = await request.json();
 
-    // Validation
-    if (!templateId) {
-       return new NextResponse(JSON.stringify({ error: 'Missing templateId' }), { status: 400 });
+    // If we have a scheduledSessionId, this is a scheduled session being completed
+    if (scheduledSessionId) {
+      try {
+        // First verify the session belongs to the user
+        const existingSession = await prisma.workoutSession.findUnique({
+          where: {
+            id: scheduledSessionId,
+            userId: userId
+          }
+        });
+
+        if (!existingSession) {
+          return new NextResponse(
+            JSON.stringify({ error: 'Scheduled session not found or not authorized' }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Calculate total volume from performance data
+        let sessionTotalVolume = 0;
+        if (Array.isArray(performance)) {
+          for (const exercise of performance) {
+            if (Array.isArray(exercise.sets)) {
+              for (const set of exercise.sets) {
+                // Only count sets with both weight and reps
+                if (set.weight && set.reps) {
+                  sessionTotalVolume += set.weight * set.reps;
+                }
+              }
+            }
+          }
+        }
+
+        // Update the scheduled session to mark it as completed
+        const updatedSession = await prisma.workoutSession.update({
+          where: {
+            id: scheduledSessionId
+          },
+          data: {
+            completedAt: new Date(), // Mark as completed now
+            duration: duration,
+            notes: notes,
+            totalVolume: sessionTotalVolume
+            // Note: The Prisma schema doesn't have a performance field
+            // We'll need to add that field to the schema if we want to store performance data
+          }
+        });
+
+        return NextResponse.json(updatedSession);
+      } catch (error) {
+        console.error('Error completing scheduled session:', error);
+        return new NextResponse(
+          JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
     }
-    
-    // For immediate sessions, require performance data
-    // For scheduled sessions, performance data is not required
-    const isScheduling = !!scheduledAt;
-    if (!isScheduling && (!performance || !Array.isArray(performance) || performance.length === 0)) {
-        return new NextResponse(JSON.stringify({ error: 'Missing or empty performance data' }), { status: 400 });
+
+    // If we get here, it's a new session (not updating a scheduled one)
+    // Original code for creating a new session...
+    const isScheduling = scheduledAt !== undefined;
+
+    // Calculate total volume from performance data
+    let sessionTotalVolume = 0;
+    if (performance && Array.isArray(performance)) {
+      performance.forEach(exercise => {
+        if (Array.isArray(exercise.sets)) {
+          exercise.sets.forEach((set: { reps: number | null; weight: number | null }) => {
+            // Only add volume if both reps and weight are positive numbers
+            if (set.reps !== null && set.reps > 0 && set.weight !== null && set.weight >= 0) {
+              sessionTotalVolume += set.reps * set.weight;
+            }
+          });
+        }
+      });
     }
-    
+
     // Check if the template exists and belongs to this user
     const template = await prisma.workoutTemplate.findFirst({
       where: {
@@ -57,27 +122,13 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: 'Template not found or not owned by user' }), { status: 404 });
     }
 
-    // Calculate total volume for this session (only for completed sessions)
-    let sessionTotalVolume = 0;
-    if (performance && Array.isArray(performance)) {
-      performance.forEach(exercise => {
-          exercise.sets.forEach(set => {
-              // Only add volume if both reps and weight are positive numbers
-              if (set.reps !== null && set.reps > 0 && set.weight !== null && set.weight >= 0) {
-                  sessionTotalVolume += set.reps * set.weight;
-              }
-          });
-      });
-    }
-
     // For scheduled sessions, we create a session with scheduledAt date
     // For immediate sessions, we create a completed session
     const sessionData = {
       userId: userId,
       workoutTemplateId: templateId,
-      // For scheduled sessions, don't set completedAt (it will be set when the session is completed)
-      // For immediate sessions, set completedAt to now
-      completedAt: isScheduling ? undefined : new Date(),
+      // For scheduled sessions, don't include the completedAt field at all
+      ...(isScheduling ? {} : { completedAt: new Date() }),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       duration: duration,
       notes: notes,
@@ -175,7 +226,13 @@ export async function GET(request: Request) {
         // const limit = parseInt(searchParams.get('limit') || '10');
 
         const sessions = await prisma.workoutSession.findMany({
-            where: { userId },
+            where: { 
+                userId,
+                // Only include sessions where completedAt is not null (already completed)
+                completedAt: {
+                    not: undefined,
+                }
+            },
             orderBy: { completedAt: 'desc' },
             // take: limit,
             // skip: (page - 1) * limit,
@@ -193,6 +250,47 @@ export async function GET(request: Request) {
 
     } catch (error) {
         console.error('Error in GET /api/session:', error);
+        return new NextResponse(
+            JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+}
+
+// DELETE function to delete a specific session by ID
+export async function DELETE(request: Request) {
+    try {
+        const { userId } = await auth();
+        if (!userId) {
+            return new NextResponse('Unauthorized', { status: 401 });
+        }
+
+        const sessionId = request.url.split('/').pop();
+        if (!sessionId) {
+            return new NextResponse(JSON.stringify({ error: 'Missing session ID' }), { status: 400 });
+        }
+
+        const session = await prisma.workoutSession.findFirst({
+            where: {
+                id: sessionId,
+                userId
+            }
+        });
+
+        if (!session) {
+            return new NextResponse(JSON.stringify({ error: 'Session not found or not owned by user' }), { status: 404 });
+        }
+
+        await prisma.workoutSession.delete({
+            where: {
+                id: sessionId
+            }
+        });
+
+        return NextResponse.json({ message: 'Session deleted successfully' }, { status: 200 });
+
+    } catch (error) {
+        console.error('Error in DELETE /api/session:', error);
         return new NextResponse(
             JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }

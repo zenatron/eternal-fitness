@@ -1,4 +1,4 @@
-import { WorkoutTemplate } from "./workout";
+import { WorkoutTemplate, WorkoutSession } from "./workout";
 
 // Activity data for workout calendar
 export interface ActivityDay {
@@ -45,6 +45,6 @@ export interface DashboardData {
   streak: number;
   progress: ProgressData;
   recentActivity: ActivityEntry[];
-  upcomingWorkouts: WorkoutTemplate[];
+  upcomingWorkouts: WorkoutSession[];
   stats: StatsData;
 } 

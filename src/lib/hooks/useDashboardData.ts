@@ -23,6 +23,7 @@ export const useDashboardData = () => {
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: 'always',
   });
 
   return {

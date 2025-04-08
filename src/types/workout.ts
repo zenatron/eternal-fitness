@@ -51,14 +51,15 @@ export type WorkoutTemplate = {
 // New type for Workout Session - Matches database WorkoutSession model
 export type WorkoutSession = {
   id: string;
-  completedAt: string | Date; // When the workout was actually completed
+  completedAt?: string | Date | null; // When the workout was actually completed (can be null for scheduled sessions)
+  scheduledAt?: string | Date; // For scheduled sessions
   duration?: number;      // Optional: Actual duration of this specific session in minutes
   notes?: string;         // Optional: Notes specific to this session
   totalVolume: number;     // Calculated volume for this specific session
   userId: string;
   workoutTemplateId: string;
-  // Optional: Include template details if needed when fetching sessions
-  // workoutTemplate?: WorkoutTemplate;
+  // Include template details if needed when fetching sessions
+  workoutTemplate?: { name: string; id?: string } | null;
 };
 
 // Represents the structure expected by the WorkoutFormEditor component

@@ -60,7 +60,7 @@ export default function Dashboard() {
           />
 
           <UpcomingWorkoutsCard 
-            templates={data.upcomingWorkouts} 
+            sessions={data.upcomingWorkouts} 
           />
           
           <StatsCard 

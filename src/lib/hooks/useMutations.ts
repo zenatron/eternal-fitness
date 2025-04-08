@@ -96,8 +96,7 @@ export const useToggleFavorite = () => {
       }
     },
     
-    // onSettled uses templateId (string) as variable now
-    onSettled: (data, error, templateId, context: ToggleFavoriteContext | undefined) => {
+    onSettled: (templateId) => {
       console.log(`useToggleFavorite: onSettled for ${templateId}, invalidating queries.`);
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });

@@ -48,7 +48,7 @@ model WorkoutTemplate {
 
 model WorkoutSession {
   id          String   @id @default(uuid())
-  completedAt DateTime @default(now())
+  completedAt DateTime?
   scheduledAt DateTime?
   duration    Int?
   notes       String?
