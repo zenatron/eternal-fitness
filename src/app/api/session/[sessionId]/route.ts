@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
 
 interface SessionUpdateData {
   duration?: number;
@@ -12,14 +10,15 @@ interface SessionUpdateData {
 }
 
 // GET a specific session by ID
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ sessionId: string }> }
-) {
+export async function GET({
+  params,
+}: {
+  params: Promise<{ sessionId: string }>;
+}) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const sessionId = (await params).sessionId;
@@ -27,26 +26,30 @@ export async function GET(
     const session = await prisma.workoutSession.findFirst({
       where: {
         id: sessionId,
-        userId
+        userId,
       },
       include: {
         workoutTemplate: {
-          select: { name: true }
-        }
-      }
+          select: { name: true },
+        },
+      },
     });
 
     if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Session not found or not owned by user' }), { status: 404 });
+      return new NextResponse(
+        JSON.stringify({ error: "Session not found or not owned by user" }),
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(session);
-
   } catch (error) {
-    console.error('Error in GET /api/session/[sessionId]:', error);
+    console.error("Error in GET /api/session/[sessionId]:", error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
@@ -59,7 +62,7 @@ export async function PUT(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const sessionId = (await params).sessionId;
@@ -70,34 +73,44 @@ export async function PUT(
     const existingSession = await prisma.workoutSession.findFirst({
       where: {
         id: sessionId,
-        userId
-      }
+        userId,
+      },
     });
 
     if (!existingSession) {
-      return new NextResponse(JSON.stringify({ error: 'Session not found or not owned by user' }), { status: 404 });
+      return new NextResponse(
+        JSON.stringify({ error: "Session not found or not owned by user" }),
+        { status: 404 }
+      );
     }
 
     // Update the session
     const updatedSession = await prisma.workoutSession.update({
       where: {
-        id: sessionId
+        id: sessionId,
       },
       data: {
         ...(duration !== undefined && { duration }),
         ...(notes !== undefined && { notes }),
-        ...(completedAt && scheduledAt === null ? { completedAt: new Date(completedAt) } : {}),
-        ...(scheduledAt === null ? { scheduledAt: null } : scheduledAt ? { scheduledAt: new Date(scheduledAt) } : {}),
-      }
+        ...(completedAt && scheduledAt === null
+          ? { completedAt: new Date(completedAt) }
+          : {}),
+        ...(scheduledAt === null
+          ? { scheduledAt: null }
+          : scheduledAt
+          ? { scheduledAt: new Date(scheduledAt) }
+          : {}),
+      },
     });
 
     return NextResponse.json(updatedSession);
-
   } catch (error) {
-    console.error('Error in PUT /api/session/[sessionId]:', error);
+    console.error("Error in PUT /api/session/[sessionId]:", error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
@@ -110,7 +123,7 @@ export async function DELETE(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const sessionId = (await params).sessionId;
@@ -119,28 +132,32 @@ export async function DELETE(
     const existingSession = await prisma.workoutSession.findFirst({
       where: {
         id: sessionId,
-        userId
-      }
+        userId,
+      },
     });
 
     if (!existingSession) {
-      return new NextResponse(JSON.stringify({ error: 'Session not found or not owned by user' }), { status: 404 });
+      return new NextResponse(
+        JSON.stringify({ error: "Session not found or not owned by user" }),
+        { status: 404 }
+      );
     }
 
     // Delete the session
     await prisma.workoutSession.delete({
       where: {
-        id: sessionId
-      }
+        id: sessionId,
+      },
     });
 
     return new NextResponse(null, { status: 204 });
-
   } catch (error) {
-    console.error('Error in DELETE /api/session/[sessionId]:', error);
+    console.error("Error in DELETE /api/session/[sessionId]:", error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
-} 
+}

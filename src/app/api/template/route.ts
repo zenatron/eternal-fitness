@@ -1,39 +1,39 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const { userId } = await auth()
-    
+    const { userId } = await auth();
+
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const templates = await prisma.workoutTemplate.findMany({
       where: {
-        userId
+        userId,
       },
       include: {
         sets: {
           include: {
-            exercises: true
-          }
-        }
+            exercises: true,
+          },
+        },
       },
       orderBy: {
-        name: 'asc'
-      }
-    })
+        name: "asc",
+      },
+    });
 
-    return NextResponse.json(templates)
+    return NextResponse.json(templates);
   } catch (error) {
-    console.error('Error in GET /api/template:', error)
+    console.error("Error in GET /api/template:", error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
-} 
+}

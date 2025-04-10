@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { PrismaClient } from '@prisma/client';
-import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils'; // Import utility
 
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma'; // Add this line
+import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils'; // Import utility
 
 // Helper function to calculate streak based on workout dates
 function calculateStreak(sessionDates: Date[]): number {
