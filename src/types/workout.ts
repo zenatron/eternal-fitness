@@ -65,10 +65,12 @@ export type WorkoutSession = {
 // Represents the structure expected by the WorkoutFormEditor component
 // (Kept separate as form state might differ slightly from DB model)
 export type FormExercise = {
-  id: string; // Temporary frontend ID for list manipulation
   name: string;
   muscles: string[];
   equipment: string[];
-  sets: { reps?: number; weight?: number }[]; // Simplified sets for form input
 };
 
+// Represents a list of all possible exercises
+export type ExerciseList = {
+  [key: string]: FormExercise;
+};

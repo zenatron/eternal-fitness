@@ -1,41 +1,44 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { PrismaClient } from '@prisma/client'
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ workoutId: string }> }
-) {
+export async function POST({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) {
   try {
-    const { userId } = await auth()
-    
+    const { userId } = await auth();
+
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { workoutId } = await params
+    const { templateId } = await params;
 
-    // Fetch the workout to check if it exists and belongs to the user
-    const workout = await prisma.workoutTemplate.findUnique({
+    // Fetch the template to check if it exists and belongs to the user
+    const template = await prisma.workoutTemplate.findUnique({
       where: {
-        id: workoutId,
+        id: templateId,
       },
-    })
+    });
 
-    if (!workout) {
-      return new NextResponse('Workout not found', { status: 404 })
+    if (!template) {
+      return new NextResponse("Template not found", { status: 404 });
     }
 
-    if (workout.userId !== userId) {
-      return new NextResponse('Unauthorized', { status: 401 })
+    if (template.userId !== userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
   } catch (error) {
-    console.error('Error in POST /api/template/[templateId]/complete:', error)
+    console.error("Error in POST /api/template/[templateId]/complete:", error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
-} 
+}

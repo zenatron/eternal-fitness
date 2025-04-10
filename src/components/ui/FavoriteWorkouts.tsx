@@ -35,8 +35,8 @@ export default function FavoriteWorkouts() {
     return uniqueExerciseNames.size;
   };
 
-  const handleToggleFavorite = (workoutId: string) => {
-    toggleFavoriteMutation.mutate(workoutId);
+  const handleToggleFavorite = (templateId: string) => {
+    toggleFavoriteMutation.mutate(templateId);
   };
 
   if (isLoading) {

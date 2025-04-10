@@ -1,6 +1,6 @@
-import { ExerciseDatabase } from '@/types/workout'
+import { ExerciseList } from "@/types/workout"
 
-export const exercises: ExerciseDatabase = {
+export const exercises: ExerciseList = {
   // Compound Movements
   'Bench Press': {
     name: 'Bench Press',

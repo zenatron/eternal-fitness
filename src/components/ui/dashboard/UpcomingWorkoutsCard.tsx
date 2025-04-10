@@ -45,7 +45,7 @@ export function UpcomingWorkoutsCard({ sessions }: UpcomingWorkoutsCardProps) {
             <div key={session.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-medium text-heading">{session.workoutTemplate?.name || "Untitled Workout"}</h3>
+                  <h3 className="font-medium text-heading">{session.workoutTemplate?.name || "Untitled Template"}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <span 
                       className={`text-xs px-2 py-1 rounded-full ${getStatusStyle(session.scheduledAt || '')}`}
