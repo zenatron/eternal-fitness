@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
+import { useProfile } from '@/lib/hooks/useProfile';
 
 export default function FavoriteWorkouts() {
   const router = useRouter();
-
+  const { profile } = useProfile();
   const { data: allTemplates, isLoading, error } = useTemplates();
   const toggleFavoriteMutation = useToggleFavorite();
 
@@ -97,7 +98,10 @@ export default function FavoriteWorkouts() {
                 {template.totalVolume != null && template.totalVolume > 0 && (
                   <>
                     <span>•</span>
-                    <span>{formatVolume(template.totalVolume)} volume</span>
+                    <span>
+                      {formatVolume(template.totalVolume, profile?.useMetric)}{' '}
+                      volume
+                    </span>
                   </>
                 )}
               </div>

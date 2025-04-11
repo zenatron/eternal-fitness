@@ -1,4 +1,4 @@
-import { WorkoutSession } from "./workout";
+import { WorkoutSession } from './workout';
 
 // Activity data for workout calendar
 export interface ActivityDay {
@@ -47,4 +47,4 @@ export interface DashboardData {
   recentActivity: ActivityEntry[];
   upcomingWorkouts: WorkoutSession[];
   stats: StatsData;
-} 
+}

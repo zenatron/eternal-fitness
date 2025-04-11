@@ -2,12 +2,12 @@ import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 
 // Supported gradient backgrounds
-export type GradientColor = 
-  | 'blue' 
-  | 'green' 
-  | 'purple' 
-  | 'amber' 
-  | 'cyan' 
+export type GradientColor =
+  | 'blue'
+  | 'green'
+  | 'purple'
+  | 'amber'
+  | 'cyan'
   | 'red'
   | 'indigo'
   | 'pink'
@@ -23,7 +23,7 @@ const gradientMap: Record<GradientColor, string> = {
   red: 'from-red-500 to-red-600',
   indigo: 'from-indigo-500 to-indigo-600',
   pink: 'from-pink-500 to-pink-600',
-  gray: 'from-gray-500 to-gray-600'
+  gray: 'from-gray-500 to-gray-600',
 };
 
 interface DashboardCardProps {
@@ -35,16 +35,16 @@ interface DashboardCardProps {
   className?: string;
 }
 
-export function DashboardCard({ 
-  title, 
-  icon, 
-  color, 
-  children, 
+export function DashboardCard({
+  title,
+  icon,
+  color,
+  children,
   delay = 0,
-  className = ''
+  className = '',
 }: DashboardCardProps) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
@@ -52,16 +52,12 @@ export function DashboardCard({
     >
       <div className={`bg-gradient-to-r ${gradientMap[color]} p-4 text-white`}>
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6">
-            {icon}
-          </div>
+          <div className="h-6 w-6">{icon}</div>
           <h2 className="text-xl font-semibold">{title}</h2>
         </div>
       </div>
-      
-      <div className="p-6">
-        {children}
-      </div>
+
+      <div className="p-6">{children}</div>
     </motion.div>
   );
-} 
+}

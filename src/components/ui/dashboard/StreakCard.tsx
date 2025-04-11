@@ -20,16 +20,16 @@ export function StreakCard({ streak, activityData }: StreakCardProps) {
           <p className="text-secondary mt-1">days</p>
         </div>
       </div>
-      
+
       <div className="mt-6">
         <p className="text-sm text-secondary mb-2">Monthly Workout Calendar</p>
         <div className="grid grid-cols-7 gap-1">
           {activityData.slice(-28).map((day, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`h-6 w-full rounded-sm ${
-                day.completed 
-                  ? 'bg-green-500/90 dark:bg-green-500/80' 
+                day.completed
+                  ? 'bg-green-500/90 dark:bg-green-500/80'
                   : 'bg-gray-200 dark:bg-gray-700'
               }`}
               title={`${day.date}: ${day.completed ? 'Completed' : 'Missed'}`}
@@ -43,4 +43,4 @@ export function StreakCard({ streak, activityData }: StreakCardProps) {
       </div>
     </DashboardCard>
   );
-} 
+}

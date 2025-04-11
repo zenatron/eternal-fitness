@@ -1,41 +1,41 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import ThemeSwitch from './theme/ThemeSwitch'
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { SignedIn, UserButton } from '@clerk/nextjs'
-import { useTheme } from 'next-themes'
-import { dark } from '@clerk/themes'
+import Link from 'next/link';
+import ThemeSwitch from './theme/ThemeSwitch';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { SignedIn, UserButton } from '@clerk/nextjs';
+import { useTheme } from 'next-themes';
+import { dark } from '@clerk/themes';
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { resolvedTheme } = useTheme()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
 
   const menuVariants = {
     closed: {
       opacity: 0,
-      x: "100%",
+      x: '100%',
       transition: {
-        duration: 0.2
-      }
+        duration: 0.2,
+      },
     },
     open: {
       opacity: 1,
       x: 0,
       transition: {
-        duration: 0.3
-      }
-    }
-  }
+        duration: 0.3,
+      },
+    },
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-slate-800 dark:bg-gray-950 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
       {/* Website Logo/Title */}
       <div className="flex items-center gap-2">
         <h1 className="text-2xl font-bold">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="
               bg-clip-text text-transparent 
               bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500
@@ -51,8 +51,8 @@ export function Header() {
       {/* Desktop Navigation */}
       <nav className="hidden md:flex items-center space-x-6">
         <SignedIn>
-          <UserButton 
-            userProfileMode="navigation" 
+          <UserButton
+            userProfileMode="navigation"
             userProfileUrl="/profile"
             appearance={{
               baseTheme: resolvedTheme === 'dark' ? dark : undefined,
@@ -63,22 +63,22 @@ export function Header() {
       </nav>
 
       {/* Mobile Hamburger Button */}
-      <button 
+      <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         className="md:hidden flex flex-col justify-center items-center w-6 h-6 space-y-1.5 focus:outline-none"
         aria-label="Toggle menu"
       >
-        <span 
+        <span
           className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
             isMenuOpen ? 'rotate-45 translate-y-2' : ''
           }`}
         />
-        <span 
+        <span
           className={`w-6 h-0.5 bg-white transition-all duration-300 ${
             isMenuOpen ? 'opacity-0' : ''
           }`}
         />
-        <span 
+        <span
           className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
             isMenuOpen ? '-rotate-45 -translate-y-2' : ''
           }`}
@@ -97,7 +97,7 @@ export function Header() {
               className="fixed inset-0 bg-black md:hidden"
               onClick={() => setIsMenuOpen(false)}
             />
-            
+
             {/* Menu */}
             <motion.div
               variants={menuVariants}
@@ -108,8 +108,8 @@ export function Header() {
             >
               <div className="flex flex-col space-y-6">
                 <SignedIn>
-                  <UserButton 
-                    userProfileMode="navigation" 
+                  <UserButton
+                    userProfileMode="navigation"
                     userProfileUrl="/profile"
                     appearance={{
                       baseTheme: resolvedTheme === 'dark' ? dark : undefined,
@@ -125,5 +125,5 @@ export function Header() {
         )}
       </AnimatePresence>
     </header>
-  )
-} 
+  );
+}

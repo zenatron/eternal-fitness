@@ -1,17 +1,17 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { 
-  StarIcon, 
+import { useRouter } from 'next/navigation';
+import {
+  StarIcon,
   PlusCircleIcon,
   ArrowRightIcon,
   QuestionMarkCircleIcon,
-  PlayCircleIcon
-} from '@heroicons/react/24/outline'
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
+  PlayCircleIcon,
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
-import { motion } from 'framer-motion'
-import { Set as WorkoutSet, WorkoutTemplate } from '@prisma/client'
+import { motion } from 'framer-motion';
+import { Set as WorkoutSet, WorkoutTemplate } from '@prisma/client';
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
@@ -19,16 +19,18 @@ import { formatVolume } from '@/utils/formatters';
 import { WorkoutTemplateWithSets } from '@/types/workout';
 
 export default function TemplatesPage() {
-  const router = useRouter()
+  const router = useRouter();
   const { data: templates, isLoading, error, refetch } = useTemplates();
   const toggleFavoriteMutation = useToggleFavorite();
   const { profile } = useProfile();
 
   // Filter templates
-  const favoriteTemplates: WorkoutTemplateWithSets[] = templates?.filter((t: WorkoutTemplateWithSets) => t.favorite) || [];
+  const favoriteTemplates: WorkoutTemplateWithSets[] =
+    templates?.filter((t: WorkoutTemplateWithSets) => t.favorite) || [];
   // Since we don't have scheduledDate anymore, just show all non-favorites
-  const unscheduledTemplates: WorkoutTemplateWithSets[] = templates?.filter((t: WorkoutTemplateWithSets) => !t.favorite) || [];
-  
+  const unscheduledTemplates: WorkoutTemplateWithSets[] =
+    templates?.filter((t: WorkoutTemplateWithSets) => !t.favorite) || [];
+
   // Helper function to count unique exercises in a template
   const countUniqueExercises = (template: WorkoutTemplateWithSets) => {
     const uniqueExercises = new Set();
@@ -41,12 +43,12 @@ export default function TemplatesPage() {
     }
     return uniqueExercises.size;
   };
-  
+
   const handleToggleFavorite = (templateId: string) => {
     console.log(`TemplatesPage: Toggling favorite for ${templateId}`);
     toggleFavoriteMutation.mutate(templateId);
   };
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen app-bg py-8 px-4">
@@ -60,17 +62,19 @@ export default function TemplatesPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
-  
+
   if (error) {
     return (
       <div className="min-h-screen app-bg py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
-            <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Error</h2>
+            <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
+              Error
+            </h2>
             <p className="text-red-500 dark:text-red-300">{String(error)}</p>
-            <button 
+            <button
               onClick={() => refetch()}
               className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
@@ -79,9 +83,9 @@ export default function TemplatesPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
-  
+
   return (
     <div className="min-h-screen app-bg py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -106,7 +110,7 @@ export default function TemplatesPage() {
             </button>
           </div>
         </div>
-        
+
         {/* Favorites Section */}
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -115,10 +119,12 @@ export default function TemplatesPage() {
               Favorite Templates
             </h2>
           </div>
-          
+
           {favoriteTemplates.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-              <p className="text-secondary">{"Mark a template as favorite to see it here."}</p>
+              <p className="text-secondary">
+                {'Mark a template as favorite to see it here.'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -142,13 +148,23 @@ export default function TemplatesPage() {
                       </button>
                     </div>
                     <div className="text-sm text-secondary mt-1 flex flex-wrap gap-2">
-                      <span>{countUniqueExercises(template as WorkoutTemplateWithSets)} exercises</span>
+                      <span>
+                        {countUniqueExercises(
+                          template as WorkoutTemplateWithSets,
+                        )}{' '}
+                        exercises
+                      </span>
                       <span>•</span>
                       <span>{template.sets?.length || 0} sets</span>
                       {template.totalVolume > 0 && (
                         <>
                           <span>•</span>
-                          <span>{formatVolume(template.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
+                          <span>
+                            {formatVolume(
+                              template.totalVolume,
+                              profile?.useMetric,
+                            )}
+                          </span>
                         </>
                       )}
                     </div>
@@ -167,7 +183,7 @@ export default function TemplatesPage() {
             </div>
           )}
         </section>
-        
+
         {/* Other Templates Section */}
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -176,14 +192,16 @@ export default function TemplatesPage() {
               Other Templates
             </h2>
           </div>
-          
+
           {unscheduledTemplates.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-              <p className="text-secondary">{"You haven't created any non-favorite templates yet."}</p>
+              <p className="text-secondary">
+                {"You haven't created any non-favorite templates yet."}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {unscheduledTemplates.map(template => (
+              {unscheduledTemplates.map((template) => (
                 <motion.div
                   key={template.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -200,13 +218,23 @@ export default function TemplatesPage() {
                           {template.name}
                         </h3>
                         <div className="flex flex-wrap gap-1 text-xs text-secondary mt-1">
-                          <span>{countUniqueExercises(template as WorkoutTemplateWithSets)} exercises</span>
+                          <span>
+                            {countUniqueExercises(
+                              template as WorkoutTemplateWithSets,
+                            )}{' '}
+                            exercises
+                          </span>
                           <span>•</span>
                           <span>{template.sets?.length || 0} sets</span>
                           {template.totalVolume > 0 && (
                             <>
                               <span>•</span>
-                              <span>{formatVolume(template.totalVolume)} {profile?.useMetric ? 'kg' : 'lbs'}</span>
+                              <span>
+                                {formatVolume(
+                                  template.totalVolume,
+                                  profile?.useMetric,
+                                )}
+                              </span>
                             </>
                           )}
                         </div>
@@ -215,7 +243,9 @@ export default function TemplatesPage() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleToggleFavorite(template.id)}
-                        className={`text-gray-400 hover:text-amber-400 ${template.favorite ? 'text-amber-400' : ''}`}
+                        className={`text-gray-400 hover:text-amber-400 ${
+                          template.favorite ? 'text-amber-400' : ''
+                        }`}
                       >
                         {template.favorite ? (
                           <StarIconSolid className="w-4 h-4" />
@@ -238,5 +268,5 @@ export default function TemplatesPage() {
         </section>
       </div>
     </div>
-  )
-} 
+  );
+}

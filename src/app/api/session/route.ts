@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 // --- Standard Response Helpers ---
@@ -10,8 +10,15 @@ const successResponse = (data: any, status = 200) => {
 };
 
 const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}) [session/]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
+  console.error(
+    `API Error (${status}) [session/]:`,
+    message,
+    details ? JSON.stringify(details) : '',
+  );
+  return NextResponse.json(
+    { error: { message, ...(details && { details }) } },
+    { status },
+  );
 };
 
 const createSessionSchema = z.object({
@@ -49,9 +56,12 @@ function calculateTotalVolume(performance: any[] | undefined): number {
     if (exercise && Array.isArray(exercise.sets)) {
       exercise.sets.forEach((set: any) => {
         // Validate set structure loosely here
-        const reps = typeof set.reps === 'number' && set.reps > 0 ? set.reps : 0;
-        const weight = typeof set.weight === 'number' && set.weight >= 0 ? set.weight : 0;
-        if (reps > 0 && weight >= 0) { // Allow 0 weight
+        const reps =
+          typeof set.reps === 'number' && set.reps > 0 ? set.reps : 0;
+        const weight =
+          typeof set.weight === 'number' && set.weight >= 0 ? set.weight : 0;
+        if (reps > 0 && weight >= 0) {
+          // Allow 0 weight
           totalVolume += reps * weight;
         }
       });
@@ -59,7 +69,6 @@ function calculateTotalVolume(performance: any[] | undefined): number {
   });
   return totalVolume;
 }
-
 
 // POST function: Create a new session OR complete a scheduled one
 export async function POST(request: Request) {
@@ -81,8 +90,9 @@ export async function POST(request: Request) {
 
     // --- Determine if completing a scheduled session or creating a new one ---
     if ('scheduledSessionId' in validatedData) {
-      // --- Complete Scheduled Session --- 
-      const { scheduledSessionId, duration, notes, performance } = validatedData;
+      // --- Complete Scheduled Session ---
+      const { scheduledSessionId, duration, notes, performance } =
+        validatedData;
       const sessionTotalVolume = calculateTotalVolume(performance);
 
       try {
@@ -93,7 +103,7 @@ export async function POST(request: Request) {
               id: scheduledSessionId,
               userId: userId,
             },
-            select: { id: true, scheduledAt: true, completedAt: true }
+            select: { id: true, scheduledAt: true, completedAt: true },
           });
 
           if (!existingSession) {
@@ -120,7 +130,7 @@ export async function POST(request: Request) {
               totalVolume: sessionTotalVolume,
               // Potentially store performance data here if schema is updated
             },
-            include: { workoutTemplate: { select: { name: true } } } // Include needed data
+            include: { workoutTemplate: { select: { name: true } } }, // Include needed data
           });
 
           // 3. Update UserStats
@@ -148,14 +158,22 @@ export async function POST(request: Request) {
           const currentYear = completionTime.getFullYear();
           const currentMonth = completionTime.getMonth() + 1;
           await tx.monthlyStats.upsert({
-            where: { userId_year_month: { userId, year: currentYear, month: currentMonth } },
+            where: {
+              userId_year_month: {
+                userId,
+                year: currentYear,
+                month: currentMonth,
+              },
+            },
             update: {
               workoutsCount: { increment: 1 },
               volume: { increment: sessionTotalVolume },
               trainingHours: { increment: duration ? duration / 60 : 0 },
             },
             create: {
-              userId, year: currentYear, month: currentMonth,
+              userId,
+              year: currentYear,
+              month: currentMonth,
               workoutsCount: 1,
               volume: sessionTotalVolume,
               trainingHours: duration ? duration / 60 : 0,
@@ -166,23 +184,34 @@ export async function POST(request: Request) {
         }); // End Transaction
 
         return successResponse(completedSession); // Return the completed session data
-
       } catch (error: any) {
         // Handle specific errors thrown from transaction
-        if (error.message?.includes('not found') || error.message?.includes('not authorized')) {
+        if (
+          error.message?.includes('not found') ||
+          error.message?.includes('not authorized')
+        ) {
           return errorResponse(error.message, 404, { scheduledSessionId });
-        } else if (error.message?.includes('not scheduled') || error.message?.includes('already completed')) {
+        } else if (
+          error.message?.includes('not scheduled') ||
+          error.message?.includes('already completed')
+        ) {
           return errorResponse(error.message, 409); // Conflict
         }
-        console.error("Error completing scheduled session:", error);
-        return errorResponse('Error completing session', 500, error instanceof Error ? error.message : String(error));
+        console.error('Error completing scheduled session:', error);
+        return errorResponse(
+          'Error completing session',
+          500,
+          error instanceof Error ? error.message : String(error),
+        );
       }
-
     } else {
       // --- Create New Session (Immediate or Scheduled) ---
-      const { templateId, scheduledAt, duration, notes, performance } = validatedData;
+      const { templateId, scheduledAt, duration, notes, performance } =
+        validatedData;
       const isScheduling = !!scheduledAt;
-      const sessionTotalVolume = isScheduling ? 0 : calculateTotalVolume(performance);
+      const sessionTotalVolume = isScheduling
+        ? 0
+        : calculateTotalVolume(performance);
 
       try {
         // Verify the template exists and belongs to the user
@@ -192,7 +221,9 @@ export async function POST(request: Request) {
         });
 
         if (!template) {
-          return errorResponse('Template not found or not owned by user', 404, { templateId });
+          return errorResponse('Template not found or not owned by user', 404, {
+            templateId,
+          });
         }
 
         if (isScheduling) {
@@ -207,7 +238,7 @@ export async function POST(request: Request) {
               scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
               completedAt: null,
             },
-            include: { workoutTemplate: { select: { name: true } } }
+            include: { workoutTemplate: { select: { name: true } } },
           });
           return successResponse(newSession, 201);
         } else {
@@ -226,7 +257,7 @@ export async function POST(request: Request) {
           const [newSession] = await prisma.$transaction([
             prisma.workoutSession.create({
               data: sessionData, // Use the prepared data
-              include: { workoutTemplate: { select: { name: true } } } 
+              include: { workoutTemplate: { select: { name: true } } },
             }),
             prisma.userStats.upsert({
               where: { userId: userId },
@@ -251,7 +282,7 @@ export async function POST(request: Request) {
                 userId_year_month: {
                   userId: userId,
                   year: completionTime.getFullYear(), // Safe: completionTime is Date
-                  month: completionTime.getMonth() + 1,    // Safe: completionTime is Date
+                  month: completionTime.getMonth() + 1, // Safe: completionTime is Date
                 },
               },
               update: {
@@ -262,7 +293,7 @@ export async function POST(request: Request) {
               create: {
                 userId: userId,
                 year: completionTime.getFullYear(), // Safe: completionTime is Date
-                month: completionTime.getMonth() + 1,    // Safe: completionTime is Date
+                month: completionTime.getMonth() + 1, // Safe: completionTime is Date
                 workoutsCount: 1,
                 volume: sessionTotalVolume,
                 trainingHours: duration ? duration / 60 : 0,
@@ -272,14 +303,21 @@ export async function POST(request: Request) {
           return successResponse(newSession, 201);
         }
       } catch (error) {
-        console.error("Error creating session:", error);
-        return errorResponse('Error creating session', 500, error instanceof Error ? error.message : String(error));
+        console.error('Error creating session:', error);
+        return errorResponse(
+          'Error creating session',
+          500,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
-
   } catch (error) {
-    console.error("General Error in POST /api/session:", error);
-    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
+    console.error('General Error in POST /api/session:', error);
+    return errorResponse(
+      'Internal Server Error',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -307,7 +345,7 @@ export async function GET(request: Request) {
         },
         // Add date range filtering here if startDate/endDate params exist
       },
-      orderBy: { completedAt: "desc" },
+      orderBy: { completedAt: 'desc' },
       // take: limit,
       // skip: (page - 1) * limit,
       include: {
@@ -322,10 +360,13 @@ export async function GET(request: Request) {
     // const totalCount = await prisma.workoutSession.count({ where: { userId, completedAt: { not: null } } });
 
     return successResponse(sessions);
-
   } catch (error) {
-    console.error("Error in GET /api/session (history):", error);
-    return errorResponse('Internal Server Error fetching session history', 500, error instanceof Error ? error.message : String(error));
+    console.error('Error in GET /api/session (history):', error);
+    return errorResponse(
+      'Internal Server Error fetching session history',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 

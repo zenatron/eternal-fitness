@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
-import prisma from '@/lib/prisma'
-import { z } from 'zod'
+import { NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import prisma from '@/lib/prisma';
+import { z } from 'zod';
 
 // Zod schema for profile (POST)
 const profileSchema = z.object({
@@ -21,8 +21,15 @@ const successResponse = (data: any, status = 200) => {
 
 // Helper for standard error response
 const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
+  console.error(
+    `API Error (${status}):`,
+    message,
+    details ? JSON.stringify(details) : '',
+  );
+  return NextResponse.json(
+    { error: { message, ...(details && { details }) } },
+    { status },
+  );
 };
 
 export async function GET() {
@@ -73,10 +80,13 @@ export async function GET() {
     };
 
     return successResponse(profileData);
-
   } catch (error) {
     // Generic catch-all error handler
-    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
+    return errorResponse(
+      'Internal Server Error',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -110,7 +120,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const email = user?.emailAddresses?.[0]?.emailAddress || ''
+      const email = user?.emailAddresses?.[0]?.emailAddress || '';
 
       const createdUser = await prisma.user.create({
         data: {
@@ -139,15 +149,21 @@ export async function POST(request: Request) {
       };
 
       return successResponse(profileData, 201); // 201 Created
-
     } catch (dbError) {
       // Handle potential database errors (e.g., unique constraint if Clerk webhook ran first)
-      return errorResponse('Database error creating profile', 500, dbError instanceof Error ? dbError.message : String(dbError));
+      return errorResponse(
+        'Database error creating profile',
+        500,
+        dbError instanceof Error ? dbError.message : String(dbError),
+      );
     }
-
   } catch (error) {
     // Generic catch-all error handler
-    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
+    return errorResponse(
+      'Internal Server Error',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -192,7 +208,10 @@ export async function PUT(request: Request) {
           weight: validatedData.weight ?? null,
           weightGoal: validatedData.weightGoal ?? null,
           // useMetric needs careful handling: only update if provided
-          useMetric: validatedData.useMetric !== undefined ? validatedData.useMetric : existingUser.useMetric,
+          useMetric:
+            validatedData.useMetric !== undefined
+              ? validatedData.useMetric
+              : existingUser.useMetric,
         },
         // Select the fields needed for the response
         select: {
@@ -222,13 +241,19 @@ export async function PUT(request: Request) {
       };
 
       return successResponse(profileData);
-
     } catch (dbError) {
-      return errorResponse('Database error updating profile', 500, dbError instanceof Error ? dbError.message : String(dbError));
+      return errorResponse(
+        'Database error updating profile',
+        500,
+        dbError instanceof Error ? dbError.message : String(dbError),
+      );
     }
-
   } catch (error) {
-    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
+    return errorResponse(
+      'Internal Server Error',
+      500,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -242,7 +267,10 @@ export async function DELETE(request: Request) {
     if (userIdParam) {
       // Internal call (e.g., webhook)
       userIdToDelete = userIdParam;
-      console.log('[Internal] DELETE profile requested for user:', userIdToDelete);
+      console.log(
+        '[Internal] DELETE profile requested for user:',
+        userIdToDelete,
+      );
       // Consider adding some form of authentication/secret key for internal calls
     } else {
       // User-initiated deletion
@@ -263,18 +291,20 @@ export async function DELETE(request: Request) {
     const result = await deleteUserById(userIdToDelete);
 
     return successResponse(result, 200); // Or 204 if no content is expected
-
   } catch (error: any) {
     // Catch errors from deleteUserById or auth()
     if (error?.code === 'P2025' || error?.message?.includes('not found')) {
       // Handle case where user to delete doesn't exist
-      return errorResponse('User profile not found', 404, { userId: userIdToDelete });
-    } else if (error?.message === 'Unauthorized') { // Catch re-thrown auth error
+      return errorResponse('User profile not found', 404, {
+        userId: userIdToDelete,
+      });
+    } else if (error?.message === 'Unauthorized') {
+      // Catch re-thrown auth error
       return errorResponse('Unauthorized', 401);
     }
-    return errorResponse('Error deleting user profile', 500, { 
-      userId: userIdToDelete, 
-      error: error instanceof Error ? error.message : String(error)
+    return errorResponse('Error deleting user profile', 500, {
+      userId: userIdToDelete,
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -285,7 +315,9 @@ export async function deleteUserById(userId: string) {
   if (!userId) {
     throw new Error('User ID is required for deletion'); // Throw error for internal handling
   }
-  console.log(`Attempting to delete user and associated data for ID: ${userId}`);
+  console.log(
+    `Attempting to delete user and associated data for ID: ${userId}`,
+  );
 
   try {
     // Transaction ensures all deletions succeed or fail together
@@ -296,10 +328,14 @@ export async function deleteUserById(userId: string) {
       await tx.userStats.deleteMany({ where: { userId } });
       await tx.monthlyStats.deleteMany({ where: { userId } });
       await tx.workoutSession.deleteMany({ where: { userId } });
-      
+
       // 2. Delete templates (which might have sets/exercises linked via cascading delete in schema)
-      const deletedTemplates = await tx.workoutTemplate.deleteMany({ where: { userId } });
-      console.log(`Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userId}`);
+      const deletedTemplates = await tx.workoutTemplate.deleteMany({
+        where: { userId },
+      });
+      console.log(
+        `Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userId}`,
+      );
 
       // 3. Finally, delete the user itself
       // Prisma throws P2025 if user not found, which is handled by the transaction
@@ -320,9 +356,12 @@ export async function deleteUserById(userId: string) {
       data: result,
     };
   } catch (error) {
-    console.error(`Error during transaction for deleting user ${userId}:`, error);
+    console.error(
+      `Error during transaction for deleting user ${userId}:`,
+      error,
+    );
     // Re-throw the error so the calling function (DELETE handler) can catch it
     // This allows handling specific errors like P2025 (Not Found) there
     throw error;
   }
-} 
+}

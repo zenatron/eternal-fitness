@@ -13,7 +13,6 @@
 //   return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
 // };
 
-
 // export async function POST() {
 //   try {
 //     const { userId } = await auth();
@@ -115,7 +114,7 @@
 //                   stats.setsReconnected++;
 //               }
 //           }
-          
+
 //           // Now safe to delete the duplicate exercises
 //           const deleteResult = await tx.exercise.deleteMany({
 //             where: { id: { in: duplicateIds } },
@@ -126,7 +125,7 @@
 //       }
 //     }, {
 //         maxWait: 15000, // Allow longer for potentially complex transactions
-//         timeout: 30000, 
+//         timeout: 30000,
 //     }); // End transaction
 
 //     console.log("Exercise deduplication process completed.", stats);
@@ -141,7 +140,7 @@
 //     if (error instanceof Prisma.PrismaClientKnownRequestError) {
 //       console.error(`Prisma Error Code: ${error.code}`);
 //     }
-//     return errorResponse('Internal Server Error during deduplication', 500, { 
+//     return errorResponse('Internal Server Error during deduplication', 500, {
 //         error: error instanceof Error ? error.message : String(error)
 //     });
 //   }

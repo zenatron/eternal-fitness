@@ -29,7 +29,6 @@ export default function Profile() {
     // Only perform checks and redirects after the initial loading is done.
     if (!isLoading) {
       if (
-        !profile ||
         profile.name == null ||
         profile.age == null ||
         profile.weight == null ||

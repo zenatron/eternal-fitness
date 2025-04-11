@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { exercises } from "@/lib/exercises";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from 'react';
+import { exercises } from '@/lib/exercises';
+import { motion } from 'framer-motion';
 import {
   PlusCircleIcon,
   TrashIcon,
@@ -8,10 +8,10 @@ import {
   CheckCircleIcon,
   Bars2Icon,
   StarIcon as StarOutline,
-} from "@heroicons/react/24/outline";
-import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
-import { Exercise, Set as WorkoutSet } from "@/types/workout";
-import { useRouter } from "next/navigation";
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { Exercise, Set as WorkoutSet } from '@/types/workout';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -20,15 +20,20 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { useProfile } from "@/lib/hooks/useProfile";
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useProfile } from '@/lib/hooks/useProfile';
+
+// Define a local type for the component's internal exercise state
+interface FormExerciseWithSets extends Exercise {
+  sets: WorkoutSet[];
+}
 
 // Generate a simple unique ID
 function generateId() {
@@ -63,7 +68,7 @@ function SortableItem({
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 100 : 1,
-        position: isDragging ? "relative" : undefined,
+        position: isDragging ? 'relative' : undefined,
       }}
     >
       {children({ attributes, listeners, isDragging })}
@@ -73,16 +78,16 @@ function SortableItem({
 
 interface TemplateFormEditorProps {
   initialTemplateName?: string;
-  initialExercises?: Exercise[];
+  initialExercises?: FormExerciseWithSets[];
   initialFavorite?: boolean;
-  mode: "create" | "edit";
+  mode: 'create' | 'edit';
   templateId?: string;
   onSaveSuccess?: () => void;
   headerElement: React.ReactNode;
 }
 
 export default function TemplateFormEditor({
-  initialTemplateName = "",
+  initialTemplateName = '',
   initialExercises = [],
   initialFavorite = false,
   mode,
@@ -92,14 +97,14 @@ export default function TemplateFormEditor({
 }: TemplateFormEditorProps) {
   const [templateName, setTemplateName] = useState(initialTemplateName);
   const [templateExercises, setTemplateExercises] =
-    useState<Exercise[]>(initialExercises);
+    useState<FormExerciseWithSets[]>(initialExercises);
   const [isFavorite, setIsFavorite] = useState(initialFavorite);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [filteredExercises, setFilteredExercises] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
-  const [saveMessage, setSaveMessage] = useState("");
+  const [saveMessage, setSaveMessage] = useState('');
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const { profile } = useProfile();
@@ -130,7 +135,7 @@ export default function TemplateFormEditor({
         delay: 100,
         tolerance: 5,
       },
-    })
+    }),
   );
 
   // Filter exercises based on search query
@@ -151,10 +156,10 @@ export default function TemplateFormEditor({
         };
         const nameMatch = exerciseData.name.toLowerCase().includes(query);
         const muscleMatch = exerciseData.muscles.some((muscle: string) =>
-          muscle.toLowerCase().includes(query)
+          muscle.toLowerCase().includes(query),
         );
         const equipmentMatch = exerciseData.equipment.some((item: string) =>
-          item.toLowerCase().includes(query)
+          item.toLowerCase().includes(query),
         );
         return nameMatch || muscleMatch || equipmentMatch;
       })
@@ -171,26 +176,26 @@ export default function TemplateFormEditor({
     if (!showResults) return;
 
     switch (e.key) {
-      case "ArrowDown":
+      case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex((prev) =>
-          prev < filteredExercises.length - 1 ? prev + 1 : prev
+          prev < filteredExercises.length - 1 ? prev + 1 : prev,
         );
         break;
-      case "ArrowUp":
+      case 'ArrowUp':
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
         break;
-      case "Enter":
+      case 'Enter':
         e.preventDefault();
         if (selectedIndex >= 0 && selectedIndex < filteredExercises.length) {
           const selectedExercise = filteredExercises[selectedIndex];
           addExercise(selectedExercise);
-          setSearchQuery("");
+          setSearchQuery('');
           setShowResults(false);
         }
         break;
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         setShowResults(false);
         break;
@@ -208,42 +213,46 @@ export default function TemplateFormEditor({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Add a new exercise to the template
   const addExercise = (exerciseKey: string) => {
     const exerciseDetails = exercises[exerciseKey as keyof typeof exercises];
-    const newExercise: Exercise = {
-      id: exerciseKey, // Use the real exercise ID from the database
+    // Create object matching FormExerciseWithSets
+    const newExercise: FormExerciseWithSets = {
+      id: exerciseKey,
       name: exerciseDetails.name,
       muscles: exerciseDetails.muscles,
       equipment: exerciseDetails.equipment,
       createdAt: new Date(),
       updatedAt: new Date(),
+      // Initialize with one empty set matching WorkoutSet type
       sets: [
         {
           id: generateId(),
           workoutTemplateId: templateId || generateId(),
+          exerciseId: exerciseKey,
           reps: 0,
           weight: 0,
           createdAt: new Date(),
           updatedAt: new Date(),
-          exercises: [],
+          // Remove extraneous properties not in WorkoutSet
+          // exercises: [],
         },
       ],
     };
 
     // Log the exercise being added
-    console.log("Adding exercise:", {
+    console.log('Adding exercise:', {
       key: exerciseKey,
       id: newExercise.id,
       name: newExercise.name,
     });
 
     setTemplateExercises([...templateExercises, newExercise]);
-    setSearchQuery("");
+    setSearchQuery('');
     setShowResults(false);
   };
 
@@ -259,11 +268,13 @@ export default function TemplateFormEditor({
       {
         id: generateId(),
         workoutTemplateId: templateId || generateId(),
+        exerciseId: exercise.id,
         reps: 0,
         weight: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
-        exercises: [],
+        // Remove extraneous properties not in WorkoutSet
+        // exercises: [],
       },
     ];
 
@@ -284,7 +295,9 @@ export default function TemplateFormEditor({
 
     if (!exercise || !exercise.sets) return;
 
-    exercise.sets = exercise.sets.filter((_, i) => i !== setIndex);
+    exercise.sets = exercise.sets.filter(
+      (_: WorkoutSet, i: number) => i !== setIndex,
+    );
     setTemplateExercises(updatedExercises);
   };
 
@@ -292,14 +305,14 @@ export default function TemplateFormEditor({
   const moveSet = (
     exerciseIndex: number,
     setIndex: number,
-    direction: "up" | "down"
+    direction: 'up' | 'down',
   ) => {
     const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
 
     if (!exercise || !exercise.sets) return;
 
-    const newIndex = direction === "up" ? setIndex - 1 : setIndex + 1;
+    const newIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
 
     if (newIndex < 0 || newIndex >= exercise.sets.length) return;
 
@@ -315,15 +328,15 @@ export default function TemplateFormEditor({
   const updateSet = (
     exerciseIndex: number,
     setIndex: number,
-    field: "reps" | "weight",
-    value: any
+    field: 'reps' | 'weight',
+    value: any,
   ) => {
     const updatedExercises = [...templateExercises];
     const exercise = updatedExercises[exerciseIndex];
 
     if (!exercise || !exercise.sets) return;
 
-    exercise.sets = exercise.sets.map((set, i) => {
+    exercise.sets = exercise.sets.map((set: WorkoutSet, i: number) => {
       if (i === setIndex) {
         return { ...set, [field]: value };
       }
@@ -354,12 +367,12 @@ export default function TemplateFormEditor({
   // Validate and save the template
   const saveTemplate = async () => {
     if (!templateName.trim()) {
-      setSaveMessage("Please enter a template name");
+      setSaveMessage('Please enter a template name');
       return;
     }
 
     if (templateExercises.length === 0) {
-      setSaveMessage("Please add at least one exercise");
+      setSaveMessage('Please add at least one exercise');
       return;
     }
 
@@ -380,11 +393,11 @@ export default function TemplateFormEditor({
 
     setIsSaving(true);
     const endpoint =
-      mode === "create"
-        ? "/api/template/create"
+      mode === 'create'
+        ? '/api/template/create'
         : `/api/template/${templateId}`;
 
-    const method = mode === "create" ? "POST" : "PUT";
+    const method = mode === 'create' ? 'POST' : 'PUT';
 
     try {
       // Prepare sets data for API - each set contains exercise IDs
@@ -403,7 +416,7 @@ export default function TemplateFormEditor({
       }
 
       // Log what we're sending
-      console.log("Submitting template with data:", {
+      console.log('Submitting template with data:', {
         name: templateName,
         sets: setsData.map((s) => ({
           reps: s.reps,
@@ -415,13 +428,13 @@ export default function TemplateFormEditor({
 
       // Log a sample exercise ID to verify
       if (setsData.length > 0 && setsData[0].exercises.length > 0) {
-        console.log("Sample exercise ID:", setsData[0].exercises[0]);
+        console.log('Sample exercise ID:', setsData[0].exercises[0]);
       }
 
       const response = await fetch(endpoint, {
         method,
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: templateName,
@@ -432,25 +445,25 @@ export default function TemplateFormEditor({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save template");
+        throw new Error(errorData.error || 'Failed to save template');
       }
 
-      setSaveMessage("Template saved successfully!");
+      setSaveMessage('Template saved successfully!');
 
       if (onSaveSuccess) {
         onSaveSuccess();
       } else {
         // Wait a moment to show success message
         setTimeout(() => {
-          router.push("/templates");
+          router.push('/templates');
         }, 250);
       }
     } catch (error) {
-      console.error("Error saving template:", error);
+      console.error('Error saving template:', error);
       setSaveMessage(
         `Error: ${
-          error instanceof Error ? error.message : "Failed to save template"
-        }`
+          error instanceof Error ? error.message : 'Failed to save template'
+        }`,
       );
     } finally {
       setIsSaving(false);
@@ -475,7 +488,7 @@ export default function TemplateFormEditor({
                   onClick={() => setIsFavorite(!isFavorite)}
                   className={`p-1 transition-colors focus:outline-none`}
                   aria-label={
-                    isFavorite ? "Remove from favorites" : "Add to favorites"
+                    isFavorite ? 'Remove from favorites' : 'Add to favorites'
                   }
                 >
                   {isFavorite ? (
@@ -531,16 +544,16 @@ export default function TemplateFormEditor({
                             onClick={() => addExercise(key)}
                             className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
                               index === selectedIndex
-                                ? "bg-gray-100 dark:bg-gray-700"
-                                : ""
+                                ? 'bg-gray-100 dark:bg-gray-700'
+                                : ''
                             }`}
                           >
                             <div className="font-medium text-gray-900 dark:text-gray-100">
                               {exercise.name}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {exercise.muscles.join(", ")} •{" "}
-                              {exercise.equipment.join(", ")}
+                              {exercise.muscles.join(', ')} •{' '}
+                              {exercise.equipment.join(', ')}
                             </div>
                           </button>
                         );
@@ -554,7 +567,7 @@ export default function TemplateFormEditor({
             {/* Exercise List */}
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-                Your Template Plan{" "}
+                Your Template Plan{' '}
                 <span className="text-gray-500 dark:text-gray-400 font-normal text-sm">
                   ({templateExercises.length} exercises)
                 </span>
@@ -587,8 +600,8 @@ export default function TemplateFormEditor({
                                 bg-gray-50 dark:bg-gray-700/50 rounded-xl overflow-hidden
                                 ${
                                   isDragging
-                                    ? "ring-2 ring-blue-500 shadow-lg"
-                                    : ""
+                                    ? 'ring-2 ring-blue-500 shadow-lg'
+                                    : ''
                                 }
                               `}
                               >
@@ -630,134 +643,138 @@ export default function TemplateFormEditor({
                                     </div>
                                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">
                                       Weight (
-                                      {profile?.useMetric ? "kg" : "lbs"})
+                                      {profile?.useMetric ? 'kg' : 'lbs'})
                                     </div>
                                   </div>
 
                                   <div className="space-y-2">
-                                    {exercise.sets?.map((set, setIndex) => (
-                                      <div
-                                        key={`set-${exercise.id}-${setIndex}`}
-                                        className="grid grid-cols-3 gap-3 items-center p-3 rounded-lg bg-white dark:bg-gray-800/50"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex space-x-1">
-                                            {/* Up/Down controls instead of drag-and-drop for sets */}
-                                            {setIndex > 0 && (
+                                    {exercise.sets?.map(
+                                      (set: WorkoutSet, setIndex: number) => (
+                                        <div
+                                          key={`set-${exercise.id}-${setIndex}`}
+                                          className="grid grid-cols-3 gap-3 items-center p-3 rounded-lg bg-white dark:bg-gray-800/50"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex space-x-1">
+                                              {/* Up/Down controls instead of drag-and-drop for sets */}
+                                              {setIndex > 0 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveSet(
+                                                      exerciseIndex,
+                                                      setIndex,
+                                                      'up',
+                                                    )
+                                                  }
+                                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                                  aria-label="Move set up"
+                                                >
+                                                  <svg
+                                                    className="h-4 w-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M5 15l7-7 7 7"
+                                                    />
+                                                  </svg>
+                                                </button>
+                                              )}
+                                              {setIndex <
+                                                (exercise.sets?.length || 0) -
+                                                  1 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    moveSet(
+                                                      exerciseIndex,
+                                                      setIndex,
+                                                      'down',
+                                                    )
+                                                  }
+                                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                                  aria-label="Move set down"
+                                                >
+                                                  <svg
+                                                    className="h-4 w-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M19 9l-7 7-7-7"
+                                                    />
+                                                  </svg>
+                                                </button>
+                                              )}
+                                            </div>
+                                            <span className="text-gray-700 dark:text-gray-300 ml-1">
+                                              Set {setIndex + 1}
+                                            </span>
+                                            {(exercise.sets?.length || 0) >
+                                              1 && (
                                               <button
                                                 type="button"
                                                 onClick={() =>
-                                                  moveSet(
+                                                  removeSet(
                                                     exerciseIndex,
                                                     setIndex,
-                                                    "up"
                                                   )
                                                 }
-                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                                aria-label="Move set up"
+                                                className="text-red-500 hover:text-red-700 transition-colors"
+                                                aria-label="Remove set"
                                               >
-                                                <svg
-                                                  className="h-4 w-4"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M5 15l7-7 7 7"
-                                                  />
-                                                </svg>
-                                              </button>
-                                            )}
-                                            {setIndex <
-                                              (exercise.sets?.length || 0) -
-                                                1 && (
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  moveSet(
-                                                    exerciseIndex,
-                                                    setIndex,
-                                                    "down"
-                                                  )
-                                                }
-                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                                aria-label="Move set down"
-                                              >
-                                                <svg
-                                                  className="h-4 w-4"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M19 9l-7 7-7-7"
-                                                  />
-                                                </svg>
+                                                <TrashIcon className="h-4 w-4" />
                                               </button>
                                             )}
                                           </div>
-                                          <span className="text-gray-700 dark:text-gray-300 ml-1">
-                                            Set {setIndex + 1}
-                                          </span>
-                                          {(exercise.sets?.length || 0) > 1 && (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                removeSet(
+                                          <div>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={set.reps || ''}
+                                              onChange={(e) =>
+                                                updateSet(
                                                   exerciseIndex,
-                                                  setIndex
+                                                  setIndex,
+                                                  'reps',
+                                                  parseInt(e.target.value) || 0,
                                                 )
                                               }
-                                              className="text-red-500 hover:text-red-700 transition-colors"
-                                              aria-label="Remove set"
-                                            >
-                                              <TrashIcon className="h-4 w-4" />
-                                            </button>
-                                          )}
+                                              className="form-input"
+                                              aria-label="Reps"
+                                            />
+                                          </div>
+                                          <div>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.5"
+                                              value={set.weight || ''}
+                                              onChange={(e) =>
+                                                updateSet(
+                                                  exerciseIndex,
+                                                  setIndex,
+                                                  'weight',
+                                                  parseFloat(e.target.value) ||
+                                                    0,
+                                                )
+                                              }
+                                              className="form-input"
+                                              aria-label="Weight"
+                                            />
+                                          </div>
                                         </div>
-                                        <div>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={set.reps || ""}
-                                            onChange={(e) =>
-                                              updateSet(
-                                                exerciseIndex,
-                                                setIndex,
-                                                "reps",
-                                                parseInt(e.target.value) || 0
-                                              )
-                                            }
-                                            className="form-input"
-                                            aria-label="Reps"
-                                          />
-                                        </div>
-                                        <div>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.5"
-                                            value={set.weight || ""}
-                                            onChange={(e) =>
-                                              updateSet(
-                                                exerciseIndex,
-                                                setIndex,
-                                                "weight",
-                                                parseFloat(e.target.value) || 0
-                                              )
-                                            }
-                                            className="form-input"
-                                            aria-label="Weight"
-                                          />
-                                        </div>
-                                      </div>
-                                    ))}
+                                      ),
+                                    )}
                                   </div>
 
                                   <button
@@ -790,12 +807,12 @@ export default function TemplateFormEditor({
                   {saveMessage && (
                     <div
                       className={`p-4 mb-4 rounded-lg flex items-center gap-3 ${
-                        saveMessage.includes("success")
-                          ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200"
-                          : "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200"
+                        saveMessage.includes('success')
+                          ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                          : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200'
                       }`}
                     >
-                      {saveMessage.includes("success") ? (
+                      {saveMessage.includes('success') ? (
                         <CheckCircleIcon className="h-5 w-5" />
                       ) : (
                         <ExclamationCircleIcon className="h-5 w-5" />
@@ -813,16 +830,16 @@ export default function TemplateFormEditor({
                     {isSaving ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-200 border-t-white"></div>
-                        {mode === "create"
-                          ? "Saving Template..."
-                          : "Updating Template..."}
+                        {mode === 'create'
+                          ? 'Saving Template...'
+                          : 'Updating Template...'}
                       </>
                     ) : (
                       <>
                         <CheckCircleIcon className="h-6 w-6" />
-                        {mode === "create"
-                          ? "Save Template"
-                          : "Update Template"}
+                        {mode === 'create'
+                          ? 'Save Template'
+                          : 'Update Template'}
                         <span className="font-normal text-sm">
                           ({templateExercises.length} exercises)
                         </span>

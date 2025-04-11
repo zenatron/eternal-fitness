@@ -1,10 +1,14 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, use } from "react";
-import { FlagIcon } from "@heroicons/react/24/outline";
-import TemplateFormEditor from "@/components/ui/TemplateFormEditor";
-import { WorkoutTemplateWithSets, Exercise, Set as WorkoutSet } from "@/types/workout";
-import { useTemplate } from "@/lib/hooks/useTemplate";
+import { useState, useEffect, useCallback, use } from 'react';
+import { FlagIcon } from '@heroicons/react/24/outline';
+import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
+import {
+  WorkoutTemplateWithSets,
+  Exercise,
+  Set as WorkoutSet,
+} from '@/types/workout';
+import { useTemplate } from '@/lib/hooks/useTemplate';
 
 // Define a local type for the structure used in the map
 interface FormExerciseWithSets extends Exercise {
@@ -18,7 +22,7 @@ export default function EditTemplatePage({
 }) {
   const { templateId } = use(params);
   const { template, isLoading, error } = useTemplate(templateId);
-  const [initialTemplateName, setInitialTemplateName] = useState("");
+  const [initialTemplateName, setInitialTemplateName] = useState('');
   const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
   const [initialFavorite, setInitialFavorite] = useState(false);
 
@@ -34,8 +38,8 @@ export default function EditTemplatePage({
         // Check if the set and its nested exercise exist
         if (!workoutSet?.exercise?.id) {
           console.warn(
-            "convertTemplateToFormExercises: Skipping set due to missing exercise data:",
-            workoutSet
+            'convertTemplateToFormExercises: Skipping set due to missing exercise data:',
+            workoutSet,
           );
           return; // Skip this set if exercise data is missing
         }
@@ -68,7 +72,7 @@ export default function EditTemplatePage({
       // Convert the map to an array
       return Object.values(exerciseMap);
     },
-    [templateId]
+    [templateId],
   );
 
   // Process template data when it loads
@@ -80,7 +84,7 @@ export default function EditTemplatePage({
       // Set favorite status
       setInitialFavorite(template.favorite || false);
 
-      // Convert template data (which is WorkoutTemplateWithSets) 
+      // Convert template data (which is WorkoutTemplateWithSets)
       const formattedExercises = convertTemplateToFormExercises(template);
       // Ensure TemplateFormEditor accepts Exercise[] | FormExerciseWithSets[]
       // For now, we might need a type assertion if TemplateFormEditor expects strictly Exercise[]
@@ -134,7 +138,7 @@ export default function EditTemplatePage({
       mode="edit"
       templateId={templateId}
       initialTemplateName={initialTemplateName}
-      initialExercises={initialExercises}
+      initialExercises={initialExercises as FormExerciseWithSets[]}
       initialFavorite={initialFavorite}
       headerElement={headerElement}
     />

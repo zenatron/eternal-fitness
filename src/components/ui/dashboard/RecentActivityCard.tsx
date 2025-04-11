@@ -26,13 +26,13 @@ export function RecentActivityCard({ activities }: RecentActivityCardProps) {
           </div>
         ))}
       </div>
-      
-      <Link 
-        href="/activity" 
+
+      <Link
+        href="/activity"
         className="block text-center text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 mt-4 text-sm font-medium"
       >
         View all activity
       </Link>
     </DashboardCard>
   );
-} 
+}

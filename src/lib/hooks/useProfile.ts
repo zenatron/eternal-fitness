@@ -8,17 +8,18 @@ export const useProfile = () => {
     data: profile,
     isLoading,
     error,
-    refetch
+    refetch,
   } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
       const response = await fetch('/api/profile');
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Failed to fetch profile');
       }
-      return response.json();
+      const responseData = await response.json();
+      return responseData.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -27,6 +28,6 @@ export const useProfile = () => {
     profile,
     isLoading,
     error,
-    refetch
+    refetch,
   };
 };

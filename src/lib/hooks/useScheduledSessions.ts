@@ -11,15 +11,19 @@ export function useScheduledSessions() {
       try {
         setIsLoading(true);
         const response = await fetch('/api/session/scheduled');
-        
+
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setSessions(data);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch scheduled sessions'));
+        setError(
+          err instanceof Error
+            ? err
+            : new Error('Failed to fetch scheduled sessions'),
+        );
         console.error('Error fetching scheduled sessions:', err);
       } finally {
         setIsLoading(false);
@@ -30,4 +34,4 @@ export function useScheduledSessions() {
   }, []);
 
   return { sessions, isLoading, error };
-} 
+}

@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -50,6 +50,7 @@
     "@tanstack/react-query": "^5.70.0",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-datepicker": "^7.0.0",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.6.0",

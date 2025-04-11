@@ -9,17 +9,17 @@ export const useTemplate = (templateId: string) => {
     data: template,
     isLoading,
     error,
-    refetch
+    refetch,
   } = useQuery<WorkoutTemplateWithSets>({
     queryKey: ['template', templateId],
     queryFn: async () => {
       const response = await fetch(`/api/template/${templateId}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Failed to fetch template');
       }
-      
+
       const result = await response.json();
       return result.data;
     },
@@ -31,6 +31,6 @@ export const useTemplate = (templateId: string) => {
     template,
     isLoading,
     error,
-    refetch
+    refetch,
   };
 };

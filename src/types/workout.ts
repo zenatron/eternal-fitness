@@ -1,11 +1,11 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@prisma/client';
 
 // Define the WorkoutStatus enum to match Prisma schema
 export enum WorkoutStatus {
   PLANNED = 'PLANNED',
   COMPLETED = 'COMPLETED',
   MISSED = 'MISSED',
-  IN_PROGRESS = 'IN_PROGRESS'
+  IN_PROGRESS = 'IN_PROGRESS',
 }
 
 export type WorkoutTemplate = {
@@ -15,7 +15,7 @@ export type WorkoutTemplate = {
   totalVolume: number;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   userId: string;
   sessions: WorkoutSession[];
@@ -63,12 +63,11 @@ export type Set = {
   createdAt: Date;
   updatedAt: Date;
   volume?: number;
-  
+
   // Relations
   workoutTemplateId: string;
   exerciseId: string;
 };
-
 
 // TODO: probably not needed
 // Represents the structure expected by the WorkoutFormEditor component

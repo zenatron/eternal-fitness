@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTemplate } from '@/lib/hooks/useTemplate';
-import { Set as WorkoutSet } from '@/types/workout';
 import { useProfile } from '@/lib/hooks/useProfile';
 import {
   ArrowLeftIcon,
