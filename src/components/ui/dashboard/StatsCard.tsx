@@ -10,10 +10,10 @@ interface StatsCardProps {
 
 export function StatsCard({ data }: StatsCardProps) {
   const statsItems = [
-    { value: data.totalWorkouts, label: 'workouts' },
-    { value: data.hoursTrained, label: 'hours' },
+    { value: data.totalWorkouts, label: 'sessions' },
+    { value: data.hoursTrained.toFixed(1), label: 'hours' },
     { value: data.totalExercises, label: 'exercises' },
-    { value: data.activeWeeks, label: 'weeks' }
+    { value: data.activeWeeks, label: 'weeks' },
   ];
 
   return (
@@ -23,7 +23,7 @@ export function StatsCard({ data }: StatsCardProps) {
       color="cyan"
     >
       <StatsGrid stats={statsItems} columns={4} className="mb-4" />
-      
+
       <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
         <div className="flex justify-between items-center">
           <div>
@@ -36,8 +36,8 @@ export function StatsCard({ data }: StatsCardProps) {
           </p>
         </div>
         <div className="mt-2 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-full" 
+          <div
+            className="h-full bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-full"
             style={{ width: `${data.totalVolume.displayPercentage}%` }}
           ></div>
         </div>
@@ -45,13 +45,13 @@ export function StatsCard({ data }: StatsCardProps) {
           Up {data.totalVolume.percentIncrease}% from last month
         </p>
       </div>
-      
-      <Link 
-        href="/profile" 
+
+      <Link
+        href="/profile"
         className="btn btn-secondary w-full mt-4 inline-flex items-center justify-center"
       >
         View Full Stats
       </Link>
     </DashboardCard>
   );
-} 
+}

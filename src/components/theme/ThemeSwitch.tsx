@@ -1,28 +1,32 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useTheme } from 'next-themes'
-import { MoonIcon, SunIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
+import {
+  MoonIcon,
+  SunIcon,
+  ComputerDesktopIcon,
+} from '@heroicons/react/24/outline';
 
 const themes = [
   { id: 'system', icon: ComputerDesktopIcon },
   { id: 'light', icon: SunIcon },
   { id: 'dark', icon: MoonIcon },
-] as const
+] as const;
 
 export default function ThemeSwitch() {
-  const [mounted, setMounted] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const toggleTheme = () => {
-    const currentIndex = themes.findIndex(t => t.id === theme)
-    const nextIndex = (currentIndex + 1) % themes.length
-    setTheme(themes[nextIndex].id)
-  }
+    const currentIndex = themes.findIndex((t) => t.id === theme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    setTheme(themes[nextIndex].id);
+  };
 
   if (!mounted) {
     return (
@@ -32,11 +36,11 @@ export default function ThemeSwitch() {
       >
         <span className="opacity-0">Loading...</span>
       </button>
-    )
+    );
   }
 
-  const currentTheme = themes.find(t => t.id === theme) || themes[0]
-  const CurrentIcon = currentTheme.icon
+  const currentTheme = themes.find((t) => t.id === theme) || themes[0];
+  const CurrentIcon = currentTheme.icon;
 
   return (
     <button
@@ -47,5 +51,5 @@ export default function ThemeSwitch() {
     >
       <CurrentIcon className="w-4 h-4" />
     </button>
-  )
-} 
+  );
+}

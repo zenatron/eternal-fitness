@@ -1,68 +1,70 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { UserCircleIcon } from '@heroicons/react/24/outline'
-import { SignedIn, SignOutButton } from '@clerk/nextjs'
-import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline'
-import { Switch } from '@headlessui/react'
-import { useUpdateProfile } from '@/lib/hooks/useMutations'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { UserCircleIcon } from '@heroicons/react/24/outline';
+import { SignedIn, SignOutButton } from '@clerk/nextjs';
+import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
+import { Switch } from '@headlessui/react';
+import { useUpdateProfile } from '@/lib/hooks/useMutations';
 
 interface ProfileFormData {
-  name: string
-  age: number
-  height: number
-  weight: number
-  gender: string
-  useMetric: boolean
+  name: string;
+  age: number;
+  height: number;
+  weight: number;
+  gender: string;
+  useMetric: boolean;
 }
 
 export default function ProfileSetup() {
-  const router = useRouter()
-  const updateProfileMutation = useUpdateProfile()
+  const router = useRouter();
+  const updateProfileMutation = useUpdateProfile();
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
     age: 0,
     height: 0,
     weight: 0,
     gender: '',
-    useMetric: false // Default to imperial
-  })
-  const [error, setError] = useState<string | null>(null)
+    useMetric: false, // Default to imperial
+  });
+  const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const toggleUnit = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      useMetric: !prev.useMetric
-    }))
-  }
+      useMetric: !prev.useMetric,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     try {
       // Validate form data
       if (!formData.name) {
-        throw new Error('Please enter your name')
+        throw new Error('Please enter your name');
       }
       if (!formData.age || formData.age < 13) {
-        throw new Error('Please enter a valid age (13 or older)')
+        throw new Error('Please enter a valid age (13 or older)');
       }
       if (!formData.gender) {
-        throw new Error('Please select your gender')
+        throw new Error('Please select your gender');
       }
       if (!formData.height || formData.height <= 0) {
-        throw new Error('Please enter a valid height')
+        throw new Error('Please enter a valid height');
       }
       if (!formData.weight || formData.weight <= 0) {
-        throw new Error('Please enter a valid weight')
+        throw new Error('Please enter a valid weight');
       }
 
       // Prepare the request body
@@ -72,23 +74,25 @@ export default function ProfileSetup() {
         gender: formData.gender,
         height: Number(formData.height),
         weight: Number(formData.weight),
-        useMetric: formData.useMetric
-      }
+        useMetric: formData.useMetric,
+      };
 
       // Use the mutation to update profile
-      await updateProfileMutation.mutateAsync(dataToSend)
-      
+      await updateProfileMutation.mutateAsync(dataToSend);
+
       // Redirect to profile page on success
-      router.push('/profile')
+      router.push('/profile');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred')
-      console.error('Profile setup error:', error)
+      setError(
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+      );
+      console.error('Profile setup error:', error);
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-2xl"
@@ -101,7 +105,9 @@ export default function ProfileSetup() {
               <UserCircleIcon className="w-20 h-20" />
               <div>
                 <h1 className="text-3xl font-bold">Complete Your Profile</h1>
-                <p className="text-blue-100 mt-1">{"Let's personalize your experience"}</p>
+                <p className="text-blue-100 mt-1">
+                  {"Let's personalize your experience"}
+                </p>
               </div>
             </div>
           </div>
@@ -112,7 +118,7 @@ export default function ProfileSetup() {
                 {error}
               </div>
             )}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="form-item-heading">Name</label>
@@ -177,7 +183,9 @@ export default function ProfileSetup() {
               </div>
 
               <div>
-                <label className="form-item-heading">Height ({formData.useMetric ? 'cm' : 'inches'})</label>
+                <label className="form-item-heading">
+                  Height ({formData.useMetric ? 'cm' : 'inches'})
+                </label>
                 <input
                   type="number"
                   name="height"
@@ -190,7 +198,9 @@ export default function ProfileSetup() {
               </div>
 
               <div>
-                <label className="form-item-heading">Weight ({formData.useMetric ? 'kg' : 'lbs'})</label>
+                <label className="form-item-heading">
+                  Weight ({formData.useMetric ? 'kg' : 'lbs'})
+                </label>
                 <input
                   type="number"
                   name="weight"
@@ -205,9 +215,7 @@ export default function ProfileSetup() {
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
               <SignedIn>
-                <SignOutButton
-                  redirectUrl="/login"
-                >
+                <SignOutButton redirectUrl="/login">
                   <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
                     Sign Out
                     <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
@@ -226,5 +234,5 @@ export default function ProfileSetup() {
         </div>
       </motion.div>
     </div>
-  )
-} 
+  );
+}

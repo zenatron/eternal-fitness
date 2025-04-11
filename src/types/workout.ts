@@ -1,54 +1,85 @@
-
+import { Prisma } from '@prisma/client';
 
 // Define the WorkoutStatus enum to match Prisma schema
 export enum WorkoutStatus {
   PLANNED = 'PLANNED',
   COMPLETED = 'COMPLETED',
   MISSED = 'MISSED',
-  IN_PROGRESS = 'IN_PROGRESS'
+  IN_PROGRESS = 'IN_PROGRESS',
 }
 
-// Matches database Exercise model
+export type WorkoutTemplate = {
+  id: string;
+  name: string;
+  favorite: boolean;
+  totalVolume: number;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  userId: string;
+  sessions: WorkoutSession[];
+  sets: Set[];
+};
+
+export type WorkoutTemplateWithSets = Prisma.WorkoutTemplateGetPayload<{
+  include: {
+    sets: {
+      include: { exercise: true };
+    };
+  };
+}>;
+
+export type WorkoutSession = {
+  id: string;
+  completedAt?: Date | null;
+  scheduledAt?: Date;
+  duration?: number;
+  notes?: string;
+  totalVolume: number;
+
+  // Relations
+  userId: string;
+  workoutTemplateId: string;
+};
+
+// Represents an exercise within a set
 export type Exercise = {
   id: string;
   name: string;
   description?: string;
   muscles: string[];
   equipment: string[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  sets?: Set[];
+  createdAt: Date;
+  updatedAt: Date;
 };
 
-// Matches database Set model
+// Represents a set within a workout template
 export type Set = {
   id: string;
-  workoutId: string;
   reps: number;
   weight: number;
   duration?: number;
+  createdAt: Date;
+  updatedAt: Date;
   volume?: number;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  exercises: Exercise[];
+
+  // Relations
+  workoutTemplateId: string;
+  exerciseId: string;
 };
 
-// Matches database Workout model
-export type Workout = {
-  id: string;
+// TODO: probably not needed
+// Represents the structure expected by the WorkoutFormEditor component
+// (Kept separate as form state might differ slightly from DB model)
+export type FormExercise = {
   name: string;
-  description?: string;
-  duration?: number;
-  scheduledDate?: string | Date;
-  completed: boolean;
-  completedAt?: string | Date;
-  notes?: string;
-  favorite: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  totalVolume: number;
-  status: WorkoutStatus;
-  userId: string;
-  sets: Set[];
+  muscles: string[];
+  equipment: string[];
 };
 
+// TODO: probably better way to do this
+// Represents a list of all possible exercises
+export type ExerciseList = {
+  [key: string]: FormExercise;
+};

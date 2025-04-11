@@ -1,12 +1,16 @@
 {
   "name": "eternal-fitness",
-  "version": "0.26.0",
+  "version": "0.31.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:format": "prisma format",
     "predeploy": "npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -37,13 +41,16 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@headlessui/react": "^2.2.0",
+    "@hello-pangea/dnd": "^18.0.1",
     "@heroicons/react": "^2.2.0",
     "@heroui/date-picker": "^2.3.16",
+    "@hookform/resolvers": "^5.0.0",
     "@internationalized/date": "^3.7.0",
     "@prisma/client": "^6.5.0",
     "@tanstack/react-query": "^5.70.0",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-datepicker": "^7.0.0",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.6.0",
@@ -56,9 +63,12 @@
     "react-beautiful-dnd": "^13.1.1",
     "react-datepicker": "^8.2.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.55.0",
+    "react-hot-toast": "^2.5.2",
     "react-icons": "^5.5.0",
     "svix": "^1.62.0",
-    "tailwind-merge": "^3.0.2"
+    "tailwind-merge": "^3.0.2",
+    "zod": "^3.24.2"
   },
   "browserslist": {
     "production": [

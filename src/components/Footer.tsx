@@ -12,14 +12,16 @@ export function Footer() {
           © {new Date().getFullYear()} Eternal Fitness. All rights reserved.
         </p>
         <p className="text-xs flex items-center justify-center">
-          {"Built with"} 
+          {'Built with'}
           <FaHeart size={12} className="mx-1" />
-          {"by"} 
-          <Link href="https://github.com/zenatron" className="ml-1 text-accent">{"zenatron"}</Link>
+          {'by'}
+          <Link href="https://github.com/zenatron" className="ml-1 text-accent">
+            {'zenatron'}
+          </Link>
           <span className="mx-2">•</span>
           <span>{versionText}</span>
         </p>
       </div>
     </footer>
-  )
-} 
+  );
+}

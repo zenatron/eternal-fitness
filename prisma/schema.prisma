@@ -9,46 +9,58 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-  email String @unique
-  name String?
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  age Int?
-  gender String?
-  height Float?
-  weight Float?
-  useMetric Boolean @default(false)
-  completedWorkouts Workout[]
-  points Int @default(0)
-  
-  // Dashboard related fields
-  userStats UserStats?
-  monthlyStats MonthlyStats[]
-  weightGoal Float? // Target weight goal in kg or lbs (based on useMetric)
-}
-
-model Workout {
-  id            String    @id @default(uuid())
-  name          String
-  description   String?
-  duration      Int?      // Total duration in minutes
-  scheduledDate DateTime? // When the workout is planned for
-  completed     Boolean   @default(false)
-  completedAt   DateTime? // When the workout was completed
-  notes         String?   // General workout notes
-  favorite      Boolean   @default(false) // Whether the workout is marked as favorite
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  totalVolume   Float     @default(0) // Total volume lifted in this workout
-  
-  // Status field for tracking workout state
-  status        WorkoutStatus @default(PLANNED)
+  age       Int?
+  gender    String?
+  height    Float?
+  weight    Float?
+  useMetric Boolean  @default(false)
+  points    Int      @default(0)
 
   // Relations
-  user          User      @relation(fields: [userId], references: [id])
-  userId        String
-  sets          Set[]
+  workoutTemplates WorkoutTemplate[]
+  workoutSessions  WorkoutSession[]
+  userStats        UserStats?
+  monthlyStats     MonthlyStats[]
+  weightGoal       Float?
+}
+
+model WorkoutTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  favorite    Boolean  @default(false)
+  totalVolume Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId   String
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions WorkoutSession[]
+  sets     Set[]
+
+  @@index([userId])
+}
+
+model WorkoutSession {
+  id          String    @id @default(uuid())
+  completedAt DateTime?
+  scheduledAt DateTime?
+  duration    Int?
+  notes       String?
+  totalVolume Float
+
+  // Relations
+  user              User            @relation(fields: [userId], references: [id])
+  userId            String
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id])
+  workoutTemplateId String
+
+  @@index([userId, completedAt])
 }
 
 model Exercise {
@@ -60,64 +72,54 @@ model Exercise {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Many-to-many relation to Set
-  sets        Set[] @relation("SetExercises")
+  // back relation to Set
+  sets        Set[]
 }
 
 model Set {
-  id          String   @id @default(uuid())
-  workout     Workout  @relation(fields: [workoutId], references: [id])
-  workoutId   String
-  exercises   Exercise[] @relation("SetExercises")
-  reps        Int
-  weight      Float
-  duration    Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Calculate volume (weight * reps) for each set
-  volume      Float?   @default(0) // Will be computed on save (weight * reps)
+  id        String   @id @default(uuid())
+  reps      Int
+  weight    Float
+  duration  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  volume    Float?   @default(0)
+
+  workoutTemplateId String
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id])
+
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
 }
 
-// Dashboard specific models
 model UserStats {
-  id                String   @id @default(uuid())
-  user              User     @relation(fields: [userId], references: [id])
-  userId            String   @unique
-  totalWorkouts     Int      @default(0)
-  totalSets         Int      @default(0)
-  totalExercises    Int      @default(0)
-  totalVolume       Float    @default(0)
-  totalTrainingHours Float   @default(0)
-  currentStreak     Int      @default(0)
-  longestStreak     Int      @default(0)
-  lastWorkoutAt     DateTime?
-  activeWeeks       Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  user               User      @relation(fields: [userId], references: [id])
+  userId             String    @unique
+  totalWorkouts      Int       @default(0)
+  totalSets          Int       @default(0)
+  totalExercises     Int       @default(0)
+  totalVolume        Float     @default(0)
+  totalTrainingHours Float     @default(0)
+  currentStreak      Int       @default(0)
+  longestStreak      Int       @default(0)
+  lastWorkoutAt      DateTime?
+  activeWeeks        Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model MonthlyStats {
-  id                String   @id @default(uuid())
-  user              User     @relation(fields: [userId], references: [id])
-  userId            String
-  year              Int
-  month             Int      // 1-12
-  workoutsCount     Int      @default(0)
-  exercisesCount    Int      @default(0)
-  setsCount         Int      @default(0)
-  volume            Float    @default(0)
-  trainingHours     Float    @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@unique([userId, year, month])
-}
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  year          Int
+  month         Int
+  workoutsCount Int      @default(0)
+  volume        Float    @default(0)
+  trainingHours Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-// Enums
-enum WorkoutStatus {
-  PLANNED
-  COMPLETED
-  MISSED
-  IN_PROGRESS
+  @@unique([userId, year, month])
 }
