@@ -1,34 +1,30 @@
 import { useQuery } from '@tanstack/react-query';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplateWithSets } from '@/types/workout';
+
+const fetchTemplates = async (): Promise<WorkoutTemplateWithSets[]> => {
+  const response = await fetch('/api/template');
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ error: { message: 'Failed to parse error response' } }));
+    throw new Error(errorBody?.error?.message || `HTTP error ${response.status}`);
+  }
+
+  const { data } = await response.json();
+  
+  if (!response || !data) {
+    console.error("Invalid API response structure received from /api/template:", data);
+    throw new Error('Invalid API response structure for templates');
+  }
+  return data;
+};
 
 /**
  * Custom hook to fetch and provide all user workout templates
  */
-export const useTemplates = () => {
-  const {
-    data: templates = [],
-    isLoading,
-    error,
-    refetch
-  } = useQuery<WorkoutTemplate[]>({
+export function useTemplates() {
+  return useQuery<WorkoutTemplateWithSets[], Error>({
     queryKey: ['templates'],
-    queryFn: async () => {
-      const response = await fetch('/api/template');
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to fetch templates');
-      }
-      
-      return response.json();
-    },
-    staleTime: 60 * 1000, // 1 minute
+    queryFn: fetchTemplates,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  return {
-    templates,
-    isLoading,
-    error,
-    refetch
-  };
-}; 
+}

@@ -1,38 +1,34 @@
-import { motion } from 'framer-motion'
-import { 
-  ArrowRightIcon
-} from '@heroicons/react/24/outline'
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
-import { useRouter } from 'next/navigation'
-import type { WorkoutTemplate, Set as WorkoutSet, Exercise } from '@/types/workout'
-import { useTemplates } from '@/lib/hooks/useTemplates'
-import { useToggleFavorite } from '@/lib/hooks/useMutations'
-import { formatVolume } from '@/utils/formatters'
+import { motion } from 'framer-motion';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { useRouter } from 'next/navigation';
+import { useTemplates } from '@/lib/hooks/useTemplates';
+import { useToggleFavorite } from '@/lib/hooks/useMutations';
+import { formatVolume } from '@/utils/formatters';
 
 export default function FavoriteWorkouts() {
-  const router = useRouter()
-  const { templates: allTemplates, isLoading, error } = useTemplates()
-  const toggleFavoriteMutation = useToggleFavorite()
-  
-  // Filter to only get favorited workouts
-  const templates = allTemplates.filter(template => template.favorite)
+  const router = useRouter();
 
-  // Helper function to count unique exercises in a workout
-  const countUniqueExercises = (template: WorkoutTemplate) => {
-    // Use a set to track unique exercise names
-    const uniqueExerciseNames = new Set();
-    
+  const { data: allTemplates, isLoading, error } = useTemplates();
+  const toggleFavoriteMutation = useToggleFavorite();
+
+  const templates = allTemplates?.filter((template) => template.favorite) ?? [];
+
+  const countUniqueExercises = (template: (typeof templates)[number]) => {
+    const uniqueExerciseIds = new Set<string>();
+
     if (template.sets) {
-      template.sets.forEach((set: WorkoutSet) => {
-        if (set.exercises) {
-          set.exercises.forEach((exercise: Exercise) => {
-            uniqueExerciseNames.add(exercise.name);
-          });
+      // Let TS infer the type of set
+      template.sets.forEach((set) => {
+        // Adjust access based on linter hint: use singular 'exercise'
+        // Check if set.exercise exists and has an id
+        if (set.exercise?.id) {
+          uniqueExerciseIds.add(set.exercise.id);
         }
       });
     }
-    
-    return uniqueExerciseNames.size;
+
+    return uniqueExerciseIds.size;
   };
 
   const handleToggleFavorite = (templateId: string) => {
@@ -44,23 +40,27 @@ export default function FavoriteWorkouts() {
       <div className="flex justify-center items-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
       <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-        {String(error)}
+        Error loading favorite workouts: {error.message}
       </div>
-    )
+    );
   }
 
   if (templates.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-        <p className="text-secondary">No favorite workouts yet. Mark a workout as favorite to see it here.</p>
+        <p className="text-secondary">
+          {
+            'No favorite workouts yet. Mark a workout as favorite to see it here.'
+          }
+        </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -94,7 +94,7 @@ export default function FavoriteWorkouts() {
                 <span>{countUniqueExercises(template)} exercises</span>
                 <span>•</span>
                 <span>{template.sets?.length || 0} sets</span>
-                {template.totalVolume > 0 && (
+                {template.totalVolume != null && template.totalVolume > 0 && (
                   <>
                     <span>•</span>
                     <span>{formatVolume(template.totalVolume)} volume</span>
@@ -115,5 +115,5 @@ export default function FavoriteWorkouts() {
         ))}
       </div>
     </div>
-  )
-} 
+  );
+}

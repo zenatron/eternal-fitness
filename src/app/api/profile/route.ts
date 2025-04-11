@@ -1,465 +1,328 @@
 import { NextResponse } from 'next/server'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
+import { z } from 'zod'
+
+// Zod schema for profile (POST)
+const profileSchema = z.object({
+  name: z.string().trim().min(1, { message: 'Name is required' }),
+  age: z.number().int().positive().nullable().optional(),
+  gender: z.string().nullable().optional(),
+  height: z.number().positive().nullable().optional(),
+  weight: z.number().positive().nullable().optional(),
+  useMetric: z.boolean().optional(),
+  weightGoal: z.number().positive().nullable().optional(),
+});
+
+// Helper for standard success response
+const successResponse = (data: any, status = 200) => {
+  return NextResponse.json({ data }, { status });
+};
+
+// Helper for standard error response
+const errorResponse = (message: string, status = 500, details?: any) => {
+  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
+};
 
 export async function GET() {
   try {
-    const { userId } = await auth()
-    
+    const { userId } = await auth();
+
     if (!userId) {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Unauthorized - you must be logged in' 
-      }, { status: 401 })
+      return errorResponse('Unauthorized', 401);
     }
 
-    console.log('GET profile for user:', userId)
-
-    // Find user profile
     const dbUser = await prisma.user.findUnique({
-      where: {
-        id: userId
-      }
-    })
+      where: { id: userId },
+      // Explicitly select fields to avoid over-fetching
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        age: true,
+        gender: true,
+        height: true,
+        weight: true,
+        useMetric: true,
+        weightGoal: true,
+        points: true,
+        createdAt: true,
+        // Add other fields as needed for the profile page
+      },
+    });
 
     if (!dbUser) {
-      console.log('No profile found for user:', userId)
-      return NextResponse.json({ 
-        error: true,
-        message: 'Profile not found',
-        needsSetup: true
-      }, { status: 404 })
+      // Use a specific message and status for profile not found
+      return errorResponse('Profile not found', 404, { needsSetup: true });
     }
 
-    // Get completed workout sessions count
+    // Get completed workout sessions count separately
     const workoutsCompleted = await prisma.workoutSession.count({
       where: {
         userId: userId,
-      }
-    })
+        completedAt: { not: null }, // Only count completed sessions
+      },
+    });
 
-    return NextResponse.json({
+    // Combine user data and count for the response
+    const profileData = {
       ...dbUser,
       workoutsCompleted,
-      joinDate: dbUser.createdAt
-    })
+      joinDate: dbUser.createdAt, // Keep joinDate alias if frontend expects it
+    };
+
+    return successResponse(profileData);
+
   } catch (error) {
-    console.error('Error in GET /api/profile:', error)
-    return NextResponse.json({ 
-      error: true,
-      message: 'Internal Server Error', 
-      details: String(error) 
-    }, { status: 500 })
+    // Generic catch-all error handler
+    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
 }
 
 export async function POST(request: Request) {
   try {
-    // Get both auth and user data
-    const authData = await auth()
-    const user = await currentUser()
-    const userId = authData.userId
-    
-    console.log('POST profile - Auth data:', { 
-      userId, 
-      isSignedIn: !!userId,
-      userEmail: user?.emailAddresses?.[0]?.emailAddress 
-    })
-    
+    const { userId } = await auth();
+    const user = await currentUser();
+
     if (!userId) {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Unauthorized - you must be logged in' 
-      }, { status: 401 })
+      return errorResponse('Unauthorized', 401);
     }
 
-    // Parse the request body
-    const bodyText = await request.text()
-    console.log('Raw request body:', bodyText)
-    
-    let body
-    try {
-      body = JSON.parse(bodyText)
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError)
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Invalid request format - JSON parsing failed',
-        details: String(parseError)
-      }, { status: 400 })
-    }
-    
-    const { name, age, gender, height, weight } = body
+    const body = await request.json();
 
-    // Validate required fields
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Name is required' 
-      }, { status: 400 })
+    // Validate request body using Zod
+    const validationResult = profileSchema.safeParse(body);
+    if (!validationResult.success) {
+      return errorResponse('Invalid input', 400, validationResult.error.errors);
     }
 
-    // Convert numeric values
-    const numericAge = age ? Number(age) : null
-    const numericHeight = height ? Number(height) : null
-    const numericWeight = weight ? Number(weight) : null
+    const validatedData = validationResult.data;
 
-    console.log('Processed profile data:', { 
-      userId, 
-      name, 
-      age: numericAge, 
-      gender, 
-      height: numericHeight, 
-      weight: numericWeight 
-    })
-
-    // Check if user exists in DB
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
-    })
+      where: { id: userId },
+      select: { id: true }, // Only select id to check existence
+    });
+
+    if (existingUser) {
+      return errorResponse('Profile already exists. Use PUT to update.', 409); // Conflict
+    }
 
     try {
-      let result
-      
-      // Create or update user
-      if (!existingUser) {
-        console.log('Creating new user profile in database')
-        
-        // Get email from Clerk if available
-        const email = user?.emailAddresses?.[0]?.emailAddress || ''
-        
-        result = await prisma.user.create({
-          data: {
-            id: userId,
-            email,
-            name,
-            age: numericAge,
-            gender,
-            height: numericHeight,
-            weight: numericWeight,
-            points: 0
-          }
-        })
-      } else {
-        console.log('Updating existing user profile in database')
-        
-        result = await prisma.user.update({
-          where: { id: userId },
-          data: {
-            name,
-            age: numericAge,
-            gender,
-            height: numericHeight,
-            weight: numericWeight
-          }
-        })
-      }
+      const email = user?.emailAddresses?.[0]?.emailAddress || ''
 
-      // Get completed workout sessions count
+      const createdUser = await prisma.user.create({
+        data: {
+          id: userId,
+          email,
+          ...validatedData,
+          // Ensure nullable fields are correctly passed
+          age: validatedData.age ?? null,
+          gender: validatedData.gender ?? null,
+          height: validatedData.height ?? null,
+          weight: validatedData.weight ?? null,
+          points: 0, // Initialize points
+          // useMetric and weightGoal are not part of create schema
+        },
+      });
+
+      // Fetch workoutsCompleted separately (optional, depends on frontend need)
       const workoutsCompleted = await prisma.workoutSession.count({
-        where: {
-          userId,
-        }
-      })
+        where: { userId: userId, completedAt: { not: null } },
+      });
 
-      console.log('Profile saved successfully for user:', userId)
-      
-      // Return success response
-      return NextResponse.json({
-        ...result,
+      const profileData = {
+        ...createdUser,
         workoutsCompleted,
-        joinDate: result.createdAt
-      })
+        joinDate: createdUser.createdAt,
+      };
+
+      return successResponse(profileData, 201); // 201 Created
+
     } catch (dbError) {
-      console.error('Database error:', dbError)
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Database error while saving profile', 
-        details: String(dbError) 
-      }, { status: 500 })
+      // Handle potential database errors (e.g., unique constraint if Clerk webhook ran first)
+      return errorResponse('Database error creating profile', 500, dbError instanceof Error ? dbError.message : String(dbError));
     }
+
   } catch (error) {
-    console.error('Unexpected error in POST /api/profile:', error)
-    return NextResponse.json({ 
-      error: true, 
-      message: 'Internal server error', 
-      details: String(error) 
-    }, { status: 500 })
+    // Generic catch-all error handler
+    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    // Get both auth and user data
-    const authData = await auth()
-    const user = await currentUser()
-    const userId = authData.userId
-    
-    console.log('PUT profile - Auth data:', { 
-      userId, 
-      isSignedIn: !!userId,
-      userEmail: user?.emailAddresses?.[0]?.emailAddress 
-    })
-    
+    const { userId } = await auth();
+
     if (!userId) {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Unauthorized - you must be logged in' 
-      }, { status: 401 })
+      return errorResponse('Unauthorized', 401);
     }
 
-    // Parse the request body
-    const bodyText = await request.text()
-    console.log('Raw request body:', bodyText)
-    
-    let body
-    try {
-      body = JSON.parse(bodyText)
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError)
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Invalid request format - JSON parsing failed',
-        details: String(parseError)
-      }, { status: 400 })
-    }
-    
-    const { name, age, gender, height, weight, useMetric, weightGoal } = body
+    const body = await request.json();
 
-    // Validate required fields
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Name is required' 
-      }, { status: 400 })
+    // Validate request body using Zod
+    const validationResult = profileSchema.safeParse(body);
+    if (!validationResult.success) {
+      return errorResponse('Invalid input', 400, validationResult.error.errors);
     }
 
-    // Convert numeric values
-    const numericAge = age ? Number(age) : null
-    const numericHeight = height ? Number(height) : null
-    const numericWeight = weight ? Number(weight) : null
-    const numericWeightGoal = weightGoal ? Number(weightGoal) : null
+    const validatedData = validationResult.data;
 
-    console.log('Processed profile data:', { 
-      userId, 
-      name, 
-      age: numericAge, 
-      gender, 
-      height: numericHeight, 
-      weight: numericWeight,
-      useMetric,
-      weightGoal: numericWeightGoal
-    })
-
-    // Check if user exists in DB
+    // Check if user actually exists before trying to update
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
-    })
+      where: { id: userId },
+      select: { id: true, useMetric: true }, // Select useMetric for potential fallback
+    });
 
     if (!existingUser) {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Profile not found. Please set up your profile first.' 
-      }, { status: 404 })
+      return errorResponse('Profile not found', 404);
     }
 
     try {
-      // Update existing user
-      console.log('Updating user profile in database')
-      
-      const result = await prisma.user.update({
+      // Update the user profile
+      const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
-          name,
-          age: numericAge,
-          gender,
-          height: numericHeight,
-          weight: numericWeight,
-          useMetric: useMetric !== undefined ? useMetric : existingUser.useMetric,
-          weightGoal: numericWeightGoal
-        }
-      })
+          ...validatedData,
+          // Ensure nullable fields are correctly passed
+          age: validatedData.age ?? null,
+          gender: validatedData.gender ?? null,
+          height: validatedData.height ?? null,
+          weight: validatedData.weight ?? null,
+          weightGoal: validatedData.weightGoal ?? null,
+          // useMetric needs careful handling: only update if provided
+          useMetric: validatedData.useMetric !== undefined ? validatedData.useMetric : existingUser.useMetric,
+        },
+        // Select the fields needed for the response
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          age: true,
+          gender: true,
+          height: true,
+          weight: true,
+          useMetric: true,
+          weightGoal: true,
+          points: true,
+          createdAt: true,
+        },
+      });
 
-      // Get completed workout sessions count
+      // Get workoutsCompleted separately
       const workoutsCompleted = await prisma.workoutSession.count({
-        where: {
-          userId,
-        }
-      })
+        where: { userId: userId, completedAt: { not: null } },
+      });
 
-      console.log('Profile updated successfully for user:', userId)
-      
-      // Return success response
-      return NextResponse.json({
-        ...result,
+      const profileData = {
+        ...updatedUser,
         workoutsCompleted,
-        joinDate: result.createdAt
-      })
+        joinDate: updatedUser.createdAt,
+      };
+
+      return successResponse(profileData);
+
     } catch (dbError) {
-      console.error('Database error:', dbError)
-      return NextResponse.json({ 
-        error: true, 
-        message: 'Database error while updating profile', 
-        details: String(dbError) 
-      }, { status: 500 })
+      return errorResponse('Database error updating profile', 500, dbError instanceof Error ? dbError.message : String(dbError));
     }
+
   } catch (error) {
-    console.error('Unexpected error in PUT /api/profile:', error)
-    return NextResponse.json({ 
-      error: true, 
-      message: 'Internal server error', 
-      details: String(error) 
-    }, { status: 500 })
+    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
 }
 
 export async function DELETE(request: Request) {
+  let userIdToDelete: string | null = null;
+
   try {
-    const url = new URL(request.url)
-    const userId = url.searchParams.get('userId')
-    
-    // Check if this is an internal API call with a specific userId
-    // or an authenticated user trying to delete their own account
-    let userIdToDelete: string | null = null
-    
-    if (userId) {
-      // If userId is provided in the query string, this is an internal call
-      // (webhook or admin operation)
-      userIdToDelete = userId
-      console.log('DELETE profile requested for user:', userIdToDelete)
+    const url = new URL(request.url);
+    const userIdParam = url.searchParams.get('userId'); // For internal calls
+
+    if (userIdParam) {
+      // Internal call (e.g., webhook)
+      userIdToDelete = userIdParam;
+      console.log('[Internal] DELETE profile requested for user:', userIdToDelete);
+      // Consider adding some form of authentication/secret key for internal calls
     } else {
-      // Otherwise, this is a user-initiated operation - require auth
-      const { userId: authenticatedUserId } = await auth()
-      
+      // User-initiated deletion
+      const { userId: authenticatedUserId } = await auth();
       if (!authenticatedUserId) {
-        return NextResponse.json({ 
-          error: true, 
-          message: 'Unauthorized - you must be logged in' 
-        }, { status: 401 })
+        return errorResponse('Unauthorized', 401);
       }
-      
-      userIdToDelete = authenticatedUserId
-      console.log('User requested to delete their own profile:', userIdToDelete)
+      userIdToDelete = authenticatedUserId;
+      console.log('User requested self-deletion:', userIdToDelete);
     }
-    
+
     if (!userIdToDelete) {
-      return NextResponse.json({ 
-        error: true, 
-        message: 'No user ID provided for deletion' 
-      }, { status: 400 })
+      // Should technically not happen if logic above is correct
+      return errorResponse('User ID for deletion could not be determined', 400);
     }
 
-    // Start database transaction to ensure all related data is deleted
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Delete UserStats (references user)
-      await tx.userStats.deleteMany({
-        where: { userId: userIdToDelete }
-      });
-      console.log(`Deleted UserStats for user ${userIdToDelete}`);
+    // Call the reusable deletion logic
+    const result = await deleteUserById(userIdToDelete);
 
-      // 2. Delete MonthlyStats (references user)
-      await tx.monthlyStats.deleteMany({
-        where: { userId: userIdToDelete }
-      });
-      console.log(`Deleted MonthlyStats for user ${userIdToDelete}`);
+    return successResponse(result, 200); // Or 204 if no content is expected
 
-      // 3. Delete WorkoutSessions (references user and template)
-      await tx.workoutSession.deleteMany({
-          where: { userId: userIdToDelete }
-      });
-      console.log(`Deleted WorkoutSessions for user ${userIdToDelete}`);
-      
-      // 4. Delete WorkoutTemplates (references user)
-      // Cascading deletes (if set up in schema) should handle related Exercises/Sets
-      const deletedTemplates = await tx.workoutTemplate.deleteMany({
-        where: { userId: userIdToDelete }
-      });
-      console.log(`Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userIdToDelete}`);
-      
-      // 5. Finally, delete the user profile
-      const deletedUser = await tx.user.delete({
-        where: { id: userIdToDelete }
-      });
-      
-      return { deletedUser, templatesDeleted: deletedTemplates.count };
-    });
-    
-    console.log(`Successfully deleted user ${userIdToDelete} from database`);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'User profile and all associated data deleted successfully',
-      data: {
-        userId: userIdToDelete,
-        templatesDeleted: result.templatesDeleted
-      }
-    });
-
-  } catch (error) {
-    console.error('Error in DELETE /api/profile:', error);
-    
-    // Check if this is a "record not found" error
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
-      return NextResponse.json({ 
-        error: true,
-        message: 'User profile not found'
-      }, { status: 404 })
+  } catch (error: any) {
+    // Catch errors from deleteUserById or auth()
+    if (error?.code === 'P2025' || error?.message?.includes('not found')) {
+      // Handle case where user to delete doesn't exist
+      return errorResponse('User profile not found', 404, { userId: userIdToDelete });
+    } else if (error?.message === 'Unauthorized') { // Catch re-thrown auth error
+      return errorResponse('Unauthorized', 401);
     }
-    
-    return NextResponse.json({ 
-      error: true,
-      message: 'Error deleting user profile', 
-      details: String(error) 
-    }, { status: 500 })
+    return errorResponse('Error deleting user profile', 500, { 
+      userId: userIdToDelete, 
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
-// Export a function that can be used internally from other files
+// --- Reusable User Deletion Logic ---
+
 export async function deleteUserById(userId: string) {
   if (!userId) {
-    throw new Error('User ID is required for deletion')
+    throw new Error('User ID is required for deletion'); // Throw error for internal handling
   }
+  console.log(`Attempting to delete user and associated data for ID: ${userId}`);
 
   try {
-    // Start database transaction to ensure all related data is deleted
+    // Transaction ensures all deletions succeed or fail together
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Delete UserStats (references user)
-      await tx.userStats.deleteMany({
-        where: { userId }
-      });
-      console.log(`Deleted UserStats for user ${userId}`);
+      // Important: Define the order of deletion based on foreign key constraints
 
-      // 2. Delete MonthlyStats (references user)
-      await tx.monthlyStats.deleteMany({
-        where: { userId }
-      });
-      console.log(`Deleted MonthlyStats for user ${userId}`);
-
-      // 3. Delete WorkoutSessions (references user and template)
-      await tx.workoutSession.deleteMany({
-          where: { userId }
-      });
-      console.log(`Deleted WorkoutSessions for user ${userId}`);
+      // 1. Delete dependent records first
+      await tx.userStats.deleteMany({ where: { userId } });
+      await tx.monthlyStats.deleteMany({ where: { userId } });
+      await tx.workoutSession.deleteMany({ where: { userId } });
       
-      // 4. Delete WorkoutTemplates (references user)
-      // Cascading deletes (if set up in schema) should handle related Exercises/Sets
-      const deletedTemplates = await tx.workoutTemplate.deleteMany({
-        where: { userId }
-      });
+      // 2. Delete templates (which might have sets/exercises linked via cascading delete in schema)
+      const deletedTemplates = await tx.workoutTemplate.deleteMany({ where: { userId } });
       console.log(`Deleted ${deletedTemplates.count} WorkoutTemplates for user ${userId}`);
-      
-      // 5. Finally, delete the user profile
-      const deletedUser = await tx.user.delete({
-        where: { id: userId }
-      });
-      
-      return { deletedUser, templatesDeleted: deletedTemplates.count };
+
+      // 3. Finally, delete the user itself
+      // Prisma throws P2025 if user not found, which is handled by the transaction
+      const deletedUser = await tx.user.delete({ where: { id: userId } });
+      console.log(`Deleted User record for ${userId}`);
+
+      return {
+        userId: deletedUser.id,
+        templatesDeleted: deletedTemplates.count,
+        // Add other counts if needed
+      };
     });
-    
-    console.log(`Successfully deleted user ${userId} from database`);
-    return { success: true, userId, templatesDeleted: result.templatesDeleted };
+
+    console.log(`Successfully deleted user ${userId} and associated data.`);
+    return {
+      success: true,
+      message: 'User profile and associated data deleted successfully.',
+      data: result,
+    };
   } catch (error) {
-    console.error(`Error deleting user ${userId}:`, error);
+    console.error(`Error during transaction for deleting user ${userId}:`, error);
+    // Re-throw the error so the calling function (DELETE handler) can catch it
+    // This allows handling specific errors like P2025 (Not Found) there
     throw error;
   }
 } 

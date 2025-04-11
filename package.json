@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "0.29.1",
+  "version": "0.30.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -10,6 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "db:format": "prisma format",
     "predeploy": "npm run build",
     "test": "jest",
     "test:watch": "jest --watch",

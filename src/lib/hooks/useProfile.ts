@@ -18,7 +18,6 @@ export const useProfile = () => {
         const errorData = await response.json().catch(() => null);
         throw new Error(errorData?.error || 'Failed to fetch profile');
       }
-      
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -30,4 +29,4 @@ export const useProfile = () => {
     error,
     refetch
   };
-}; 
+};

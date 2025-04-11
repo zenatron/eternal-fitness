@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-
+import { WorkoutTemplateWithSets } from '@/types/workout';
 // Modal component for scheduling
 function ScheduleModal({ 
   isOpen, 
@@ -98,7 +98,7 @@ function ScheduleModal({
 
 export default function StartSessionPage() {
   const router = useRouter();
-  const { templates, isLoading: templatesLoading, error: templatesError } = useTemplates();
+  const { data: templates, isLoading: templatesLoading, error: templatesError } = useTemplates();
   const { sessions: scheduledSessions, isLoading: scheduledLoading, error: scheduledError } = useScheduledSessions();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -106,10 +106,11 @@ export default function StartSessionPage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplateWithSets | null>(null);
 
   const { profile } = useProfile();
 
-  const filteredTemplates = templates?.filter(template =>
+  const filteredTemplates = templates?.filter((template: any) =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -211,7 +212,7 @@ export default function StartSessionPage() {
                   <li key={session.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors p-4">
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="font-semibold text-heading">{session.workoutTemplate?.name}</p>
+                        <p className="font-semibold text-heading">{templates?.find((t: WorkoutTemplateWithSets) => t.id === session.workoutTemplateId)?.name}</p>
                         <p className="text-sm text-secondary mt-1">
                           Scheduled for: {session.scheduledAt ? formatUTCDateToLocalDateFriendly(session.scheduledAt) : 'Unknown date'}
                         </p>
@@ -256,7 +257,7 @@ export default function StartSessionPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredTemplates && filteredTemplates.length > 0 ? (
-                filteredTemplates.map((template) => (
+                filteredTemplates.map((template: any) => (
                   <li key={template.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors p-4">
                     <div className="flex justify-between items-center">
                       <div>

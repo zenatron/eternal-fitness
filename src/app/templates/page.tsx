@@ -11,35 +11,35 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 
 import { motion } from 'framer-motion'
-import { Set as WorkoutSet, Exercise, WorkoutTemplate } from '@/types/workout'
+import { Set as WorkoutSet, WorkoutTemplate } from '@prisma/client'
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
+import { WorkoutTemplateWithSets } from '@/types/workout';
 
 export default function TemplatesPage() {
   const router = useRouter()
-  const { templates, isLoading, error, refetch } = useTemplates();
+  const { data: templates, isLoading, error, refetch } = useTemplates();
   const toggleFavoriteMutation = useToggleFavorite();
   const { profile } = useProfile();
+
   // Filter templates
-  const favoriteTemplates = templates?.filter(t => t.favorite) || [];
+  const favoriteTemplates: WorkoutTemplateWithSets[] = templates?.filter((t: WorkoutTemplateWithSets) => t.favorite) || [];
   // Since we don't have scheduledDate anymore, just show all non-favorites
-  const unscheduledTemplates = templates?.filter(t => !t.favorite) || [];
+  const unscheduledTemplates: WorkoutTemplateWithSets[] = templates?.filter((t: WorkoutTemplateWithSets) => !t.favorite) || [];
   
   // Helper function to count unique exercises in a template
-  const countUniqueExercises = (template: WorkoutTemplate) => {
-    const uniqueExerciseNames = new Set();
+  const countUniqueExercises = (template: WorkoutTemplateWithSets) => {
+    const uniqueExercises = new Set();
     if (template.sets) {
       template.sets.forEach((set: WorkoutSet) => {
-        if (set.exercises) {
-          set.exercises.forEach((exercise: Exercise) => {
-            uniqueExerciseNames.add(exercise.name);
-          });
+        if (set.exerciseId) {
+          uniqueExercises.add(set.exerciseId);
         }
       });
     }
-    return uniqueExerciseNames.size;
+    return uniqueExercises.size;
   };
   
   const handleToggleFavorite = (templateId: string) => {
@@ -122,7 +122,7 @@ export default function TemplatesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {favoriteTemplates.map(template => (
+              {favoriteTemplates.map((template) => (
                 <motion.div
                   key={template.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -142,7 +142,7 @@ export default function TemplatesPage() {
                       </button>
                     </div>
                     <div className="text-sm text-secondary mt-1 flex flex-wrap gap-2">
-                      <span>{countUniqueExercises(template)} exercises</span>
+                      <span>{countUniqueExercises(template as WorkoutTemplateWithSets)} exercises</span>
                       <span>•</span>
                       <span>{template.sets?.length || 0} sets</span>
                       {template.totalVolume > 0 && (
@@ -200,7 +200,7 @@ export default function TemplatesPage() {
                           {template.name}
                         </h3>
                         <div className="flex flex-wrap gap-1 text-xs text-secondary mt-1">
-                          <span>{countUniqueExercises(template)} exercises</span>
+                          <span>{countUniqueExercises(template as WorkoutTemplateWithSets)} exercises</span>
                           <span>•</span>
                           <span>{template.sets?.length || 0} sets</span>
                           {template.totalVolume > 0 && (

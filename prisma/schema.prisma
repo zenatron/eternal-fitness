@@ -31,23 +31,23 @@ model User {
 
 model WorkoutTemplate {
   id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   favorite    Boolean  @default(false)
   totalVolume Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  exercises Exercise[]
-  sessions  WorkoutSession[]
-  sets       Set[]
+  // Relations
+  userId   String
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions WorkoutSession[]
+  sets     Set[]
 
   @@index([userId])
 }
 
 model WorkoutSession {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   completedAt DateTime?
   scheduledAt DateTime?
   duration    Int?
@@ -72,23 +72,24 @@ model Exercise {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Many-to-many relation to Set
-  sets              Set[]            @relation("SetExercises")
-  WorkoutTemplate   WorkoutTemplate? @relation(fields: [workoutTemplateId], references: [id])
-  workoutTemplateId String?
+  // back relation to Set
+  sets        Set[]
 }
 
 model Set {
-  id                String          @id @default(uuid())
-  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id])
+  id        String   @id @default(uuid())
+  reps      Int
+  weight    Float
+  duration  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  volume    Float?   @default(0)
+
   workoutTemplateId String
-  exercises         Exercise[]      @relation("SetExercises")
-  reps              Int
-  weight            Float
-  duration          Int?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  volume            Float?          @default(0)
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id])
+
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
 }
 
 model UserStats {

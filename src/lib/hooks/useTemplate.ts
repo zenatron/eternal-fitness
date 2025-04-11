@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutTemplateWithSets } from '@/types/workout';
 
 /**
  * Custom hook to fetch and provide a single workout template
@@ -10,7 +10,7 @@ export const useTemplate = (templateId: string) => {
     isLoading,
     error,
     refetch
-  } = useQuery<WorkoutTemplate>({
+  } = useQuery<WorkoutTemplateWithSets>({
     queryKey: ['template', templateId],
     queryFn: async () => {
       const response = await fetch(`/api/template/${templateId}`);
@@ -20,10 +20,11 @@ export const useTemplate = (templateId: string) => {
         throw new Error(errorData?.error || 'Failed to fetch template');
       }
       
-      return response.json();
+      const result = await response.json();
+      return result.data;
     },
-    staleTime: 60 * 1000, // 1 minute
-    enabled: !!templateId, // Only run if templateId exists
+    staleTime: 60 * 1000,
+    enabled: !!templateId,
   });
 
   return {
@@ -32,4 +33,4 @@ export const useTemplate = (templateId: string) => {
     error,
     refetch
   };
-}; 
+};

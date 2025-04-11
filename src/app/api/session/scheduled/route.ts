@@ -1,28 +1,43 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import prisma from "@/lib/prisma";
+import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import prisma from '@/lib/prisma';
+
+// --- Standard Response Helpers ---
+const successResponse = (data: any, status = 200) => {
+  return NextResponse.json({ data }, { status });
+};
+
+const errorResponse = (message: string, status = 500, details?: any) => {
+  console.error(
+    `API Error (${status}) [session/scheduled]:`,
+    message,
+    details ? JSON.stringify(details) : '',
+  );
+  return NextResponse.json(
+    { error: { message, ...(details && { details }) } },
+    { status },
+  );
+};
 
 // GET function to fetch ONLY scheduled sessions
 export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return errorResponse('Unauthorized', 401);
     }
 
     const scheduledSessions = await prisma.workoutSession.findMany({
       where: {
         userId,
-        // Only get sessions where completedAt is undefined (not completed yet)
-        // AND scheduledAt is not null (it's scheduled)
-        completedAt: undefined,
+        // Only sessions that are scheduled AND not yet completed
         scheduledAt: {
           not: null,
         },
+        completedAt: null, // Explicitly check for null instead of undefined
       },
-      orderBy: { scheduledAt: "asc" }, // Sort by upcoming date
+      orderBy: { scheduledAt: 'asc' }, // Sort by upcoming date
       include: {
-        // Include template details for display
         workoutTemplate: {
           select: {
             id: true,
@@ -32,14 +47,13 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(scheduledSessions);
+    return successResponse(scheduledSessions);
   } catch (error) {
-    console.error("Error in GET /api/session/scheduled:", error);
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Internal Server Error",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+    console.error('Error in GET /api/session/scheduled:', error); // Keep specific logging
+    return errorResponse(
+      'Internal Server Error',
+      500,
+      error instanceof Error ? error.message : String(error),
     );
   }
 }

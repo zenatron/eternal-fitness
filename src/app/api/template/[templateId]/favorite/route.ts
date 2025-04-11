@@ -1,82 +1,78 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client"; // Import Prisma types
+
+// --- Standard Response Helpers ---
+const successResponse = (data: any, status = 200) => {
+  return NextResponse.json({ data }, { status });
+};
+
+const errorResponse = (message: string, status = 500, details?: any) => {
+  console.error(`API Error (${status}) [template/{id}/favorite]:`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
+};
 
 // POST handler to toggle favorite status
-export async function POST({
-  params,
-}: {
-  params: Promise<{ templateId: string }>;
-}) {
+export async function POST(request: Request, { params }: { params: { templateId: string } }) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return errorResponse('Unauthorized', 401);
     }
 
-    const { templateId } = await params;
+    const { templateId } = params;
 
-    // Use a transaction to fetch and update atomically
+    // Use transaction for atomicity (fetch and update)
     const updatedTemplate = await prisma.$transaction(async (tx) => {
-      // 1. Find the current template and its favorite status
+      // 1. Find the template, ensure it belongs to the user
       const currentTemplate = await tx.workoutTemplate.findUnique({
         where: {
           id: templateId,
-          userId: userId, // Ensure user owns the template
+          userId: userId,
         },
-        select: { favorite: true }, // Only select the favorite field initially
+        select: { favorite: true }, // Only need current favorite status
       });
 
       if (!currentTemplate) {
-        console.log(
-          `Favorite toggle failed: Template ${templateId} not found or unauthorized for user ${userId}`
-        );
-        // Throw an error to abort transaction and signal not found
-        throw new Error("TemplateNotFound");
+        throw new Error('TemplateNotFound'); // Abort transaction
       }
 
+      // 2. Toggle status and update
       const newFavoriteStatus = !currentTemplate.favorite;
-      console.log(
-        `Template ${templateId}: Current favorite: ${currentTemplate.favorite}, toggling to: ${newFavoriteStatus}`
-      );
-
-      // 2. Update the template with the new favorite status
       const result = await tx.workoutTemplate.update({
         where: {
           id: templateId,
-          // userId: userId // Redundant check due to findUnique above, but safe
         },
         data: {
           favorite: newFavoriteStatus,
         },
-        // Include related data in the final response to match hook expectations
+        // Include necessary data for the response (frontend might need full template)
         include: {
-          sets: { include: { exercises: true } },
+          sets: { 
+            orderBy: { createdAt: 'asc' },
+            include: { exercise: true }
+          },
         },
       });
-      console.log(
-        `Successfully toggled favorite for template ${templateId} to ${newFavoriteStatus}`
-      );
+      console.log(`Toggled favorite for template ${templateId} to ${newFavoriteStatus}`);
       return result;
     }); // End transaction
 
-    // Return the updated template data
-    return NextResponse.json(updatedTemplate);
-  } catch (error) {
-    // Handle specific not found error from transaction
-    if (error instanceof Error && error.message === "TemplateNotFound") {
-      return new NextResponse(
-        JSON.stringify({ error: "Template not found or unauthorized" }),
-        { status: 404 }
-      );
+    return successResponse(updatedTemplate);
+
+  } catch (error: any) {
+    if (error.message === 'TemplateNotFound') {
+      return errorResponse('Template not found or access denied', 404, { templateId: params.templateId });
     }
 
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Internal Server Error",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error(`Error toggling favorite for template ${params.templateId}:`, error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        console.error("Prisma Error Code:", error.code);
+    }
+    return errorResponse('Internal Server Error toggling favorite', 500, {
+      templateId: params.templateId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

@@ -1,125 +1,148 @@
-import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import prisma from "@/lib/prisma";
+// import { NextResponse } from "next/server";
+// import { auth } from "@clerk/nextjs/server";
+// import prisma from "@/lib/prisma";
+// import { Prisma } from "@prisma/client"; // Import Prisma types if needed for errors
 
-export async function POST() {
-  try {
-    const { userId } = await auth();
+// // --- Standard Response Helpers ---
+// const successResponse = (data: any, status = 200) => {
+//   return NextResponse.json({ data }, { status });
+// };
 
-    if (!userId) {
-      return new NextResponse(
-        JSON.stringify({ error: "Unauthorized - you must be logged in" }),
-        { status: 401 }
-      );
-    }
+// const errorResponse = (message: string, status = 500, details?: any) => {
+//   console.error(`API Error (${status}) [exercises/deduplicate]:`, message, details ? JSON.stringify(details) : '');
+//   return NextResponse.json({ error: { message, ...(details && { details }) } }, { status });
+// };
 
-    // Get all exercises
-    const allExercises = await prisma.exercise.findMany({
-      include: {
-        sets: true,
-      },
-    });
 
-    // Group exercises by name
-    const exercisesByName: Record<string, typeof allExercises> = {};
-    allExercises.forEach((exercise) => {
-      if (!exercisesByName[exercise.name]) {
-        exercisesByName[exercise.name] = [];
-      }
-      exercisesByName[exercise.name].push(exercise);
-    });
+// export async function POST() {
+//   try {
+//     const { userId } = await auth();
 
-    // Store statistics for the report
-    const stats = {
-      totalExercisesProcessed: allExercises.length,
-      duplicateExerciseNamesFound: 0,
-      exercisesDeduped: 0,
-      setsUpdated: 0,
-    };
+//     // Optional: Add admin check if this should be restricted
+//     // if (!isAdmin(userId)) { return errorResponse('Forbidden', 403); }
 
-    // Process each group of exercises with the same name
-    for (const [, exercises] of Object.entries(exercisesByName)) {
-      // Skip if no duplicates
-      if (exercises.length <= 1) {
-        continue;
-      }
+//     if (!userId) {
+//       return errorResponse('Unauthorized', 401);
+//     }
 
-      stats.duplicateExerciseNamesFound++;
+//     console.log("Starting exercise deduplication process...");
 
-      // Group further by equipment and muscles (exact match)
-      const exercisesBySignature: Record<string, typeof exercises> = {};
+//     // Get all exercises WITH their sets (needed for re-linking)
+//     const allExercises = await prisma.exercise.findMany({
+//       include: {
+//         sets: { select: { id: true } }, // Only need set IDs for linking
+//       },
+//     });
 
-      exercises.forEach((exercise) => {
-        // Create a signature by combining sorted muscles and equipment
-        const musclesKey = [...exercise.muscles].sort().join(",");
-        const equipmentKey = [...exercise.equipment].sort().join(",");
-        const signature = `${musclesKey}|${equipmentKey}`;
+//     // Group exercises by name (case-insensitive for broader matching? - current is case-sensitive)
+//     // Consider normalizing names (e.g., lowercase, trim) before grouping
+//     const exercisesByName: Record<string, typeof allExercises> = {};
+//     allExercises.forEach((exercise) => {
+//       const normalizedName = exercise.name.toLowerCase().trim(); // Example normalization
+//       if (!exercisesByName[normalizedName]) {
+//         exercisesByName[normalizedName] = [];
+//       }
+//       exercisesByName[normalizedName].push(exercise);
+//     });
 
-        if (!exercisesBySignature[signature]) {
-          exercisesBySignature[signature] = [];
-        }
-        exercisesBySignature[signature].push(exercise);
-      });
+//     const stats = {
+//       totalExercisesProcessed: allExercises.length,
+//       potentialDuplicateGroupsByName: 0,
+//       exactSignatureMatchesFound: 0,
+//       exercisesMerged: 0,
+//       setsReconnected: 0,
+//       duplicatesDeleted: 0,
+//       errorsEncountered: 0,
+//     };
 
-      // For each unique signature, merge duplicates
-      for (const sameExercises of Object.values(exercisesBySignature)) {
-        if (sameExercises.length <= 1) continue;
+//     // Use a transaction for the core merging logic
+//     await prisma.$transaction(async (tx) => {
+//       for (const [name, exercises] of Object.entries(exercisesByName)) {
+//         if (exercises.length <= 1) {
+//           continue; // No potential duplicates for this name
+//         }
+//         stats.potentialDuplicateGroupsByName++;
 
-        // Choose the first one as canonical
-        const [canonical, ...duplicates] = sameExercises;
+//         // Group further by signature (muscles + equipment)
+//         const exercisesBySignature: Record<string, typeof exercises> = {};
+//         exercises.forEach((exercise) => {
+//           const musclesKey = [...exercise.muscles].sort().join(",");
+//           const equipmentKey = [...exercise.equipment].sort().join(",");
+//           const signature = `${musclesKey}|${equipmentKey}`;
 
-        // Keep track of all sets that need to be updated
-        const setsToUpdate = [];
+//           if (!exercisesBySignature[signature]) {
+//             exercisesBySignature[signature] = [];
+//           }
+//           exercisesBySignature[signature].push(exercise);
+//         });
 
-        // Collect all sets from duplicates
-        for (const duplicate of duplicates) {
-          for (const set of duplicate.sets) {
-            setsToUpdate.push(set.id);
-          }
-          stats.exercisesDeduped++;
-        }
+//         // Process each group with the exact same signature
+//         for (const [signature, sameExercises] of Object.entries(exercisesBySignature)) {
+//           if (sameExercises.length <= 1) {
+//             continue; // No exact duplicates for this signature
+//           }
+//           stats.exactSignatureMatchesFound++;
+//           stats.exercisesMerged += sameExercises.length - 1;
 
-        // Update sets to point to the canonical exercise
-        if (setsToUpdate.length > 0) {
-          // We need to update the many-to-many relationship
-          // First disconnect sets from the duplicate exercises
-          for (const duplicate of duplicates) {
-            for (const set of duplicate.sets) {
-              await prisma.set.update({
-                where: { id: set.id },
-                data: {
-                  exercises: {
-                    disconnect: { id: duplicate.id },
-                    connect: { id: canonical.id },
-                  },
-                },
-              });
-              stats.setsUpdated++;
-            }
-          }
+//           // Choose the first as canonical (or based on creation date, etc.)
+//           sameExercises.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+//           const [canonical, ...duplicates] = sameExercises;
+//           const duplicateIds = duplicates.map(d => d.id);
 
-          // Delete the duplicate exercises
-          for (const duplicate of duplicates) {
-            await prisma.exercise.delete({
-              where: { id: duplicate.id },
-            });
-          }
-        }
-      }
-    }
+//           console.log(`Merging ${duplicates.length} duplicates into canonical exercise ${canonical.id} (Name: ${canonical.name}, Sig: ${signature})`);
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully deduplicated exercises`,
-      stats,
-    });
-  } catch (error) {
-    console.error("Error deduplicating exercises:", error);
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Internal Server Error",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
-}
+//           // Find all sets linked ONLY to the duplicates
+//           const setsToUpdate = await tx.set.findMany({
+//               where: {
+//                   exerciseId: { in: duplicateIds }
+//               },
+//               select: { id: true, exercise: { select: { id: true } } } // Select exercises to check links
+//           });
+
+//           for (const set of setsToUpdate) {
+//               const linkedDuplicateIds = set.exercise
+//               if (linkedDuplicateIds.length > 0) {
+//                   // Disconnect from all duplicates, connect to canonical
+//                   await tx.set.update({
+//                       where: { id: set.id },
+//                       data: {
+//                           exercises: {
+//                               disconnect: linkedDuplicateIds.map(id => ({ id })),
+//                               connect: { id: canonical.id }
+//                           }
+//                       }
+//                   });
+//                   stats.setsReconnected++;
+//               }
+//           }
+          
+//           // Now safe to delete the duplicate exercises
+//           const deleteResult = await tx.exercise.deleteMany({
+//             where: { id: { in: duplicateIds } },
+//           });
+//           stats.duplicatesDeleted += deleteResult.count;
+//           console.log(`Deleted ${deleteResult.count} duplicate exercises for Name: ${canonical.name}, Sig: ${signature}`);
+//         }
+//       }
+//     }, {
+//         maxWait: 15000, // Allow longer for potentially complex transactions
+//         timeout: 30000, 
+//     }); // End transaction
+
+//     console.log("Exercise deduplication process completed.", stats);
+//     return successResponse({
+//       message: `Successfully processed exercises for deduplication.`,
+//       stats,
+//     });
+
+//   } catch (error) {
+//     console.error("Error during exercise deduplication:", error);
+//     // Log specific Prisma errors if helpful
+//     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+//       console.error(`Prisma Error Code: ${error.code}`);
+//     }
+//     return errorResponse('Internal Server Error during deduplication', 500, { 
+//         error: error instanceof Error ? error.message : String(error)
+//     });
+//   }
+// }

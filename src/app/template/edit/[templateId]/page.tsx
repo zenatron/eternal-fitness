@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback, use } from "react";
 import { FlagIcon } from "@heroicons/react/24/outline";
 import TemplateFormEditor from "@/components/ui/TemplateFormEditor";
-import { WorkoutTemplate, Exercise, Set as WorkoutSet } from "@/types/workout";
+import { WorkoutTemplateWithSets, Exercise, Set as WorkoutSet } from "@/types/workout";
 import { useTemplate } from "@/lib/hooks/useTemplate";
 
-// Generate a simple unique ID
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
+// Define a local type for the structure used in the map
+interface FormExerciseWithSets extends Exercise {
+  sets: WorkoutSet[]; // Use WorkoutSet for the sets array
 }
 
 export default function EditTemplatePage({
@@ -24,36 +24,44 @@ export default function EditTemplatePage({
 
   // Convert DB WorkoutTemplate format to FormExercise[] format for the editor
   const convertTemplateToFormExercises = useCallback(
-    (templateData: WorkoutTemplate): Exercise[] => {
-      const exerciseMap: Record<string, Exercise> = {};
+    (templateData: WorkoutTemplateWithSets): FormExerciseWithSets[] => {
+      // Type guard already handled by template check in useEffect
+      // if (!templateData?.sets) { ... }
 
-      templateData.sets?.forEach((workoutSet: WorkoutSet) => {
-        const primaryExercise = workoutSet.exercises?.[0];
-        if (!primaryExercise) return;
+      const exerciseMap: Record<string, FormExerciseWithSets> = {};
 
-        const exerciseName = primaryExercise.name;
+      templateData.sets.forEach((workoutSet) => {
+        // Check if the set and its nested exercise exist
+        if (!workoutSet?.exercise?.id) {
+          console.warn(
+            "convertTemplateToFormExercises: Skipping set due to missing exercise data:",
+            workoutSet
+          );
+          return; // Skip this set if exercise data is missing
+        }
 
-        if (!exerciseMap[exerciseName]) {
-          exerciseMap[exerciseName] = {
-            id: primaryExercise.id || generateId(),
-            name: exerciseName,
-            muscles: primaryExercise.muscles || [],
-            equipment: primaryExercise.equipment || [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
+        const exercise = workoutSet.exercise;
+        const exerciseId = exercise.id;
+
+        // Initialize exercise in map if it doesn't exist
+        if (!exerciseMap[exerciseId]) {
+          exerciseMap[exerciseId] = {
+            ...exercise, // Spread existing exercise properties
+            // Explicitly handle potential null from Prisma type
+            description: exercise.description ?? undefined,
+            createdAt: exercise.createdAt || new Date(),
+            updatedAt: exercise.updatedAt || new Date(),
             sets: [],
           };
         }
 
-        // Add the set details (reps/weight) to the exercise
-        exerciseMap[exerciseName].sets?.push({
-          id: workoutSet.id || generateId(),
-          workoutTemplateId: templateId,
-          reps: workoutSet.reps,
-          weight: workoutSet.weight,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          exercises: [],
+        // Add the current set's details to the corresponding exercise's sets array
+        exerciseMap[exerciseId].sets.push({
+          ...workoutSet,
+          // Explicitly handle potential null from Prisma types
+          duration: workoutSet.duration ?? undefined,
+          volume: workoutSet.volume ?? undefined,
+          // The nested exercise is already spread from workoutSet.
         });
       });
 
@@ -72,9 +80,11 @@ export default function EditTemplatePage({
       // Set favorite status
       setInitialFavorite(template.favorite || false);
 
-      // Convert template data to the format expected by TemplateFormEditor
+      // Convert template data (which is WorkoutTemplateWithSets) 
       const formattedExercises = convertTemplateToFormExercises(template);
-      setInitialExercises(formattedExercises);
+      // Ensure TemplateFormEditor accepts Exercise[] | FormExerciseWithSets[]
+      // For now, we might need a type assertion if TemplateFormEditor expects strictly Exercise[]
+      setInitialExercises(formattedExercises as Exercise[]); // <-- Potential type assertion needed here
     }
   }, [template, convertTemplateToFormExercises]);
 
