@@ -19,7 +19,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-import { WorkoutTemplateWithSets } from '@/types/workout';
+import { WorkoutTemplate } from '@/types/workout';
+import { countUniqueExercises, getTotalSetsCount, getDifficultyColor, getWorkoutTypeColor } from '@/utils/workoutDisplayUtils';
 // Modal component for scheduling
 function ScheduleModal({
   isOpen,
@@ -146,21 +147,22 @@ export default function StartSessionPage() {
     if (!selectedTemplateId) return;
 
     try {
-      // Create a new session with scheduledAt date
-      const response = await fetch('/api/session', {
+      // Create a new session with scheduledAt date using JSON API
+      const response = await fetch('/api/session-json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId: selectedTemplateId,
           scheduledAt: date.toISOString(),
           // We don't have performance data yet as the session hasn't been completed
-          performance: [],
+          // JSON API expects performance as an object, not array
+          performance: {},
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to schedule session');
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to schedule session');
       }
 
       // Redirect to dashboard or activity page
@@ -314,7 +316,7 @@ export default function StartSessionPage() {
                           {template.name}
                         </p>
                         <p className="text-sm text-secondary mt-1">
-                          {template.sets?.length || 0} sets •{' '}
+                          {countUniqueExercises(template)} exercises • {getTotalSetsCount(template)} sets •{' '}
                           {template.totalVolume > 0
                             ? `${formatVolume(
                                 template.totalVolume,
@@ -322,6 +324,14 @@ export default function StartSessionPage() {
                               )}`
                             : 'No volume recorded'}
                         </p>
+                        <div className="flex gap-2 mt-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${getDifficultyColor(template.difficulty)}`}>
+                            {template.difficulty}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs ${getWorkoutTypeColor(template.workoutType)}`}>
+                            {template.workoutType}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <button

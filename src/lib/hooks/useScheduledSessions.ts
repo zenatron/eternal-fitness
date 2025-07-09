@@ -16,8 +16,8 @@ export function useScheduledSessions() {
           throw new Error(`Error: ${response.status}`);
         }
 
-        const data = await response.json();
-        setSessions(data);
+        const result = await response.json();
+        setSessions(result.data || []);
       } catch (err) {
         setError(
           err instanceof Error

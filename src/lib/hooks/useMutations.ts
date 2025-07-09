@@ -1,21 +1,29 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutType, Difficulty } from '@/types/workout';
 
-// Updated interface structure for create/update
+// 🚀 NEW JSON-BASED TEMPLATE INPUT DATA
 export interface TemplateInputData {
   name: string;
+  description?: string;
   favorite?: boolean;
-  scheduledDate?: string | null;
-  sets: {
-    exercises: string[]; // Array of exercise IDs
-    reps: number;
-    weight: number;
-    duration?: number | null;
+  workoutType?: WorkoutType;
+  difficulty?: Difficulty;
+  tags?: string[];
+  exercises: {
+    exerciseKey: string;
+    sets: {
+      reps: number;
+      weight?: number;
+      duration?: number;
+      type?: string;
+      restTime?: number;
+      notes?: string;
+    }[];
+    instructions?: string;
+    restBetweenSets?: number;
   }[];
-  totalVolume?: number;
 }
 
-// EXPORT this interface too
 export interface UpdateTemplateArgs {
   id: string;
   data: TemplateInputData;
@@ -57,7 +65,7 @@ export const useToggleFavorite = () => {
           `useToggleFavorite: Failed POST request for ${templateId}/favorite:`,
           errorData,
         );
-        throw new Error(errorData?.error || 'Failed to toggle favorite status');
+        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to toggle favorite status');
       }
 
       console.log(
@@ -71,14 +79,14 @@ export const useToggleFavorite = () => {
       templateId: string,
     ): Promise<ToggleFavoriteContext | undefined> => {
       console.log(`useToggleFavorite: onMutate running for ${templateId}`);
-      await queryClient.cancelQueries({ queryKey: ['templates'] });
-      await queryClient.cancelQueries({ queryKey: ['template', templateId] });
+      await queryClient.cancelQueries({ queryKey: ['json-templates'] });
+      await queryClient.cancelQueries({ queryKey: ['json-template', templateId] });
 
       const previousTemplates = queryClient.getQueryData<WorkoutTemplate[]>([
-        'templates',
+        'json-templates',
       ]);
       const previousTemplate = queryClient.getQueryData<WorkoutTemplate>([
-        'template',
+        'json-template',
         templateId,
       ]);
 
@@ -91,7 +99,7 @@ export const useToggleFavorite = () => {
       // Update the cache for the list view
       if (previousTemplates) {
         queryClient.setQueryData(
-          ['templates'],
+          ['json-templates'],
           previousTemplates.map((t) =>
             t.id === templateId
               ? { ...t, favorite: newFavoriteStatusOptimistic }
@@ -101,7 +109,7 @@ export const useToggleFavorite = () => {
       }
       // Update the cache for the single template view (if it exists)
       if (previousTemplate) {
-        queryClient.setQueryData(['template', templateId], {
+        queryClient.setQueryData(['json-template', templateId], {
           ...previousTemplate,
           favorite: newFavoriteStatusOptimistic,
         });
@@ -116,11 +124,11 @@ export const useToggleFavorite = () => {
         err,
       );
       if (context?.previousTemplates) {
-        queryClient.setQueryData(['templates'], context.previousTemplates);
+        queryClient.setQueryData(['json-templates'], context.previousTemplates);
       }
       if (context?.previousTemplate) {
         queryClient.setQueryData(
-          ['template', templateId],
+          ['json-template', templateId],
           context.previousTemplate,
         );
       }
@@ -130,8 +138,8 @@ export const useToggleFavorite = () => {
       console.log(
         `useToggleFavorite: onSettled for ${templateId}, invalidating queries.`,
       );
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
-      queryClient.invalidateQueries({ queryKey: ['template', templateId] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['json-template', templateId] });
     },
   });
 };
@@ -166,8 +174,8 @@ export const useDeleteTemplate = () => {
     },
 
     onSuccess: (deletedTemplateId) => {
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
-      queryClient.removeQueries({ queryKey: ['template', deletedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
+      queryClient.removeQueries({ queryKey: ['json-template', deletedTemplateId] });
     },
   });
 };
@@ -180,7 +188,7 @@ export const useCreateTemplate = () => {
 
   return useMutation<WorkoutTemplate, Error, TemplateInputData>({
     mutationFn: async (templateData) => {
-      const response = await fetch('/api/template', {
+      const response = await fetch('/api/template/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(templateData),
@@ -189,15 +197,16 @@ export const useCreateTemplate = () => {
         const errorData = await response
           .json()
           .catch(() => ({ error: 'Failed to create template' }));
-        throw new Error(errorData.error);
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to create template');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data;
     },
     onSuccess: (newTemplate) => {
       // Invalidate the list of templates to refetch
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       // Optionally, add the new template to the cache immediately
-      queryClient.setQueryData(['template', newTemplate.id], newTemplate);
+      queryClient.setQueryData(['json-template', newTemplate.id], newTemplate);
     },
     // onError: (error) => { // Basic error logging
     //   console.error("Error creating template:", error);
@@ -222,19 +231,19 @@ export const useUpdateTemplate = () => {
         const errorData = await response
           .json()
           .catch(() => ({ error: 'Failed to update template' }));
-        throw new Error(errorData.error);
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to update template');
       }
       return response.json();
     },
     onSuccess: (updatedTemplate) => {
       // Invalidate the list and the specific template
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       queryClient.invalidateQueries({
-        queryKey: ['template', updatedTemplate.id],
+        queryKey: ['json-template', updatedTemplate.id],
       });
       // Optionally, update the specific template in the cache
       queryClient.setQueryData(
-        ['template', updatedTemplate.id],
+        ['json-template', updatedTemplate.id],
         updatedTemplate,
       );
     },
@@ -262,14 +271,20 @@ export const useUpdateProfile = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to update profile');
+        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to update profile');
       }
 
       return response.json();
     },
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    onSuccess: async (data) => {
+      // Invalidate and refetch the profile data
+      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+
+      // Set the new profile data in the cache immediately
+      if (data?.data) {
+        queryClient.setQueryData(['profile'], data.data);
+      }
     },
   });
 };
@@ -291,15 +306,15 @@ export const useDeduplicateExercises = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to deduplicate exercises');
+        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to deduplicate exercises');
       }
 
       return response.json();
     },
 
     onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
-      queryClient.invalidateQueries({ queryKey: ['template'] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['json-template'] });
     },
   });
 };

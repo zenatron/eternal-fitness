@@ -37,7 +37,13 @@ export async function GET() {
         completedAt: null, // Explicitly check for null instead of undefined
       },
       orderBy: { scheduledAt: 'asc' }, // Sort by upcoming date
-      include: {
+      select: {
+        id: true,
+        scheduledAt: true,
+        createdAt: true,
+        updatedAt: true,
+        notes: true,
+        performanceData: true, // Include JSON performance data
         workoutTemplate: {
           select: {
             id: true,

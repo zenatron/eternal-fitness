@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  use,
-  useState, // Import useState for potential future use if needed
-} from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -22,103 +19,79 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-import { useExercise } from '@/lib/hooks/useExercise';
+import { WorkoutExercise, WorkoutSet } from '@/types/workout';
+import {
+  getTemplateExercises,
+  formatSetDisplay,
+  getDifficultyColor,
+  getWorkoutTypeColor
+} from '@/utils/workoutDisplayUtils';
 
-// Define type for the props of the ExerciseDisplay component
+// 🚀 JSON-BASED EXERCISE DISPLAY COMPONENT
 interface ExerciseDisplayProps {
-  exerciseId: string;
-  sets: any[]; // Use 'any[]' for now, or infer type if template type is stable
-  profile: any; // Pass profile for units
+  exercise: WorkoutExercise;
+  profile: any;
 }
 
-// Helper component to display details for a single exercise and its sets
-function ExerciseDisplay({ exerciseId, sets, profile }: ExerciseDisplayProps) {
-  // Fetch details for this specific exercise ID using the hook
-  const {
-    exercise: exerciseDetails,
-    isLoading,
-    error,
-  } = useExercise(exerciseId);
-
-  if (isLoading) {
-    return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Loading exercise details...
-      </div>
-    );
-  }
-
-  // Handle error or missing details gracefully within the block
-  if (error || !exerciseDetails) {
-    return (
-      <div
-        key={exerciseId}
-        className="border border-red-300 dark:border-red-700 rounded-xl overflow-hidden"
-      >
-        <div className="bg-red-50 dark:bg-red-900/20 p-4">
-          <h4 className="font-semibold text-red-700 dark:text-red-400">
-            Error loading: {exerciseId}
-          </h4>
-          <p className="text-xs text-red-600 dark:text-red-300 mt-1">
-            {error ? String(error) : 'Exercise details not found.'}
-          </p>
-        </div>
-        {/* Optionally still render sets if available */}
-        {sets && sets.length > 0 && (
-          <div className="p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              ({sets.length} set(s) associated)
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Render the exercise block using fetched details and passed sets
+function ExerciseDisplay({ exercise, profile }: ExerciseDisplayProps) {
   return (
-    <div
-      key={exerciseId}
-      className="border dark:border-gray-700 rounded-xl overflow-hidden"
-    >
+    <div className="border dark:border-gray-700 rounded-xl overflow-hidden">
       <div className="bg-gray-100 dark:bg-gray-700 p-4">
         <h4 className="font-semibold text-gray-900 dark:text-white">
-          {exerciseDetails.name}
+          {exercise.name}
         </h4>
         <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           <span className="font-medium">Muscles:</span>{' '}
-          {exerciseDetails.muscles?.join(', ') || 'N/A'}
+          {exercise.muscles?.join(', ') || 'N/A'}
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400">
           <span className="font-medium">Equipment:</span>{' '}
-          {exerciseDetails.equipment?.join(', ') || 'N/A'}
+          {exercise.equipment?.join(', ') || 'N/A'}
         </div>
+        {exercise.instructions && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            <span className="font-medium">Instructions:</span> {exercise.instructions}
+          </div>
+        )}
+        {exercise.restBetweenSets && (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="font-medium">Rest:</span> {exercise.restBetweenSets}s between sets
+          </div>
+        )}
       </div>
       <div className="p-4">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-500 dark:text-gray-400 border-b dark:border-gray-700">
-              <th className="px-2 py-2 text-left">Set</th>
-              <th className="px-2 py-2 text-right">Reps</th>
-              <th className="px-2 py-2 text-right">
-                Weight ({profile?.useMetric ? 'kg' : 'lbs'})
-              </th>
+            <tr className="text-left text-gray-500 dark:text-gray-400">
+              <th className="pb-2">Set</th>
+              <th className="pb-2">Type</th>
+              <th className="pb-2">Target</th>
+              <th className="pb-2">Rest</th>
             </tr>
           </thead>
           <tbody>
-            {sets.map((set, index) => (
+            {exercise.sets.map((set, index) => (
               <tr
                 key={set.id}
-                className="border-b dark:border-gray-700 last:border-0"
+                className="border-t border-gray-200 dark:border-gray-600"
               >
-                <td className="px-2 py-3 text-left font-medium text-gray-900 dark:text-white">
-                  Set {index + 1}
+                <td className="py-2 text-gray-700 dark:text-gray-300">
+                  {index + 1}
                 </td>
-                <td className="px-2 py-3 text-right text-gray-900 dark:text-white">
-                  {set.reps}
+                <td className="py-2">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    set.type === 'warmup' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                    set.type === 'working' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {set.type}
+                  </span>
                 </td>
-                <td className="px-2 py-3 text-right text-gray-900 dark:text-white">
-                  {set.weight}
+                <td className="py-2 text-gray-700 dark:text-gray-300">
+                  {formatSetDisplay(set)}
+                </td>
+                <td className="py-2 text-gray-700 dark:text-gray-300">
+                  {set.restTime ? `${set.restTime}s` : '-'}
                 </td>
               </tr>
             ))}
@@ -146,48 +119,18 @@ export default function TemplateDetailPage({
   const toggleFavoriteMutation = useToggleFavorite();
   const deleteTemplateMutation = useDeleteTemplate();
 
-  // *** DEBUG LOG 1: Check raw template data ***
-  console.log('[Template Detail Page] useTemplate Result:', {
-    template,
-    templateLoading,
-    templateError,
+  // 🚀 Get JSON-based exercises
+  const exercises = template ? getTemplateExercises(template) : [];
+
+  console.log('✅ JSON-based template loaded:', {
+    template: template?.name,
+    exercises: exercises.length,
+    totalVolume: template?.totalVolume,
+    difficulty: template?.difficulty,
+    workoutType: template?.workoutType,
   });
 
-  // --- Group sets by exerciseId ---
-  const groupedSetsByExerciseId: { [exerciseId: string]: any[] } = {};
 
-  // *** DEBUG LOG 2: Check sets before grouping ***
-  console.log('[Template Detail Page] Sets before grouping:', template?.sets);
-
-  if (template?.sets) {
-    template.sets.forEach((set) => {
-      if (set && set.exerciseId) {
-        if (!groupedSetsByExerciseId[set.exerciseId]) {
-          groupedSetsByExerciseId[set.exerciseId] = [];
-        }
-        groupedSetsByExerciseId[set.exerciseId].push(set);
-      } else {
-        console.warn(
-          '[Template Detail Page] Set found without exerciseId:',
-          set,
-        );
-      }
-    });
-  }
-
-  const exerciseGroupsToDisplay = Object.entries(groupedSetsByExerciseId).map(
-    ([exerciseId, sets]) => ({
-      id: exerciseId,
-      sets: sets,
-    }),
-  );
-  exerciseGroupsToDisplay.sort((a, b) => a.id.localeCompare(b.id));
-
-  // *** DEBUG LOG 3: Check grouped data structure ***
-  console.log(
-    '[Template Detail Page] Grouped exercises for display:',
-    exerciseGroupsToDisplay,
-  );
 
   const handleToggleFavorite = () => {
     if (!template) return;
@@ -312,14 +255,22 @@ export default function TemplateDetailPage({
 
             <div className="flex flex-wrap gap-4 mt-4 text-sm text-white">
               <div className="bg-white/20 rounded-lg px-3 py-1">
-                {exerciseGroupsToDisplay.length} exercises
+                {exercises.length} exercises
               </div>
               <div className="bg-white/20 rounded-lg px-3 py-1">
-                {template.sets?.length || 0} sets
+                {template.exerciseCount} total sets
               </div>
               <div className="bg-white/20 rounded-lg px-3 py-1">
-                {formatVolume(template.totalVolume, profile?.useMetric)}{' '}
-                {profile?.useMetric ? 'kg' : 'lbs'} typical volume
+                {formatVolume(template.totalVolume, profile?.useMetric)} volume
+              </div>
+              <div className="bg-white/20 rounded-lg px-3 py-1">
+                ~{template.estimatedDuration} min
+              </div>
+              <div className={`rounded-lg px-3 py-1 ${getDifficultyColor(template.difficulty)}`}>
+                {template.difficulty}
+              </div>
+              <div className={`rounded-lg px-3 py-1 ${getWorkoutTypeColor(template.workoutType)}`}>
+                {template.workoutType}
               </div>
             </div>
           </div>
@@ -330,22 +281,18 @@ export default function TemplateDetailPage({
             </h3>
 
             <div className="space-y-6">
-              {/* Map over the grouped exercises and use the ExerciseDisplay component */}
-              {exerciseGroupsToDisplay.length > 0 ? (
-                exerciseGroupsToDisplay.map(({ id: exerciseId, sets }) => (
+              {/* 🚀 Map over JSON-based exercises */}
+              {exercises.length > 0 ? (
+                exercises.map((exercise) => (
                   <ExerciseDisplay
-                    key={exerciseId}
-                    exerciseId={exerciseId}
-                    sets={sets}
+                    key={exercise.id}
+                    exercise={exercise}
                     profile={profile}
                   />
                 ))
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                  {/* Check if template exists but sets are missing/empty */}
-                  {template && (!template.sets || template.sets.length === 0)
-                    ? 'This template currently has no sets.'
-                    : 'No exercises found in this template.'}
+                  This template currently has no exercises.
                 </p>
               )}
             </div>

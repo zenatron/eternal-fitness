@@ -6,6 +6,7 @@ import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { countUniqueExercises, getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 
 export default function FavoriteWorkouts() {
   const router = useRouter();
@@ -15,22 +16,7 @@ export default function FavoriteWorkouts() {
 
   const templates = allTemplates?.filter((template) => template.favorite) ?? [];
 
-  const countUniqueExercises = (template: (typeof templates)[number]) => {
-    const uniqueExerciseIds = new Set<string>();
 
-    if (template.sets) {
-      // Let TS infer the type of set
-      template.sets.forEach((set) => {
-        // Adjust access based on linter hint: use singular 'exercise'
-        // Check if set.exercise exists and has an id
-        if (set.exercise?.id) {
-          uniqueExerciseIds.add(set.exercise.id);
-        }
-      });
-    }
-
-    return uniqueExerciseIds.size;
-  };
 
   const handleToggleFavorite = (templateId: string) => {
     toggleFavoriteMutation.mutate(templateId);
@@ -94,7 +80,7 @@ export default function FavoriteWorkouts() {
               <div className="text-sm text-secondary mt-1 flex flex-wrap gap-2">
                 <span>{countUniqueExercises(template)} exercises</span>
                 <span>•</span>
-                <span>{template.sets?.length || 0} sets</span>
+                <span>{getTotalSetsCount(template)} sets</span>
                 {template.totalVolume != null && template.totalVolume > 0 && (
                   <>
                     <span>•</span>

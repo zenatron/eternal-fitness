@@ -32,25 +32,39 @@ const updateSessionSchema = z.object({
 });
 
 // GET a specific session by ID
-export async function GET({ params }: { params: { sessionId: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return errorResponse('Unauthorized', 401);
     }
 
-    const { sessionId } = params; // Directly access params
+    const { sessionId } = await params;
 
     const session = await prisma.workoutSession.findFirst({
       where: {
         id: sessionId,
         userId, // Ensure session belongs to the authenticated user
       },
-      include: {
+      select: {
+        id: true,
+        completedAt: true,
+        scheduledAt: true,
+        duration: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        performanceData: true, // Include JSON performance data
+        totalVolume: true,
+        totalSets: true,
+        totalExercises: true,
+        personalRecords: true,
         workoutTemplate: {
-          select: { name: true }, // Include template name
+          select: { id: true, name: true },
         },
-        // Consider including exercises/sets if needed on the session page
       },
     });
 
@@ -74,7 +88,7 @@ export async function GET({ params }: { params: { sessionId: string } }) {
 // PUT (update) a session
 export async function PUT(
   request: Request,
-  { params }: { params: { sessionId: string } },
+  { params }: { params: Promise<{ sessionId: string }> },
 ) {
   try {
     const { userId } = await auth();
@@ -82,7 +96,7 @@ export async function PUT(
       return errorResponse('Unauthorized', 401);
     }
 
-    const { sessionId } = params;
+    const { sessionId } = await params;
     const body = await request.json();
 
     // Validate request body
@@ -150,22 +164,26 @@ export async function PUT(
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Add specific error handling if needed
     }
+    const { sessionId } = await params;
     return errorResponse('Internal Server Error updating session', 500, {
-      sessionId: params.sessionId,
+      sessionId,
       error: error instanceof Error ? error.message : String(error),
     });
   }
 }
 
 // DELETE a session
-export async function DELETE({ params }: { params: { sessionId: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return errorResponse('Unauthorized', 401);
     }
 
-    const { sessionId } = params;
+    const { sessionId } = await params;
 
     // Use deleteMany for potentially better performance and simpler check
     // It returns a count of deleted records.
@@ -187,10 +205,11 @@ export async function DELETE({ params }: { params: { sessionId: string } }) {
     // Successfully deleted
     return new NextResponse(null, { status: 204 }); // Standard practice for successful DELETE
   } catch (error) {
+    const { sessionId } = await params;
     console.error('Error in DELETE /api/session/[sessionId]:', error);
     // Handle potential Prisma errors
     return errorResponse('Internal Server Error deleting session', 500, {
-      sessionId: params.sessionId,
+      sessionId,
       error: error instanceof Error ? error.message : String(error),
     });
   }

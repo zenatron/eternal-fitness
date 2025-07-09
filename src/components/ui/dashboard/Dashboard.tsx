@@ -10,16 +10,21 @@ import { QuickActionsCard } from './QuickActionsCard';
 import { DashboardSkeletonLoader } from './DashboardSkeletonLoader';
 import { useDashboardData } from '@/lib/hooks/useDashboardData';
 import { UpcomingWorkoutsCard } from './UpcomingWorkoutsCard';
+import { useDashboardConfig } from '@/lib/hooks/useDashboardConfig';
+import DashboardSettingsModal from './DashboardSettingsModal';
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { data, loading, error, refetch } = useDashboardData();
+  const { config, saveConfig, isLoading: configLoading } = useDashboardConfig();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted || loading || !data) {
+  if (!mounted || loading || configLoading || !data) {
     return <DashboardSkeletonLoader />;
   }
 
@@ -42,25 +47,81 @@ export default function Dashboard() {
     );
   }
 
+  // Component mapping for dynamic rendering
+  const componentMap = {
+    StreakCard: () => <StreakCard streak={data.streak} activityData={data.activityData} />,
+    ProgressCard: () => <ProgressCard data={data.progress} />,
+    RecentActivityCard: () => <RecentActivityCard activities={data.recentActivity} />,
+    UpcomingWorkoutsCard: () => <UpcomingWorkoutsCard sessions={data.upcomingWorkouts} />,
+    StatsCard: () => <StatsCard data={data.stats} />,
+    QuickActionsCard: () => <QuickActionsCard />,
+  };
+
+  // Get enabled tiles sorted by order
+  const enabledTiles = config.tiles
+    .filter(tile => tile.enabled)
+    .sort((a, b) => a.order - b.order);
+
   return (
-    <div className="min-h-screen app-bg pb-12">
-      <div className="w-full max-w-6xl mx-auto px-4 pt-8">
-        <DashboardHeader title="Dashboard (WIP)" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-4 pt-8">
+        {/* Enhanced Dashboard Header */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-8 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">Welcome back! 👋</h1>
+                  <p className="text-blue-100">
+                    Ready to crush your fitness goals today?
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setShowSettings(true)}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                    title="Dashboard Settings"
+                  >
+                    <Cog6ToothIcon className="h-6 w-6 text-white" />
+                  </button>
+                  <div className="hidden md:block">
+                    <div className="text-right">
+                      <p className="text-blue-100 text-sm">Today</p>
+                      <p className="text-xl font-semibold">
+                        {new Date().toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
+        {/* Dashboard Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StreakCard streak={data.streak} activityData={data.activityData} />
-
-          <ProgressCard data={data.progress} />
-
-          <RecentActivityCard activities={data.recentActivity} />
-
-          <UpcomingWorkoutsCard sessions={data.upcomingWorkouts} />
-
-          <StatsCard data={data.stats} />
-
-          <QuickActionsCard />
+          {enabledTiles.map((tile) => {
+            const Component = componentMap[tile.component as keyof typeof componentMap];
+            return Component ? (
+              <div key={tile.id}>
+                {Component()}
+              </div>
+            ) : null;
+          })}
         </div>
       </div>
+
+      {/* Dashboard Settings Modal */}
+      <DashboardSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        currentConfig={config}
+        onSave={saveConfig}
+      />
     </div>
   );
 }

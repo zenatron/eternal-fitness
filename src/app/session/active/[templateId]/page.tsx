@@ -94,26 +94,71 @@ export default function ActiveSessionPage({
     setIsSaving(true);
     setSaveMessage('');
 
-    // Prepare data for API
-    const sessionData = {
-      templateId: template?.id,
-      duration: finalDurationMinutes,
-      notes: sessionNotes,
-      scheduledSessionId: scheduledSessionId || undefined,
-    };
-
     // Basic validation: Check if templateId exists
-    if (!sessionData.templateId) {
+    if (!template?.id) {
       setSaveMessage('Error: Template ID is missing. Cannot save session.');
       setIsSaving(false);
       return;
     }
 
-    // Optional: Add validation for performance data if needed
+    // Prepare data for API
+    let sessionData: any;
+
+    if (scheduledSessionId) {
+      // Completing a scheduled session - need performance data
+      sessionData = {
+        scheduledSessionId: scheduledSessionId,
+        duration: finalDurationMinutes,
+        notes: sessionNotes,
+        performance: {}, // Empty performance for now - could be enhanced later
+      };
+    } else {
+      // Creating a new immediate session - use simpler approach
+      // Since we don't have detailed performance tracking yet,
+      // let's use the legacy session API instead
+      try {
+        const response = await fetch(`/api/template/${template.id}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            duration: finalDurationMinutes,
+            notes: sessionNotes,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: 'Failed to parse error response' }));
+          throw new Error(errorData.error?.message || errorData.error || 'Failed to save session');
+        }
+
+        setSaveMessage('Session saved successfully!');
+        // Redirect to activity/history page or dashboard after save
+        setTimeout(() => {
+          router.push('/activity'); // Go back to activity page
+        }, 1000);
+        return;
+      } catch (error) {
+        console.error('Error saving session:', error);
+        console.error('Error details:', {
+          templateId: template.id,
+          duration: finalDurationMinutes,
+          notes: sessionNotes,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        setSaveMessage(
+          `Error: ${
+            error instanceof Error ? error.message : 'Failed to save session'
+          }`,
+        );
+        setIsSaving(false);
+        return;
+      }
+    }
 
     try {
-      const response = await fetch('/api/session', {
-        // New API endpoint
+      const response = await fetch('/api/session-json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData),
@@ -123,19 +168,26 @@ export default function ActiveSessionPage({
         const errorData = await response
           .json()
           .catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(errorData.error || 'Failed to save session');
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to save scheduled session');
       }
 
-      setSaveMessage('Session saved successfully!');
+      setSaveMessage('Scheduled session completed successfully!');
       // Redirect to activity/history page or dashboard after save
       setTimeout(() => {
         router.push('/activity'); // Go back to activity page
       }, 1000);
     } catch (error) {
-      console.error('Error saving session:', error);
+      console.error('Error completing scheduled session:', error);
+      console.error('Scheduled session error details:', {
+        scheduledSessionId,
+        templateId: template.id,
+        duration: finalDurationMinutes,
+        notes: sessionNotes,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       setSaveMessage(
         `Error: ${
-          error instanceof Error ? error.message : 'Failed to save session'
+          error instanceof Error ? error.message : 'Failed to complete scheduled session'
         }`,
       );
       setIsSaving(false); // Allow retry on error

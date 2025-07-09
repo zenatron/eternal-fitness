@@ -14,27 +14,45 @@ import {
   ScaleIcon,
   BoltIcon,
   SparklesIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 import { SignedIn } from '@clerk/nextjs';
 import SavedWorkouts from '@/components/ui/FavoriteWorkouts';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { useUserStats } from '@/lib/hooks/useUserStats';
 import { SignOutButton } from '@clerk/nextjs';
+
+// Import new profile components
+import { StatsOverview } from '@/components/ui/profile/StatsOverview';
+import { RecentActivity } from '@/components/ui/profile/RecentActivity';
+import { PersonalRecords } from '@/components/ui/profile/PersonalRecords';
+import { TopExercises } from '@/components/ui/profile/TopExercises';
+import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
+import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 
 export default function Profile() {
   const router = useRouter();
   const { profile, isLoading, error } = useProfile();
+  const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
 
   useEffect(() => {
     // Only perform checks and redirects after the initial loading is done.
     if (!isLoading) {
-      if (
+      // If profile is null (not found), redirect to setup
+      if (profile === null) {
+        router.replace('/profile/setup');
+        return;
+      }
+
+      // If profile exists but is incomplete, redirect to setup
+      if (profile && (
         profile.name == null ||
         profile.age == null ||
         profile.weight == null ||
         profile.height == null
-      ) {
-        router.push('/profile/setup');
+      )) {
+        router.replace('/profile/setup');
       }
     }
   }, [isLoading, profile, error, router]);
@@ -54,15 +72,11 @@ export default function Profile() {
       : 'lbs';
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-      </div>
-    );
+  if (isLoading || statsLoading || profile === null) {
+    return <ProfileSkeleton />;
   }
 
-  if (error) {
+  if (error || statsError) {
     return (
       <div className="min-h-screen app-bg py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -70,7 +84,9 @@ export default function Profile() {
             <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
               Error
             </h2>
-            <p className="text-red-500 dark:text-red-300">{String(error)}</p>
+            <p className="text-red-500 dark:text-red-300">
+              {String(error || statsError)}
+            </p>
           </div>
         </div>
       </div>
@@ -78,8 +94,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
         {/* Back to Dashboard Button */}
         <div className="mb-6">
           <Link
@@ -91,126 +107,167 @@ export default function Profile() {
           </Link>
         </div>
 
-        {/* Profile Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-6">
-          <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
+        {/* Enhanced Profile Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8">
+          <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative flex flex-col space-y-4">
-              {/* Top row with name and points */}
-              <div className="flex items-center justify-between">
+            <div className="relative">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-6">
-                  <UserCircleIcon className="w-24 h-24" />
+                  <div className="relative">
+                    <UserCircleIcon className="w-24 h-24" />
+                    <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-2 border-white"></div>
+                  </div>
                   <div>
-                    <h1 className="text-3xl font-bold">{profile?.name}</h1>
-                    <p className="text-blue-100 mt-1">
+                    <h1 className="text-4xl font-bold mb-2">{profile?.name}</h1>
+                    <p className="text-blue-100 mb-1">
                       Member since{' '}
-                      {new Date(profile?.joinDate || '').toLocaleDateString()}
+                      {new Date(profile?.joinDate || '').toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
                     </p>
+                    {stats && (
+                      <p className="text-blue-200 text-sm">
+                        {stats.totalWorkouts} workouts completed • {stats.currentStreak} day streak
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-                  <TrophyIcon className="w-8 h-8 text-yellow-300" />
-                  <div>
-                    <p className="text-sm text-blue-100">Total Points</p>
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/10 rounded-xl px-6 py-4 backdrop-blur-sm text-center">
+                    <TrophyIcon className="w-8 h-8 text-yellow-300 mx-auto mb-2" />
+                    <p className="text-sm text-blue-100">Points</p>
                     <p className="text-2xl font-bold">{profile?.points || 0}</p>
                   </div>
+                  <Link
+                    href="/profile/edit"
+                    className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm"
+                    aria-label="Edit Profile"
+                  >
+                    <Cog6ToothIcon className="w-6 h-6" />
+                  </Link>
                 </div>
               </div>
 
-              {/* Bottom row with user parameters */}
-              <div className="flex items-center justify-between mt-6">
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-wrap gap-4">
-                    {profile?.age && (
-                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
-                        <span className="text-blue-100 text-sm">Age:</span>
-                        <span className="font-medium">{profile.age} yrs</span>
-                      </div>
-                    )}
-                    {profile?.weight && (
-                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
-                        <ScaleIcon className="w-4 h-4 text-blue-100" />
-                        <span className="font-medium">
-                          {getDisplayValue(profile.weight)}{' '}
-                          {getUnitLabel(false)}
-                        </span>
-                      </div>
-                    )}
-                    {profile?.height && (
-                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
-                        <SparklesIcon className="w-4 h-4 text-blue-100" />
-                        <span className="font-medium">
-                          {getDisplayValue(profile.height)} {getUnitLabel(true)}
-                        </span>
-                      </div>
-                    )}
-                    {profile?.gender && (
-                      <div className="bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2">
-                        <span className="text-blue-100 text-sm">Gender:</span>
-                        <span className="font-medium">{profile.gender}</span>
-                      </div>
-                    )}
+              {/* User Stats Pills */}
+              <div className="flex flex-wrap gap-3 mt-6">
+                {profile?.age && (
+                  <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
+                    <span className="text-blue-100 text-sm">Age:</span>
+                    <span className="font-medium">{profile.age} yrs</span>
                   </div>
-                </div>
-                <Link
-                  href="/profile/edit"
-                  className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
-                  aria-label="Edit Profile"
-                >
-                  <Cog6ToothIcon className="w-5 h-5" />
-                </Link>
+                )}
+                {profile?.weight && (
+                  <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
+                    <ScaleIcon className="w-4 h-4 text-blue-100" />
+                    <span className="font-medium">
+                      {getDisplayValue(profile.weight)} {getUnitLabel(false)}
+                    </span>
+                  </div>
+                )}
+                {profile?.height && (
+                  <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
+                    <SparklesIcon className="w-4 h-4 text-blue-100" />
+                    <span className="font-medium">
+                      {getDisplayValue(profile.height)} {getUnitLabel(true)}
+                    </span>
+                  </div>
+                )}
+                {profile?.gender && (
+                  <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
+                    <span className="text-blue-100 text-sm">Gender:</span>
+                    <span className="font-medium">{profile.gender}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Stats Grid - Now only shows workouts completed */}
-          <div className="p-4">
-            {/* Action Buttons - Removed the Edit Profile button */}
-            <div className="flex flex-col sm:flex-row gap-4">
+          {/* Quick Action Buttons */}
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <SignedIn>
                 <Link
                   href="/template/create"
-                  className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
+                  className="btn btn-primary inline-flex items-center justify-center gap-2 text-sm"
                 >
-                  <CalendarDaysIcon className="w-5 h-5" />
+                  <CalendarDaysIcon className="w-4 h-4" />
                   Create Template
                 </Link>
                 <Link
                   href="/templates"
-                  className="btn btn-primary flex-1 inline-flex items-center justify-center gap-2"
+                  className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
                 >
-                  <CalendarDaysIcon className="w-5 h-5" />
-                  View Templates
+                  <CalendarDaysIcon className="w-4 h-4" />
+                  Templates
                 </Link>
                 <Link
                   href="/activity"
-                  className="btn btn-tertiary flex-1 inline-flex items-center justify-center gap-2"
+                  className="btn btn-tertiary inline-flex items-center justify-center gap-2 text-sm"
                 >
-                  <BoltIcon className="w-5 h-5" />
-                  View Activity
+                  <ChartBarIcon className="w-4 h-4" />
+                  Activity
                 </Link>
                 <Link
                   href="/account"
-                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                  className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
                 >
-                  <UserCircleIcon className="w-5 h-5" />
-                  Manage Account
+                  <UserCircleIcon className="w-4 h-4" />
+                  Account
                 </Link>
                 <SignOutButton redirectUrl="/login">
-                  <button className="btn btn-danger flex-1 inline-flex items-center justify-center gap-2">
+                  <button className="btn btn-danger inline-flex items-center justify-center gap-2 text-sm">
+                    <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
                     Sign Out
-                    <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
                   </button>
                 </SignOutButton>
               </SignedIn>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Saved Workouts Section */}
-      <div className="max-w-4xl mx-auto mt-6">
-        <SavedWorkouts />
+        {/* Stats Overview */}
+        {stats && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Your Statistics
+            </h2>
+            <StatsOverview stats={stats} useMetric={profile?.useMetric || false} />
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Recent Activity */}
+          {stats && (
+            <RecentActivity stats={stats} useMetric={profile?.useMetric || false} />
+          )}
+
+          {/* Personal Records */}
+          {stats && (
+            <PersonalRecords stats={stats} useMetric={profile?.useMetric || false} />
+          )}
+
+          {/* Top Exercises */}
+          {stats && (
+            <TopExercises stats={stats} useMetric={profile?.useMetric || false} />
+          )}
+
+          {/* Monthly Progress */}
+          {stats && (
+            <MonthlyProgress stats={stats} useMetric={profile?.useMetric || false} />
+          )}
+        </div>
+
+        {/* Saved Workouts Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            Favorite Templates
+          </h2>
+          <SavedWorkouts />
+        </div>
       </div>
     </div>
   );

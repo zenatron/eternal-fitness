@@ -80,8 +80,9 @@ export default function ProfileSetup() {
       // Use the mutation to update profile
       await updateProfileMutation.mutateAsync(dataToSend);
 
-      // Redirect to profile page on success
-      router.push('/profile');
+      // Use replace instead of push to prevent back button issues
+      // The mutation's onSuccess already invalidates the cache
+      router.replace('/profile');
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'An unexpected error occurred',

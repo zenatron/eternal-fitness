@@ -12,22 +12,7 @@ import {
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { Exercise, Set as WorkoutSet } from '@/types/workout';
 import { useRouter } from 'next/navigation';
-import {
-  DndContext,
-  closestCenter,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useProfile } from '@/lib/hooks/useProfile';
 
 // Define a local type for the component's internal exercise state
@@ -40,41 +25,7 @@ function generateId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-// Simple sortable exercise item component
-function SortableItem({
-  id,
-  children,
-}: {
-  id: string;
-  children: (props: {
-    attributes: any;
-    listeners: any;
-    isDragging: boolean;
-  }) => React.ReactNode;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 100 : 1,
-        position: isDragging ? 'relative' : undefined,
-      }}
-    >
-      {children({ attributes, listeners, isDragging })}
-    </div>
-  );
-}
+// This component is no longer needed with @hello-pangea/dnd
 
 interface TemplateFormEditorProps {
   initialTemplateName?: string;
@@ -120,23 +71,22 @@ export default function TemplateFormEditor({
     setIsFavorite(initialFavorite);
   }, [initialTemplateName, initialExercises, initialFavorite]);
 
-  // Simple sensors configuration with activation constraints to improve usability
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // Adding a small delay to prevent accidental drags
-      activationConstraint: {
-        delay: 100,
-        tolerance: 5,
-      },
-    }),
-    useSensor(TouchSensor, {
-      // Similar settings for touch
-      activationConstraint: {
-        delay: 100,
-        tolerance: 5,
-      },
-    }),
-  );
+  // Handle drag end for exercises
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
+    setTemplateExercises((prev) => {
+      const newExercises = [...prev];
+      const [reorderedItem] = newExercises.splice(sourceIndex, 1);
+      newExercises.splice(destinationIndex, 0, reorderedItem);
+      return newExercises;
+    });
+  };
 
   // Filter exercises based on search query
   useEffect(() => {
@@ -346,23 +296,7 @@ export default function TemplateFormEditor({
     setTemplateExercises(updatedExercises);
   };
 
-  // Handle drag end event
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      setTemplateExercises((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          return arrayMove(items, oldIndex, newIndex);
-        }
-
-        return items;
-      });
-    }
-  };
 
   // Validate and save the template
   const saveTemplate = async () => {
@@ -400,36 +334,27 @@ export default function TemplateFormEditor({
     const method = mode === 'create' ? 'POST' : 'PUT';
 
     try {
-      // Prepare sets data for API - each set contains exercise IDs
-      const setsData = [];
-
-      for (const exercise of templateExercises) {
-        if (!exercise.sets) continue;
-
-        for (const set of exercise.sets) {
-          setsData.push({
-            reps: set.reps,
-            weight: set.weight,
-            exercises: [exercise.id], // Connect this set to the exercise
-          });
-        }
-      }
+      // Prepare exercises data for JSON-based API
+      const exercisesData = templateExercises.map((exercise) => ({
+        exerciseKey: exercise.id, // Use exercise ID as the key
+        sets: exercise.sets?.map((set) => ({
+          reps: set.reps,
+          weight: set.weight,
+          type: 'working', // Default set type
+        })) || [],
+        instructions: '', // Could be added to the form later
+        restBetweenSets: 60, // Default rest time
+      }));
 
       // Log what we're sending
-      console.log('Submitting template with data:', {
+      console.log('Submitting template with JSON data:', {
         name: templateName,
-        sets: setsData.map((s) => ({
-          reps: s.reps,
-          weight: s.weight,
-          exerciseCount: s.exercises?.length,
+        exercises: exercisesData.map((ex) => ({
+          exerciseKey: ex.exerciseKey,
+          setCount: ex.sets.length,
         })),
         favorite: isFavorite,
       });
-
-      // Log a sample exercise ID to verify
-      if (setsData.length > 0 && setsData[0].exercises.length > 0) {
-        console.log('Sample exercise ID:', setsData[0].exercises[0]);
-      }
 
       const response = await fetch(endpoint, {
         method,
@@ -438,8 +363,11 @@ export default function TemplateFormEditor({
         },
         body: JSON.stringify({
           name: templateName,
-          sets: setsData,
+          exercises: exercisesData,
           favorite: isFavorite,
+          workoutType: 'strength', // Default values
+          difficulty: 'intermediate',
+          tags: [],
         }),
       });
 
@@ -581,26 +509,29 @@ export default function TemplateFormEditor({
                   </p>
                 </div>
               ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={templateExercises.map((exercise) => exercise.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-6">
-                      {templateExercises.map((exercise, exerciseIndex) => {
-                        return (
-                          <SortableItem key={exercise.id} id={exercise.id}>
-                            {({ attributes, listeners, isDragging }) => (
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="template-exercises">
+                    {(provided) => (
+                      <div
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className="space-y-6"
+                      >
+                        {templateExercises.map((exercise, exerciseIndex) => (
+                          <Draggable
+                            key={exercise.id}
+                            draggableId={exercise.id}
+                            index={exerciseIndex}
+                          >
+                            {(provided, snapshot) => (
                               <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
                                 className={`
                                 bg-gray-50 dark:bg-gray-700/50 rounded-xl overflow-hidden
                                 ${
-                                  isDragging
-                                    ? 'ring-2 ring-blue-500 shadow-lg'
+                                  snapshot.isDragging
+                                    ? 'ring-2 ring-blue-500 shadow-lg opacity-75'
                                     : ''
                                 }
                               `}
@@ -610,8 +541,7 @@ export default function TemplateFormEditor({
                                   <div className="flex items-center gap-3">
                                     <div
                                       className="cursor-grab p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
-                                      {...attributes}
-                                      {...listeners}
+                                      {...provided.dragHandleProps}
                                       title="Drag to reorder"
                                     >
                                       <Bars2Icon className="h-5 w-5 text-gray-500 dark:text-gray-300" />
@@ -739,14 +669,13 @@ export default function TemplateFormEditor({
                                           <div>
                                             <input
                                               type="number"
-                                              min="0"
                                               value={set.reps || ''}
                                               onChange={(e) =>
                                                 updateSet(
                                                   exerciseIndex,
                                                   setIndex,
                                                   'reps',
-                                                  parseInt(e.target.value) || 0,
+                                                  e.target.value === '' ? 0 : parseInt(e.target.value) || 0,
                                                 )
                                               }
                                               className="form-input"
@@ -756,7 +685,6 @@ export default function TemplateFormEditor({
                                           <div>
                                             <input
                                               type="number"
-                                              min="0"
                                               step="0.5"
                                               value={set.weight || ''}
                                               onChange={(e) =>
@@ -764,8 +692,7 @@ export default function TemplateFormEditor({
                                                   exerciseIndex,
                                                   setIndex,
                                                   'weight',
-                                                  parseFloat(e.target.value) ||
-                                                    0,
+                                                  e.target.value === '' ? undefined : parseFloat(e.target.value) || 0,
                                                 )
                                               }
                                               className="form-input"
@@ -788,12 +715,13 @@ export default function TemplateFormEditor({
                                 </div>
                               </div>
                             )}
-                          </SortableItem>
-                        );
-                      })}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               )}
 
               {/* Save Button */}

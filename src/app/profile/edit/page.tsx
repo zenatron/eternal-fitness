@@ -76,7 +76,7 @@ export default function EditProfilePage() {
 
     try {
       await updateProfileMutation.mutateAsync(processedData);
-      router.push('/profile');
+      router.replace('/profile');
     } catch (error) {
       console.error('Error updating profile:', error);
       setError('Failed to update profile. Please try again.');

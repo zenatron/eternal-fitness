@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, use } from 'react';
 import { FlagIcon } from '@heroicons/react/24/outline';
 import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
 import {
-  WorkoutTemplateWithSets,
+  WorkoutTemplate,
   Exercise,
   Set as WorkoutSet,
 } from '@/types/workout';
@@ -26,69 +26,70 @@ export default function EditTemplatePage({
   const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
   const [initialFavorite, setInitialFavorite] = useState(false);
 
-  // Convert DB WorkoutTemplate format to FormExercise[] format for the editor
+  // Convert JSON-based WorkoutTemplate format to FormExercise[] format for the editor
   const convertTemplateToFormExercises = useCallback(
-    (templateData: WorkoutTemplateWithSets): FormExerciseWithSets[] => {
-      // Type guard already handled by template check in useEffect
-      // if (!templateData?.sets) { ... }
+    (templateData: WorkoutTemplate): FormExerciseWithSets[] => {
+      // Check if template has workoutData and exercises
+      if (!templateData?.workoutData?.exercises) {
+        console.warn('convertTemplateToFormExercises: No exercises found in template data');
+        return [];
+      }
 
-      const exerciseMap: Record<string, FormExerciseWithSets> = {};
+      const formExercises: FormExerciseWithSets[] = [];
 
-      templateData.sets.forEach((workoutSet) => {
-        // Check if the set and its nested exercise exist
-        if (!workoutSet?.exercise?.id) {
+      templateData.workoutData.exercises.forEach((workoutExercise) => {
+        // Check if the exercise exists
+        if (!workoutExercise?.exerciseKey) {
           console.warn(
-            'convertTemplateToFormExercises: Skipping set due to missing exercise data:',
-            workoutSet,
+            'convertTemplateToFormExercises: Skipping exercise due to missing exerciseKey:',
+            workoutExercise,
           );
-          return; // Skip this set if exercise data is missing
+          return; // Skip this exercise if exerciseKey is missing
         }
 
-        const exercise = workoutSet.exercise;
-        const exerciseId = exercise.id;
+        // Convert WorkoutSet[] to FormSet[]
+        const formSets = workoutExercise.sets.map((set) => ({
+          id: set.id,
+          reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0,
+          weight: set.targetWeight || 0,
+          duration: set.targetDuration,
+          workoutTemplateId: templateData.id,
+          exerciseId: workoutExercise.exerciseKey,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
 
-        // Initialize exercise in map if it doesn't exist
-        if (!exerciseMap[exerciseId]) {
-          exerciseMap[exerciseId] = {
-            ...exercise, // Spread existing exercise properties
-            // Explicitly handle potential null from Prisma type
-            description: exercise.description ?? undefined,
-            createdAt: exercise.createdAt || new Date(),
-            updatedAt: exercise.updatedAt || new Date(),
-            sets: [],
-          };
-        }
+        // Create FormExerciseWithSets
+        const formExercise: FormExerciseWithSets = {
+          id: workoutExercise.exerciseKey,
+          name: workoutExercise.exerciseKey, // Will be resolved by exercise data
+          muscles: [], // Will be resolved by exercise data
+          equipment: [], // Will be resolved by exercise data
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          sets: formSets,
+        };
 
-        // Add the current set's details to the corresponding exercise's sets array
-        exerciseMap[exerciseId].sets.push({
-          ...workoutSet,
-          // Explicitly handle potential null from Prisma types
-          duration: workoutSet.duration ?? undefined,
-          volume: workoutSet.volume ?? undefined,
-          // The nested exercise is already spread from workoutSet.
-        });
+        formExercises.push(formExercise);
       });
 
-      // Convert the map to an array
-      return Object.values(exerciseMap);
+      return formExercises;
     },
     [templateId],
   );
 
   // Process template data when it loads
   useEffect(() => {
-    if (template) {
+    if (template && template.workoutData) {
       // Set template name
       setInitialTemplateName(template.name);
 
       // Set favorite status
       setInitialFavorite(template.favorite || false);
 
-      // Convert template data (which is WorkoutTemplateWithSets)
+      // Convert JSON-based template data to form format
       const formattedExercises = convertTemplateToFormExercises(template);
-      // Ensure TemplateFormEditor accepts Exercise[] | FormExerciseWithSets[]
-      // For now, we might need a type assertion if TemplateFormEditor expects strictly Exercise[]
-      setInitialExercises(formattedExercises as Exercise[]); // <-- Potential type assertion needed here
+      setInitialExercises(formattedExercises as Exercise[]);
     }
   }, [template, convertTemplateToFormExercises]);
 

@@ -3,6 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
+import { WorkoutTemplate } from '@/types/workout';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 201) => {
@@ -31,7 +33,7 @@ const completeTemplateSchema = z.object({
 
 export async function POST(
   request: Request,
-  { params }: { params: { templateId: string } },
+  { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
     const { userId } = await auth();
@@ -39,7 +41,7 @@ export async function POST(
       return errorResponse('Unauthorized', 401);
     }
 
-    const { templateId } = params;
+    const { templateId } = await params;
     let body = {}; // Default to empty object if no body is expected/sent
     try {
       // Try to parse body, but allow empty body
@@ -61,10 +63,15 @@ export async function POST(
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
-      // 1. Fetch the template, verify ownership, and get totalVolume
+      // 1. Fetch the template, verify ownership, and get required data
       const template = await tx.workoutTemplate.findUnique({
         where: { id: templateId, userId },
-        select: { id: true, totalVolume: true }, // Need totalVolume
+        select: {
+          id: true,
+          totalVolume: true,
+          workoutData: true,
+          exerciseCount: true
+        },
       });
 
       if (!template) {
@@ -74,7 +81,27 @@ export async function POST(
       const completionTime = new Date();
       const sessionTotalVolume = template.totalVolume;
 
-      // 2. Create the WorkoutSession record
+      // 2. Create the WorkoutSession record with required performanceData
+      const templateData = template.workoutData;
+      const totalSets = getTotalSetsCount(template as WorkoutTemplate);
+
+      // Create basic performance data structure for the completed session
+      const performanceData = {
+        templateSnapshot: templateData,
+        performance: {}, // Empty performance data since we don't track detailed performance in this simple completion
+        metrics: {
+          totalVolume: sessionTotalVolume,
+          totalSets: totalSets,
+          totalExercises: template.exerciseCount || 0,
+          completedSets: totalSets, // Assume all sets completed for simple completion
+          skippedSets: 0,
+          personalRecords: [],
+          volumeRecords: [],
+          adherenceScore: 100, // Assume 100% adherence for simple completion
+        },
+        environment: {},
+      };
+
       const createdSession = await tx.workoutSession.create({
         data: {
           userId: userId,
@@ -83,7 +110,12 @@ export async function POST(
           duration: duration,
           notes: notes,
           totalVolume: sessionTotalVolume,
+          totalSets: totalSets,
+          totalExercises: template.exerciseCount || 0,
+          averageRpe: null,
+          personalRecords: 0,
           scheduledAt: null, // Not scheduled
+          performanceData: performanceData as any, // Prisma Json type
         },
         include: { workoutTemplate: { select: { name: true } } },
       });
@@ -135,18 +167,19 @@ export async function POST(
 
     return successResponse(newSession);
   } catch (error: any) {
+    const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404, {
-        templateId: params.templateId,
+        templateId,
       });
     }
 
-    console.error(`Error completing template ${params.templateId}:`, error);
+    console.error(`Error completing template ${templateId}:`, error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       console.error('Prisma Error Code:', error.code);
     }
     return errorResponse('Internal Server Error completing template', 500, {
-      templateId: params.templateId,
+      templateId,
       error: error instanceof Error ? error.message : String(error),
     });
   }

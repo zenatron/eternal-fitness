@@ -19,7 +19,7 @@ const errorResponse = (message: string, status = 500, details?: any) => {
   );
 };
 
-// GET function to fetch all templates for the user
+// 🚀 GET function to fetch all JSON-based templates for the user
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -28,21 +28,31 @@ export async function GET() {
       return errorResponse('Unauthorized', 401);
     }
 
-    // Fetch templates, including sets and their related exercises
+    // 🎯 FETCH JSON-BASED TEMPLATES
     const templates = await prisma.workoutTemplate.findMany({
       where: {
         userId,
       },
-      include: {
-        sets: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            exercise: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        favorite: true,
+        createdAt: true,
+        updatedAt: true,
+        workoutData: true, // JSON workout data
+        totalVolume: true,
+        estimatedDuration: true,
+        exerciseCount: true,
+        difficulty: true,
+        workoutType: true,
+        tags: true,
+        userId: true,
       },
       orderBy: [{ favorite: 'desc' }, { name: 'asc' }],
     });
+
+    console.log(`✅ Fetched ${templates.length} JSON-based templates for user ${userId}`);
 
     return successResponse(templates);
   } catch (error) {

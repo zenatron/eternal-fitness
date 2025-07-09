@@ -18,9 +18,12 @@ const errorResponse = (message: string, status = 500, details?: any) => {
   );
 };
 
-export async function GET({ params }: { params: { exerciseId: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ exerciseId: string }> }
+) {
   try {
-    const { exerciseId } = params;
+    const { exerciseId } = await params;
 
     const exercise = await prisma.exercise.findUnique({
       where: { id: exerciseId },

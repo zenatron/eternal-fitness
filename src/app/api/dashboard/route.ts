@@ -136,10 +136,16 @@ export async function GET() {
       where: { userId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       take: 3,
-      include: {
+      select: {
+        id: true,
+        completedAt: true,
+        totalVolume: true,
+        totalSets: true,
+        totalExercises: true,
+        duration: true,
+        performanceData: true, // Include JSON performance data
         workoutTemplate: {
-          // Include template name
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     });
@@ -205,9 +211,14 @@ export async function GET() {
       orderBy: {
         scheduledAt: 'asc',
       },
-      include: {
+      select: {
+        id: true,
+        scheduledAt: true,
+        createdAt: true,
+        notes: true,
+        performanceData: true, // Include JSON performance data
         workoutTemplate: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     });
