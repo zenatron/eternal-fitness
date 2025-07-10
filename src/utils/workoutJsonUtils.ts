@@ -220,6 +220,57 @@ export function calculateExerciseVolume(sets: PerformedSet[]): number {
 }
 
 /**
+ * Converts exerciseProgress format to ExercisePerformance format
+ * This is needed because the UI stores data in exerciseProgress format
+ * but metrics calculation expects ExercisePerformance format
+ */
+export function convertExerciseProgressToPerformance(
+  exerciseProgress: { [exerciseId: string]: any },
+  template: WorkoutTemplateData
+): { [exerciseId: string]: ExercisePerformance } {
+  const performance: { [exerciseId: string]: ExercisePerformance } = {};
+
+  Object.values(exerciseProgress).forEach((progress) => {
+    const exercise = template.exercises.find(ex => ex.id === progress.exerciseId);
+    if (!exercise) return;
+
+    const performedSets: PerformedSet[] = progress.sets.map((setProgress: any) => ({
+      setId: setProgress.setId,
+      actualReps: setProgress.actualReps,
+      actualWeight: setProgress.actualWeight,
+      actualDuration: setProgress.actualDuration,
+      actualRpe: setProgress.actualRpe,
+      completed: setProgress.completed,
+      skipped: setProgress.skipped || false,
+      notes: setProgress.notes,
+      restTime: setProgress.restTime,
+    }));
+
+    const totalVolume = performedSets.reduce((total, set) => {
+      if (set.completed && set.actualReps && set.actualWeight) {
+        return total + (set.actualReps * set.actualWeight);
+      }
+      return total;
+    }, 0);
+
+    const completedSets = performedSets.filter(set => set.completed);
+    const averageRpe = completedSets.length > 0
+      ? completedSets.reduce((sum, set) => sum + (set.actualRpe || 0), 0) / completedSets.length
+      : undefined;
+
+    performance[progress.exerciseId] = {
+      exerciseKey: exercise.exerciseKey,
+      sets: performedSets,
+      exerciseNotes: progress.exerciseNotes,
+      totalVolume,
+      averageRpe,
+    };
+  });
+
+  return performance;
+}
+
+/**
  * Detects personal records in a workout session
  */
 export function detectPersonalRecords(

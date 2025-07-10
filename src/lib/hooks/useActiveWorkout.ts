@@ -1,136 +1,343 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { WorkoutTemplateData, ExercisePerformance, ActiveWorkoutSessionData, ActiveSessionUpdatePayload } from '@/types/workout';
 
-interface ActiveWorkoutState {
+// Legacy interface for backward compatibility with localStorage
+interface LegacyActiveWorkoutState {
   templateId: string;
   templateName: string;
   startTime: number;
-  elapsedTime: number;
-  isActive: boolean;
+  pausedTime: number;
+  isTimerActive: boolean;
   sessionNotes: string;
   workoutPerformance: { [exerciseId: string]: ExercisePerformance };
   modifiedTemplate?: WorkoutTemplateData;
   exerciseProgress?: { [exerciseId: string]: any };
+  lastPauseTime?: number;
 }
 
 const ACTIVE_WORKOUT_KEY = 'eternal-fitness-active-workout';
 
 export function useActiveWorkout() {
-  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutState | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutSessionData | null>(null);
+  const [currentTime, setCurrentTime] = useState<string>('0:00');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load active workout from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem(ACTIVE_WORKOUT_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setActiveWorkout(parsed);
-      } catch (error) {
-        console.error('Failed to parse active workout from localStorage:', error);
-        localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-      }
+  // API functions for server sync
+  const fetchActiveSession = useCallback(async (): Promise<ActiveWorkoutSessionData | null> => {
+    try {
+      const response = await fetch('/api/session/active');
+      if (!response.ok) throw new Error('Failed to fetch active session');
+      const result = await response.json();
+      return result.data.activeSession;
+    } catch (error) {
+      console.error('Error fetching active session:', error);
+      return null;
     }
   }, []);
 
-  // Save to localStorage whenever activeWorkout changes
-  useEffect(() => {
-    if (activeWorkout) {
-      localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout));
-    } else {
-      localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-    }
-  }, [activeWorkout]);
+  const syncToServer = useCallback(async (updates: ActiveSessionUpdatePayload) => {
+    if (isSyncing) return; // Prevent concurrent syncs
 
-  const startWorkout = useCallback((
+    setIsSyncing(true);
+    try {
+      const response = await fetch('/api/session/active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) throw new Error('Failed to sync to server');
+      const result = await response.json();
+      return result.data.activeSession;
+    } catch (error) {
+      console.error('Error syncing to server:', error);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
+
+  // Debounced sync function
+  const debouncedSync = useCallback((updates: ActiveSessionUpdatePayload) => {
+    console.log('⏱️ debouncedSync called with:', JSON.stringify(updates, null, 2));
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    syncTimeoutRef.current = setTimeout(() => {
+      console.log('🚀 Syncing to server after debounce:', JSON.stringify(updates, null, 2));
+      syncToServer(updates).catch(console.error);
+    }, 1000); // Sync after 1 second of inactivity
+  }, [syncToServer]);
+
+  // Calculate elapsed time in seconds
+  const getElapsedSeconds = useCallback((workout: ActiveWorkoutSessionData): number => {
+    if (!workout) return 0;
+
+    const now = Date.now();
+    const startTime = new Date(workout.startedAt).getTime();
+    let totalElapsed = workout.pausedTime; // Start with previously paused time
+
+    if (workout.isTimerActive) {
+      // Add time since last start/resume
+      totalElapsed += Math.floor((now - startTime) / 1000);
+    } else if (workout.lastPauseTime) {
+      // Timer is paused, add time from start to last pause
+      totalElapsed += Math.floor((new Date(workout.lastPauseTime).getTime() - startTime) / 1000);
+    }
+
+    return Math.max(0, totalElapsed);
+  }, []);
+
+  // Format time for display
+  const formatTime = useCallback((seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Update timer display every second
+  useEffect(() => {
+    const updateTimer = () => {
+      if (activeWorkout) {
+        const elapsed = getElapsedSeconds(activeWorkout);
+        setCurrentTime(formatTime(elapsed));
+      }
+    };
+
+    // Update immediately
+    updateTimer();
+
+    // Set up interval for continuous updates
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout, getElapsedSeconds, formatTime]);
+
+  // Load active workout from server on mount
+  useEffect(() => {
+    const loadActiveSession = async () => {
+      setIsLoading(true);
+      try {
+        // First try to get from server
+        const serverSession = await fetchActiveSession();
+        if (serverSession) {
+          setActiveWorkout(serverSession);
+        } else {
+          // Fallback to localStorage for migration
+          const saved = localStorage.getItem(ACTIVE_WORKOUT_KEY);
+          if (saved) {
+            try {
+              const parsed: LegacyActiveWorkoutState = JSON.parse(saved);
+              // Convert legacy format to new format
+              const migratedSession: ActiveWorkoutSessionData = {
+                templateId: parsed.templateId,
+                templateName: parsed.templateName,
+                originalTemplate: parsed.modifiedTemplate || {} as WorkoutTemplateData,
+                startedAt: new Date(parsed.startTime),
+                pausedTime: parsed.pausedTime,
+                isTimerActive: parsed.isTimerActive,
+                lastPauseTime: parsed.lastPauseTime ? new Date(parsed.lastPauseTime) : undefined,
+                modifiedTemplate: parsed.modifiedTemplate,
+                performance: parsed.workoutPerformance,
+                exerciseProgress: parsed.exerciseProgress || {},
+                sessionNotes: parsed.sessionNotes,
+                version: 1,
+                lastUpdated: new Date(),
+              };
+              setActiveWorkout(migratedSession);
+              // Clear localStorage after migration
+              localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+            } catch (error) {
+              console.error('Failed to migrate legacy workout data:', error);
+              localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading active session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadActiveSession();
+  }, [fetchActiveSession]);
+
+  const startWorkout = useCallback(async (
     templateId: string,
     templateName: string,
     template?: WorkoutTemplateData
   ) => {
-    const newWorkout: ActiveWorkoutState = {
-      templateId,
-      templateName,
-      startTime: Date.now(),
-      elapsedTime: 0,
-      isActive: true,
-      sessionNotes: '',
-      workoutPerformance: {},
-      modifiedTemplate: template,
-      exerciseProgress: {},
-    };
-    setActiveWorkout(newWorkout);
+    try {
+      const response = await fetch('/api/session/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId,
+          templateName,
+          template,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to start workout session');
+
+      const result = await response.json();
+      setActiveWorkout(result.data.activeSession);
+    } catch (error) {
+      console.error('Error starting workout:', error);
+      throw error;
+    }
   }, []);
 
-  const updateWorkout = useCallback((updates: Partial<ActiveWorkoutState>) => {
-    setActiveWorkout(prev => prev ? { ...prev, ...updates } : null);
-  }, []); // Removed activeWorkout dependency
-
-  const updateElapsedTime = useCallback((elapsedTime: number) => {
-    updateWorkout({ elapsedTime });
-  }, [updateWorkout]);
+  const updateWorkout = useCallback((updates: ActiveSessionUpdatePayload) => {
+    console.log('💾 updateWorkout called with updates:', JSON.stringify(updates, null, 2));
+    setActiveWorkout(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      console.log('💾 Updated active workout state:', JSON.stringify(updated, null, 2));
+      // Debounced sync to server
+      debouncedSync(updates);
+      return updated;
+    });
+  }, [debouncedSync]);
 
   const updatePerformance = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    updateWorkout({ workoutPerformance: performance });
+    console.log('🔄 updatePerformance called with:', JSON.stringify(performance, null, 2));
+    updateWorkout({ performance });
   }, [updateWorkout]);
 
-  const updateExerciseProgress = useCallback((progress: { [exerciseId: string]: any }) => {
-    updateWorkout({ exerciseProgress: progress });
+  const updateExerciseProgress = useCallback((exerciseProgress: { [exerciseId: string]: any }) => {
+    updateWorkout({ exerciseProgress });
   }, [updateWorkout]);
 
-  const updateSessionNotes = useCallback((notes: string) => {
-    updateWorkout({ sessionNotes: notes });
+  const updateSessionNotes = useCallback((sessionNotes: string) => {
+    updateWorkout({ sessionNotes });
   }, [updateWorkout]);
 
-  const updateModifiedTemplate = useCallback((template: WorkoutTemplateData) => {
-    updateWorkout({ modifiedTemplate: template });
+  const updateModifiedTemplate = useCallback((modifiedTemplate: WorkoutTemplateData) => {
+    updateWorkout({ modifiedTemplate });
   }, [updateWorkout]);
 
-  const pauseWorkout = useCallback(() => {
-    updateWorkout({ isActive: false });
-  }, [updateWorkout]);
+  const toggleTimer = useCallback(() => {
+    if (!activeWorkout) return;
 
-  const resumeWorkout = useCallback(() => {
-    updateWorkout({ isActive: true });
-  }, [updateWorkout]);
+    const now = new Date();
+    const startTime = new Date(activeWorkout.startedAt).getTime();
 
-  const endWorkout = useCallback(() => {
-    setActiveWorkout(null);
-    // Also explicitly clear localStorage to ensure it's removed
-    localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+    if (activeWorkout.isTimerActive) {
+      // Pausing: calculate and store total paused time
+      const sessionTime = Math.floor((now.getTime() - startTime) / 1000);
+      updateWorkout({
+        isTimerActive: false,
+        pausedTime: activeWorkout.pausedTime + sessionTime,
+        lastPauseTime: now
+      });
+    } else {
+      // Resuming: clear pause time
+      updateWorkout({
+        isTimerActive: true,
+        lastPauseTime: undefined
+      });
+    }
+  }, [activeWorkout, updateWorkout]);
+
+  const endWorkout = useCallback(async () => {
+    try {
+      await fetch('/api/session/active', { method: 'DELETE' });
+      setActiveWorkout(null);
+      // Clear any remaining localStorage data
+      localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+    } catch (error) {
+      console.error('Error ending workout:', error);
+      // Still clear local state even if server call fails
+      setActiveWorkout(null);
+    }
+  }, []);
+
+  const completeWorkout = useCallback(async (duration?: number, notes?: string) => {
+    try {
+      const response = await fetch('/api/session/active/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration, notes }),
+      });
+
+      if (!response.ok) throw new Error('Failed to complete workout');
+
+      const data = await response.json();
+      setActiveWorkout(null);
+      return data;
+    } catch (error) {
+      console.error('Error completing workout:', error);
+      throw error;
+    }
+  }, []);
+
+  const recoverSession = useCallback(async (templateId: string, forceRecover = false) => {
+    try {
+      const response = await fetch('/api/session/active/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId, forceRecover }),
+      });
+
+      if (!response.ok) throw new Error('Failed to recover session');
+
+      const result = await response.json();
+      if (result.data.activeSession) {
+        setActiveWorkout(result.data.activeSession);
+      } else {
+        setActiveWorkout(null);
+      }
+      return result.data;
+    } catch (error) {
+      console.error('Error recovering session:', error);
+      throw error;
+    }
   }, []);
 
   const getWorkoutDuration = useCallback(() => {
     if (!activeWorkout) return 0;
-    return Math.floor((Date.now() - activeWorkout.startTime) / 1000);
-  }, [activeWorkout]);
+    return getElapsedSeconds(activeWorkout);
+  }, [activeWorkout, getElapsedSeconds]);
 
-  const formatWorkoutDuration = useCallback(() => {
-    const duration = getWorkoutDuration();
-    const hours = Math.floor(duration / 3600);
-    const minutes = Math.floor((duration % 3600) / 60);
-    const seconds = duration % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }, [getWorkoutDuration]);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     activeWorkout,
+    isLoading,
+    isSyncing,
     startWorkout,
     updateWorkout,
-    updateElapsedTime,
     updatePerformance,
     updateExerciseProgress,
     updateSessionNotes,
     updateModifiedTemplate,
-    pauseWorkout,
-    resumeWorkout,
+    toggleTimer,
     endWorkout,
+    completeWorkout,
+    recoverSession,
     getWorkoutDuration,
-    formatWorkoutDuration,
+    formatWorkoutDuration: currentTime, // Return the live-updating time string
     hasActiveWorkout: !!activeWorkout,
+    isTimerActive: activeWorkout?.isTimerActive || false,
   };
 }

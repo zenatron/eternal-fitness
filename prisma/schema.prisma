@@ -118,6 +118,12 @@ model UserStats {
   achievements       Json?     @db.JsonB
   uniqueExercises    Int       @default(0) // Count of unique exercises performed
 
+  // 🏃‍♂️ ACTIVE WORKOUT SESSION TRACKING
+  // Track the currently active workout session for dynamic editing
+  activeWorkoutId       String?   // ID of the template being used for active workout
+  activeWorkoutData     Json?     @db.JsonB // Current state of the workout including modifications
+  activeWorkoutStartedAt DateTime? // When the active workout session started
+
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

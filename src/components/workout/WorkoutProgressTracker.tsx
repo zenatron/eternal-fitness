@@ -85,6 +85,11 @@ export default function WorkoutProgressTracker({
     onExerciseProgressUpdateRef.current = onExerciseProgressUpdate;
   }, [onPerformanceUpdate, onExerciseProgressUpdate]);
 
+  // Sync modifiedTemplate with template prop changes
+  useEffect(() => {
+    setModifiedTemplate(template);
+  }, [template]);
+
   // Initialize progress state from template or saved state
   useEffect(() => {
     // Use initial progress if provided, otherwise create new progress
@@ -111,10 +116,68 @@ export default function WorkoutProgressTracker({
       setExerciseProgress(initialProgress);
       isInitialized.current = true;
     }
-  }, [template, initialExerciseProgress]); // Use template prop instead of modifiedTemplate
+  }, [initialExerciseProgress]); // Remove template from dependencies to prevent re-initialization
+
+  // Handle template changes after initialization (e.g., adding new exercises/sets)
+  useEffect(() => {
+    if (!isInitialized.current) return;
+
+    setExerciseProgress(prev => {
+      const updated = { ...prev };
+      let hasChanges = false;
+
+      // Add progress for new exercises
+      modifiedTemplate.exercises.forEach((exercise) => {
+        if (!updated[exercise.id]) {
+          updated[exercise.id] = {
+            exerciseId: exercise.id,
+            sets: exercise.sets.map((set) => ({
+              setId: set.id,
+              completed: false,
+              actualReps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min,
+              actualWeight: set.targetWeight,
+              actualDuration: set.targetDuration,
+            })),
+            completed: false,
+          };
+          hasChanges = true;
+        } else {
+          // Add progress for new sets in existing exercises
+          const existingProgress = updated[exercise.id];
+          const existingSetIds = new Set(existingProgress.sets.map(s => s.setId));
+
+          exercise.sets.forEach((set) => {
+            if (!existingSetIds.has(set.id)) {
+              existingProgress.sets.push({
+                setId: set.id,
+                completed: false,
+                actualReps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min,
+                actualWeight: set.targetWeight,
+                actualDuration: set.targetDuration,
+              });
+              hasChanges = true;
+            }
+          });
+        }
+      });
+
+      // Remove progress for deleted exercises
+      Object.keys(updated).forEach(exerciseId => {
+        if (!modifiedTemplate.exercises.find(ex => ex.id === exerciseId)) {
+          delete updated[exerciseId];
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? updated : prev;
+    });
+  }, [modifiedTemplate.exercises]); // Only depend on exercises array
 
   // Update parent component when progress changes
   useEffect(() => {
+    console.log('🎯 WorkoutProgressTracker: Performance calculation effect running');
+    console.log('🎯 exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
+
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
 
     Object.values(exerciseProgress).forEach((progress) => {
@@ -155,8 +218,16 @@ export default function WorkoutProgressTracker({
 
     // Only update if performance has actually changed
     const performanceString = JSON.stringify(performance);
+    console.log('🎯 Calculated performance:', JSON.stringify(performance, null, 2));
+    console.log('🎯 Performance string comparison:', {
+      current: performanceString,
+      last: lastPerformanceRef.current,
+      different: performanceString !== lastPerformanceRef.current
+    });
+
     if (performanceString !== lastPerformanceRef.current) {
       lastPerformanceRef.current = performanceString;
+      console.log('🎯 Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
       onPerformanceUpdateRef.current(performance);
     }
   }, [exerciseProgress, modifiedTemplate.exercises]); // Removed onPerformanceUpdate from dependencies

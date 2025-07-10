@@ -14,27 +14,11 @@ import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 
 export default function ActiveWorkoutIndicator() {
   const router = useRouter();
-  const { activeWorkout, formatWorkoutDuration, hasActiveWorkout, endWorkout } = useActiveWorkout();
-  const [currentTime, setCurrentTime] = useState('');
+  const { activeWorkout, formatWorkoutDuration, hasActiveWorkout, endWorkout, isTimerActive } = useActiveWorkout();
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // Update the timer every second
-  useEffect(() => {
-    if (!hasActiveWorkout) return;
-
-    const interval = setInterval(() => {
-      setCurrentTime(formatWorkoutDuration());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [hasActiveWorkout, formatWorkoutDuration]);
-
-  // Initialize timer on mount
-  useEffect(() => {
-    if (hasActiveWorkout) {
-      setCurrentTime(formatWorkoutDuration());
-    }
-  }, [hasActiveWorkout, formatWorkoutDuration]);
+  // formatWorkoutDuration is now the live-updating time string
+  const currentTime = formatWorkoutDuration;
 
   if (!hasActiveWorkout || !activeWorkout) {
     return null;
@@ -116,7 +100,7 @@ export default function ActiveWorkoutIndicator() {
                     <ClockIcon className="w-4 h-4" />
                     <span className="font-mono font-semibold">{currentTime}</span>
                   </div>
-                  {activeWorkout.isActive ? (
+                  {isTimerActive ? (
                     <div className="flex items-center gap-2 text-green-100">
                       <PlayCircleIcon className="w-4 h-4" />
                       <span className="text-sm">In Progress</span>

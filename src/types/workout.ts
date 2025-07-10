@@ -272,6 +272,45 @@ export interface SessionTimeline {
 }
 
 // ============================================================================
+// ACTIVE WORKOUT SESSION TYPES
+// ============================================================================
+
+// 🏃‍♂️ ACTIVE WORKOUT SESSION STATE
+export interface ActiveWorkoutSessionData {
+  // Template information
+  templateId: string;
+  templateName: string;
+  originalTemplate: WorkoutTemplateData;
+
+  // Session timing
+  startedAt: Date;
+  pausedTime: number; // Total time paused in milliseconds
+  isTimerActive: boolean;
+  lastPauseTime?: Date;
+
+  // Current workout state
+  modifiedTemplate?: WorkoutTemplateData; // Template with user modifications
+  performance: { [exerciseId: string]: ExercisePerformance };
+  exerciseProgress: { [exerciseId: string]: any };
+  sessionNotes: string;
+
+  // Metadata
+  version: number; // For handling concurrent updates
+  lastUpdated: Date;
+}
+
+// 🔄 ACTIVE SESSION UPDATE PAYLOAD
+export interface ActiveSessionUpdatePayload {
+  performance?: { [exerciseId: string]: ExercisePerformance };
+  modifiedTemplate?: WorkoutTemplateData;
+  exerciseProgress?: { [exerciseId: string]: any };
+  sessionNotes?: string;
+  pausedTime?: number;
+  isTimerActive?: boolean;
+  lastPauseTime?: Date;
+}
+
+// ============================================================================
 // PRISMA MODEL TYPES (Updated for JSON system)
 // ============================================================================
 

@@ -19,17 +19,7 @@ import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 
-// Type for storing session performance data
-type SessionSetPerformance = {
-  setId: string; // Original set ID from template
-  reps: number | null;
-  weight: number | null;
-};
 
-type SessionExercisePerformance = {
-  exerciseName: string; // Name for display
-  sets: SessionSetPerformance[];
-};
 
 export default function ActiveSessionPage({
   params,
@@ -48,105 +38,78 @@ export default function ActiveSessionPage({
   } = useTemplate(templateId);
   const { profile, isLoading: profileLoading } = useProfile();
 
-  const [sessionNotes, setSessionNotes] = useState('');
+  // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [workoutPerformance, setWorkoutPerformance] = useState<{ [exerciseId: string]: ExercisePerformance }>({});
-  const [modifiedTemplate, setModifiedTemplate] = useState(template?.workoutData);
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
   // Active workout state management
   const {
     activeWorkout,
+    isLoading: isActiveWorkoutLoading,
     startWorkout,
     updatePerformance,
     updateSessionNotes,
     updateModifiedTemplate,
     updateExerciseProgress,
     endWorkout,
+    completeWorkout,
+    recoverSession,
     hasActiveWorkout,
+    getWorkoutDuration,
+    formatWorkoutDuration,
+    toggleTimer,
+    isTimerActive,
   } = useActiveWorkout();
 
-  // Timer state
-  const [timer, setTimer] = useState(0);
-  const [isActive, setIsActive] = useState(false);
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
 
-  // Initialize active workout on page load (but not if workout was just completed)
+  // Check for existing active workout on page load
   useEffect(() => {
-    if (template && !workoutCompleted && (!hasActiveWorkout || activeWorkout?.templateId !== template.id)) {
-      startWorkout(template.id, template.name, template.workoutData);
+    if (template && !workoutCompleted && !isActiveWorkoutLoading) {
+      if (hasActiveWorkout && activeWorkout?.templateId !== template.id) {
+        // Active workout is for a different template, try to recover
+        console.warn('Active workout is for a different template. Current:', activeWorkout?.templateId, 'Expected:', template.id);
+        recoverSession(template.id, true).catch((error) => {
+          console.error('Failed to recover session:', error);
+          // If recovery fails, we'll let the user manually start a new workout
+        });
+      }
+      // If hasActiveWorkout && activeWorkout.templateId === template.id, we continue the existing workout
+      // If no active workout, we wait for user to click "Start Workout"
     }
-  }, [template, hasActiveWorkout, activeWorkout, startWorkout, workoutCompleted]);
+  }, [template, hasActiveWorkout, activeWorkout, workoutCompleted, isActiveWorkoutLoading, recoverSession]);
 
-  // Load saved state if available
-  useEffect(() => {
-    if (activeWorkout && activeWorkout.templateId === template?.id) {
-      if (activeWorkout.sessionNotes) {
-        setSessionNotes(activeWorkout.sessionNotes);
-      }
-      if (activeWorkout.workoutPerformance) {
-        setWorkoutPerformance(activeWorkout.workoutPerformance);
-      }
-      if (activeWorkout.modifiedTemplate) {
-        setModifiedTemplate(activeWorkout.modifiedTemplate);
-      }
+  // Function to manually start a workout
+  const handleStartWorkout = useCallback(async () => {
+    if (!template) return;
+
+    try {
+      await startWorkout(template.id, template.name, template.workoutData);
+    } catch (error) {
+      console.error('Failed to start workout:', error);
+      // Handle error - maybe show a toast notification
     }
-  }, [activeWorkout, template]);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  }, [template, startWorkout]);
 
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isActive) {
-      if (startTime === null) {
-        setStartTime(Date.now() - timer * 1000); // Adjust start time if resuming
-      }
-      interval = setInterval(() => {
-        setTimer((prevTimer) => prevTimer + 1);
-      }, 1000);
-    } else if (!isActive && timer !== 0) {
-      if (interval) clearInterval(interval);
-      setStartTime(null); // Reset start time when paused
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isActive, timer, startTime]);
-
-  const formatTime = (timeInSeconds: number): string => {
-    const hours = Math.floor(timeInSeconds / 3600);
-    const minutes = Math.floor((timeInSeconds % 3600) / 60);
-    const seconds = timeInSeconds % 60;
-    const parts: string[] = [];
-    if (hours > 0) parts.push(hours.toString().padStart(2, '0'));
-    parts.push(minutes.toString().padStart(2, '0'));
-    parts.push(seconds.toString().padStart(2, '0'));
-    return parts.join(':');
-  };
-
-  const toggleTimer = () => {
-    setIsActive(!isActive);
-  };
+  // No more state synchronization needed - everything comes from activeWorkout directly
 
   const handleTemplateModification = useCallback((newTemplate: any) => {
-    setModifiedTemplate(newTemplate);
     updateModifiedTemplate(newTemplate);
     setShowSaveTemplatePrompt(true);
   }, [updateModifiedTemplate]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    setWorkoutPerformance(performance);
+    console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
     updatePerformance(performance);
   }, [updatePerformance]);
 
   const handleNotesUpdate = useCallback((notes: string) => {
-    setSessionNotes(notes);
     updateSessionNotes(notes);
   }, [updateSessionNotes]);
 
   const saveAsNewTemplate = async () => {
-    if (!modifiedTemplate) return;
+    if (!activeWorkout?.modifiedTemplate || !template) return;
 
     try {
       const response = await fetch('/api/template/create', {
@@ -155,7 +118,7 @@ export default function ActiveSessionPage({
         body: JSON.stringify({
           name: `${template.name} (Modified)`,
           description: `Modified version of ${template.name} from workout session`,
-          workoutData: modifiedTemplate,
+          workoutData: activeWorkout.modifiedTemplate,
           difficulty: template.difficulty,
           workoutType: template.workoutType,
           favorite: false,
@@ -175,7 +138,7 @@ export default function ActiveSessionPage({
   };
 
   const updateExistingTemplate = async () => {
-    if (!modifiedTemplate) return;
+    if (!activeWorkout?.modifiedTemplate || !template) return;
 
     try {
       const response = await fetch(`/api/template/${template.id}`, {
@@ -183,8 +146,7 @@ export default function ActiveSessionPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: template.name,
-          description: template.description,
-          workoutData: modifiedTemplate,
+          workoutData: activeWorkout.modifiedTemplate,
           difficulty: template.difficulty,
           workoutType: template.workoutType,
           favorite: template.favorite,
@@ -204,8 +166,7 @@ export default function ActiveSessionPage({
   };
 
   const stopTimerAndSave = async () => {
-    setIsActive(false);
-    const finalDurationMinutes = Math.max(1, Math.round(timer / 60)); // Duration in minutes, ensure at least 1
+    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60)); // Duration in minutes, ensure at least 1
 
     // --- Call API to save session ---
     setIsSaving(true);
@@ -226,36 +187,23 @@ export default function ActiveSessionPage({
       sessionData = {
         scheduledSessionId: scheduledSessionId,
         duration: finalDurationMinutes,
-        notes: sessionNotes,
-        performance: workoutPerformance, // Include actual workout performance
+        notes: activeWorkout?.sessionNotes || '',
+        performance: activeWorkout?.performance || {}, // Include actual workout performance
       };
     } else {
-      // Creating a new immediate session - use simpler approach
-      // Since we don't have detailed performance tracking yet,
-      // let's use the legacy session API instead
+      // Creating a new immediate session - use the new active session completion API
       try {
-        const response = await fetch(`/api/template/${template.id}/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            duration: finalDurationMinutes,
-            notes: sessionNotes,
-            performance: workoutPerformance, // Include actual workout performance
-          }),
+        console.log('🚀 Completing workout with active session data:', {
+          performance: activeWorkout?.performance,
+          duration: finalDurationMinutes,
+          notes: activeWorkout?.sessionNotes || ''
         });
 
-        if (!response.ok) {
-          const errorData = await response
-            .json()
-            .catch(() => ({ error: 'Failed to parse error response' }));
-          throw new Error(errorData.error?.message || errorData.error || 'Failed to save session');
-        }
+        await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
 
         setSaveMessage('Session saved successfully!');
         // Mark workout as completed to prevent re-initialization
         setWorkoutCompleted(true);
-        // End the active workout immediately
-        endWorkout();
         // Redirect to profile page after save
         setTimeout(() => {
           router.push('/profile'); // Go back to profile page
@@ -266,7 +214,7 @@ export default function ActiveSessionPage({
         console.error('Error details:', {
           templateId: template.id,
           duration: finalDurationMinutes,
-          notes: sessionNotes,
+          notes: activeWorkout?.sessionNotes || '',
           errorMessage: error instanceof Error ? error.message : String(error),
         });
         setSaveMessage(
@@ -308,7 +256,7 @@ export default function ActiveSessionPage({
         scheduledSessionId,
         templateId: template.id,
         duration: finalDurationMinutes,
-        notes: sessionNotes,
+        notes: activeWorkout?.sessionNotes || '',
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       setSaveMessage(
@@ -321,7 +269,7 @@ export default function ActiveSessionPage({
     // No finally block for setIsSaving(false) here, handled in error case or success redirect
   };
 
-  const isLoading = templateLoading || profileLoading;
+  const isLoading = templateLoading || profileLoading || isActiveWorkoutLoading;
 
   if (isLoading) {
     return (
@@ -385,10 +333,10 @@ export default function ActiveSessionPage({
                 {/* Live Timer Display */}
                 <div className="text-right">
                   <div className="text-3xl font-mono font-bold">
-                    {formatTime(timer)}
+                    {formatWorkoutDuration}
                   </div>
                   <div className="text-orange-100 text-sm">
-                    {isActive ? '🟢 Recording' : '⏸️ Paused'}
+                    {isTimerActive ? '🟢 Recording' : '⏸️ Paused'}
                   </div>
                 </div>
               </div>
@@ -425,13 +373,14 @@ export default function ActiveSessionPage({
           </motion.div>
         )}
 
-        {/* Timer Controls */}
-        <motion.div
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
+        {/* Timer Controls - Only show when workout is active */}
+        {hasActiveWorkout && (
+          <motion.div
+            className="mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
             <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
             <div className="p-6">
@@ -454,17 +403,17 @@ export default function ActiveSessionPage({
                   <button
                     onClick={toggleTimer}
                     className={`px-6 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 font-semibold ${
-                      isActive
+                      isTimerActive
                         ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
                         : 'bg-green-500 hover:bg-green-600 text-white'
                     }`}
                   >
-                    {isActive ? (
+                    {isTimerActive ? (
                       <PauseIcon className="h-5 w-5" />
                     ) : (
                       <PlayIcon className="h-5 w-5" />
                     )}
-                    {isActive ? 'Pause Timer' : 'Start Timer'}
+                    {isTimerActive ? 'Pause Timer' : 'Start Timer'}
                   </button>
                   <button
                     onClick={stopTimerAndSave}
@@ -483,6 +432,8 @@ export default function ActiveSessionPage({
             </div>
           </div>
         </motion.div>
+        )}
+
         {/* Save Message */}
         {saveMessage && (
           <div className="mb-6">
@@ -563,29 +514,70 @@ export default function ActiveSessionPage({
           </div>
         </motion.div>
 
-        {/* Workout Progress Tracker */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.5 }}
-        >
-          <WorkoutProgressTracker
-            template={template.workoutData}
-            onPerformanceUpdate={handlePerformanceUpdate}
-            onTemplateModified={handleTemplateModification}
-            onExerciseProgressUpdate={updateExerciseProgress}
-            initialExerciseProgress={activeWorkout?.exerciseProgress}
-            useMetric={profile?.useMetric}
-          />
-        </motion.div>
+        {/* Start Workout Button - Show when no active workout */}
+        {!hasActiveWorkout && !isActiveWorkoutLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.5 }}
+            className="mb-6"
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+              <div className="p-8 text-center">
+                <div className="mb-6">
+                  <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                    <PlayIcon className="w-10 h-10 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Ready to Start Your Workout?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Click the button below to begin tracking your workout session
+                  </p>
+                </div>
 
-        {/* Session Notes */}
-        <motion.div
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.4 }}
-        >
+                <button
+                  onClick={handleStartWorkout}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <PlayIcon className="w-6 h-6" />
+                    Start Workout
+                  </div>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Workout Progress Tracker */}
+        {hasActiveWorkout && activeWorkout && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.5 }}
+          >
+            <WorkoutProgressTracker
+              key={`workout-tracker-${activeWorkout.templateId}-${new Date(activeWorkout.startedAt).getTime()}`}
+              template={activeWorkout.modifiedTemplate || template.workoutData}
+              onPerformanceUpdate={handlePerformanceUpdate}
+              onTemplateModified={handleTemplateModification}
+              onExerciseProgressUpdate={updateExerciseProgress}
+              initialExerciseProgress={activeWorkout.exerciseProgress}
+              useMetric={profile?.useMetric}
+            />
+          </motion.div>
+        )}
+
+        {/* Session Notes - Only show when workout is active */}
+        {hasActiveWorkout && (
+          <motion.div
+            className="mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.4 }}
+          >
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
             <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
             <div className="p-6">
@@ -606,7 +598,7 @@ export default function ActiveSessionPage({
               <textarea
                 id="sessionNotes"
                 rows={4}
-                value={sessionNotes}
+                value={activeWorkout?.sessionNotes || ''}
                 onChange={(e) => handleNotesUpdate(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none transition-all duration-200"
                 placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
@@ -615,6 +607,7 @@ export default function ActiveSessionPage({
             </div>
           </div>
         </motion.div>
+        )}
       </div>
 
       {/* Save Template Prompt Modal */}
