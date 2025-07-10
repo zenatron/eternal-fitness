@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardHeader } from './DashboardHeader';
 import { StreakCard } from './StreakCard';
 import { ProgressCard } from './ProgressCard';
@@ -13,18 +14,43 @@ import { UpcomingWorkoutsCard } from './UpcomingWorkoutsCard';
 import { useDashboardConfig } from '@/lib/hooks/useDashboardConfig';
 import DashboardSettingsModal from './DashboardSettingsModal';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { useProfile } from '@/lib/hooks/useProfile';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { data, loading, error, refetch } = useDashboardData();
   const { config, saveConfig, isLoading: configLoading } = useDashboardConfig();
+  const { profile, isLoading: profileLoading } = useProfile();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted || loading || configLoading || !data) {
+  // Profile setup redirect logic
+  useEffect(() => {
+    // Only perform checks after initial loading is done and we're mounted
+    if (mounted && !profileLoading) {
+      // If profile is null (not found), redirect to setup
+      if (profile === null) {
+        router.replace('/profile/setup');
+        return;
+      }
+
+      // If profile exists but is incomplete, redirect to setup
+      if (profile && (
+        profile.name == null ||
+        profile.age == null ||
+        profile.weight == null ||
+        profile.height == null
+      )) {
+        router.replace('/profile/setup');
+      }
+    }
+  }, [mounted, profileLoading, profile, router]);
+
+  if (!mounted || loading || configLoading || profileLoading || !data) {
     return <DashboardSkeletonLoader />;
   }
 

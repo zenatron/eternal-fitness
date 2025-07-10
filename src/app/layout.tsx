@@ -20,13 +20,13 @@ export default async function RootLayout({
   return (
     <ClerkProvider afterSignOutUrl="/" signInUrl="/login" signUpUrl="/signup">
       <html lang="en" suppressHydrationWarning>
-        <body suppressHydrationWarning>
+        <body suppressHydrationWarning className="app-bg">
           <Providers>
             <ThemeHandler>
               <div className="min-h-screen flex flex-col">
                 <Header />
                 <ActiveWorkoutIndicator />
-                <main className="flex-1 pt-16 app-bg">{children}</main>
+                <main className="flex-1 pt-16">{children}</main>
                 <Footer />
               </div>
             </ThemeHandler>
