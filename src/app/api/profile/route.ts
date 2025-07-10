@@ -186,52 +186,79 @@ export async function PUT(request: Request) {
     const validatedData = validationResult.data;
 
     try {
-      // Get current user email from Clerk
-      const user = await currentUser();
-      const email = user?.emailAddresses?.[0]?.emailAddress || '';
-
-      // Use upsert to create or update the user profile
-      const updatedUser = await prisma.user.upsert({
+      // Check if user exists first
+      const existingUser = await prisma.user.findUnique({
         where: { id: userId },
-        create: {
-          id: userId,
-          email,
-          ...validatedData,
-          // Ensure nullable fields are correctly passed for creation
-          age: validatedData.age ?? null,
-          gender: validatedData.gender ?? null,
-          height: validatedData.height ?? null,
-          weight: validatedData.weight ?? null,
-          weightGoal: validatedData.weightGoal ?? null,
-          useMetric: validatedData.useMetric ?? true, // Default to metric for new users
-          points: 0, // Initialize points for new users
-        },
-        update: {
-          ...validatedData,
-          // Ensure nullable fields are correctly passed for updates
-          age: validatedData.age ?? null,
-          gender: validatedData.gender ?? null,
-          height: validatedData.height ?? null,
-          weight: validatedData.weight ?? null,
-          weightGoal: validatedData.weightGoal ?? null,
-          // Only update useMetric if provided, otherwise keep existing value
-          ...(validatedData.useMetric !== undefined && { useMetric: validatedData.useMetric }),
-        },
-        // Select the fields needed for the response
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          age: true,
-          gender: true,
-          height: true,
-          weight: true,
-          useMetric: true,
-          weightGoal: true,
-          points: true,
-          createdAt: true,
-        },
+        select: { id: true, email: true }
       });
+
+      let updatedUser;
+
+      if (existingUser) {
+        // User exists, just update the profile fields (don't touch email)
+        updatedUser = await prisma.user.update({
+          where: { id: userId },
+          data: {
+            ...validatedData,
+            // Ensure nullable fields are correctly passed for updates
+            age: validatedData.age ?? null,
+            gender: validatedData.gender ?? null,
+            height: validatedData.height ?? null,
+            weight: validatedData.weight ?? null,
+            weightGoal: validatedData.weightGoal ?? null,
+            // Only update useMetric if provided, otherwise keep existing value
+            ...(validatedData.useMetric !== undefined && { useMetric: validatedData.useMetric }),
+          },
+          // Select the fields needed for the response
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            age: true,
+            gender: true,
+            height: true,
+            weight: true,
+            useMetric: true,
+            weightGoal: true,
+            points: true,
+            createdAt: true,
+          },
+        });
+      } else {
+        // User doesn't exist, create new user
+        const user = await currentUser();
+        const email = user?.emailAddresses?.[0]?.emailAddress || '';
+
+        updatedUser = await prisma.user.create({
+          data: {
+            id: userId,
+            email,
+            ...validatedData,
+            // Ensure nullable fields are correctly passed for creation
+            age: validatedData.age ?? null,
+            gender: validatedData.gender ?? null,
+            height: validatedData.height ?? null,
+            weight: validatedData.weight ?? null,
+            weightGoal: validatedData.weightGoal ?? null,
+            useMetric: validatedData.useMetric ?? true, // Default to metric for new users
+            points: 0, // Initialize points for new users
+          },
+          // Select the fields needed for the response
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            age: true,
+            gender: true,
+            height: true,
+            weight: true,
+            useMetric: true,
+            weightGoal: true,
+            points: true,
+            createdAt: true,
+          },
+        });
+      }
 
       // Get workoutsCompleted separately
       const workoutsCompleted = await prisma.workoutSession.count({
