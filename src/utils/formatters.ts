@@ -1,16 +1,17 @@
-// Format volume to display with proper unit
+// Format volume to display with proper unit and k/M suffixes
 export const formatVolume = (
   volume: number | null | undefined,
   useMetric: boolean | undefined,
 ) => {
-  // Handle null or undefined volume gracefully
   if (volume === null || volume === undefined || isNaN(volume)) {
-    return '-'; // Or return empty string, 0, etc., depending on desired display
+    return '-';
   }
 
   const unit = useMetric ? 'kg' : 'lbs';
 
-  if (volume >= 1000) {
+  if (volume >= 1000000) {
+    return `${(volume / 1000000).toFixed(2)}M ${unit}`;
+  } else if (volume >= 1000) {
     return `${(volume / 1000).toFixed(1)}k ${unit}`;
   }
   return `${Math.round(volume).toString()} ${unit}`;

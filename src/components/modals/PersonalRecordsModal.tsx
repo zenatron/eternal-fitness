@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { motion } from 'framer-motion';
+import { formatVolume } from '@/utils/formatters';
 
 interface PersonalRecordsModalProps {
   isOpen: boolean;
@@ -36,15 +37,7 @@ export function PersonalRecordsModal({ isOpen, onClose, stats, useMetric }: Pers
     return `${weight.toFixed(1)} ${unit}`;
   };
 
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -218,7 +211,7 @@ export function PersonalRecordsModal({ isOpen, onClose, stats, useMetric }: Pers
                             <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
                               {record.type === 'weight' ? formatWeight(record.value) : 
                                record.type === 'reps' ? `${record.value} reps` :
-                               formatVolume(record.value)}
+                               formatVolume(record.value, useMetric)}
                             </p>
                           </div>
                         </motion.div>

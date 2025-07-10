@@ -44,6 +44,7 @@ export async function GET() {
         updatedAt: true,
         notes: true,
         performanceData: true, // Include JSON performance data
+        workoutTemplateId: true, // Include the template ID
         workoutTemplate: {
           select: {
             id: true,

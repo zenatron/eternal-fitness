@@ -8,20 +8,13 @@ import {
 import { StatsData } from '@/types/dashboard';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { formatVolume } from '@/utils/formatters';
 
 interface StatsCardProps {
   data: StatsData;
 }
 
 export function StatsCard({ data }: StatsCardProps) {
-  const formatVolume = (volume: number, unit: string) => {
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
 
   const statCards = [
     {
@@ -42,7 +35,7 @@ export function StatsCard({ data }: StatsCardProps) {
     },
     {
       title: 'Total Volume',
-      value: formatVolume(data.totalVolume.amount, data.totalVolume.unit),
+      value: formatVolume(data.totalVolume.amount, data.totalVolume.unit === 'kg'),
       icon: ScaleIcon,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',

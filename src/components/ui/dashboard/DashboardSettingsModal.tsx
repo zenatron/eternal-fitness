@@ -184,14 +184,14 @@ export default function DashboardSettingsModal({
                                       onClick={() => handleToggleTile(tile.id)}
                                       className={`
                                         p-2 rounded-lg transition-all duration-200 flex items-center justify-center
-                                        ${tile.visible
+                                        ${tile.enabled
                                           ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
                                           : 'bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-500'
                                         }
                                       `}
-                                      title={tile.visible ? 'Hide tile' : 'Show tile'}
+                                      title={tile.enabled ? 'Hide tile' : 'Show tile'}
                                     >
-                                      {tile.visible ? (
+                                      {tile.enabled ? (
                                         <EyeIcon className="h-5 w-5" />
                                       ) : (
                                         <EyeSlashIcon className="h-5 w-5" />

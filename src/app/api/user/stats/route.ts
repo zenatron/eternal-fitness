@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { UserPersonalRecords } from '@/types/personalRecords';
 
 // Helper for standard responses
 const successResponse = (data: any, status = 200) => {
@@ -10,6 +11,46 @@ const successResponse = (data: any, status = 200) => {
 const errorResponse = (message: string, status = 400, details?: any) => {
   return NextResponse.json({ error: { message, details } }, { status });
 };
+
+// Helper function to convert stored PR data to display format
+function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
+  const displayRecords: Array<{
+    exerciseKey: string;
+    exerciseName: string;
+    type: 'weight' | 'volume';
+    value: number;
+    achievedAt: string;
+  }> = [];
+
+  Object.entries(personalRecords).forEach(([exerciseName, exercisePR]) => {
+    // Add max weight record if it exists
+    if (exercisePR.maxWeight) {
+      displayRecords.push({
+        exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'), // Convert to key format
+        exerciseName,
+        type: 'weight',
+        value: exercisePR.maxWeight.value,
+        achievedAt: exercisePR.maxWeight.achievedAt,
+      });
+    }
+
+    // Add max volume record if it exists
+    if (exercisePR.maxVolume) {
+      displayRecords.push({
+        exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'), // Convert to key format
+        exerciseName,
+        type: 'volume',
+        value: exercisePR.maxVolume.value,
+        achievedAt: exercisePR.maxVolume.achievedAt,
+      });
+    }
+  });
+
+  // Sort by most recent and return top 20
+  return displayRecords
+    .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
+    .slice(0, 20);
+}
 
 export async function GET() {
   try {
@@ -69,8 +110,7 @@ export async function GET() {
 
     // Calculate exercise insights from session data
     const exerciseStats = new Map();
-    const personalRecords = new Map();
-    
+
     allSessions.forEach(session => {
       if (session.performanceData && typeof session.performanceData === 'object') {
         const data = session.performanceData as any;
@@ -104,18 +144,6 @@ export async function GET() {
               exercisePerf.sets.forEach((set: any) => {
                 if (set.completed && set.actualWeight) {
                   stats.maxWeight = Math.max(stats.maxWeight, set.actualWeight);
-
-                  // Track personal records
-                  const recordKey = `${key}_weight`;
-                  if (!personalRecords.has(recordKey) || personalRecords.get(recordKey).value < set.actualWeight) {
-                    personalRecords.set(recordKey, {
-                      exerciseKey: key,
-                      exerciseName: name,
-                      type: 'weight',
-                      value: set.actualWeight,
-                      achievedAt: session.completedAt,
-                    });
-                  }
                 }
               });
             }
@@ -124,15 +152,15 @@ export async function GET() {
       }
     });
 
-    // Convert maps to arrays and sort
+    // Convert exercise stats to array and sort
     const topExercises = Array.from(exerciseStats.values())
       .sort((a, b) => b.totalVolume - a.totalVolume)
       .slice(0, 10);
 
-    const personalRecordsArray = Array.from(personalRecords.values())
-      .filter(record => record.value > 0)
-      .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
-      .slice(0, 20);
+    // Get personal records from UserStats.personalRecords instead of calculating
+    const personalRecordsArray = userStats?.personalRecords
+      ? convertStoredPRsToDisplayFormat(userStats.personalRecords as any)
+      : [];
 
     // Calculate volume trend (last 30 days)
     const thirtyDaysAgo = new Date();

@@ -1,5 +1,6 @@
 import { ClockIcon, ScaleIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
+import { formatVolume } from '@/utils/formatters';
 
 interface RecentActivityProps {
   stats: UserStatsData;
@@ -8,10 +9,6 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    return `${volume.toFixed(0)} ${unit}`;
-  };
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -22,19 +19,41 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
     return `${mins}m`;
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    // Compare dates by setting time to midnight to avoid time-of-day issues
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const diffTime = nowOnly.getTime() - dateOnly.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // Format time
+    const timeString = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
+
+    // Format date based on recency
+    let dateLabel = '';
+    if (diffDays === 0) {
+      dateLabel = 'Today';
+    } else if (diffDays === 1) {
+      dateLabel = 'Yesterday';
+    } else if (diffDays <= 7) {
+      dateLabel = date.toLocaleDateString('en-US', { weekday: 'long' });
+    } else {
+      dateLabel = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      });
+    }
+
+    return `${dateLabel} at ${timeString}`;
   };
 
   if (!stats.recentSessions || stats.recentSessions.length === 0) {
@@ -69,7 +88,7 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
                 {session.templateName}
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {formatDate(session.completedAt)}
+                {formatDateTime(session.completedAt)}
               </p>
             </div>
             <div className="flex items-center gap-4 text-sm">
@@ -79,7 +98,7 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
               </div>
               <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
                 <ScaleIcon className="w-4 h-4" />
-                <span>{formatVolume(session.totalVolume)}</span>
+                <span>{formatVolume(session.totalVolume, useMetric)}</span>
               </div>
               <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                 <BoltIcon className="w-4 h-4" />

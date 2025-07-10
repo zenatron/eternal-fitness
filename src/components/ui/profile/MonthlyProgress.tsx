@@ -1,5 +1,6 @@
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
+import { formatVolume } from '@/utils/formatters';
 
 interface MonthlyProgressProps {
   stats: UserStatsData;
@@ -7,15 +8,6 @@ interface MonthlyProgressProps {
 }
 
 export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
 
   if (!stats.monthlyStats || stats.monthlyStats.length === 0) {
     return (
@@ -103,7 +95,7 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
                       >
                         {month.volume > 0 && (
                           <span className="text-white text-sm font-medium">
-                            {formatVolume(month.volume)}
+                            {formatVolume(month.volume, useMetric)}
                           </span>
                         )}
                       </div>

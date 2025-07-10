@@ -113,11 +113,17 @@ model UserStats {
   // JSON object with exercise names as keys, containing maxWeight and maxVolume PRs
   personalRecords    Json?     @db.JsonB
 
+  // 🎖️ ACHIEVEMENTS TRACKING
+  // JSON object containing unlocked achievements and progress tracking
+  achievements       Json?     @db.JsonB
+  uniqueExercises    Int       @default(0) // Count of unique exercises performed
+
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  // Index for PR queries
+  // Index for PR and achievement queries
   @@index([personalRecords], type: Gin)
+  @@index([achievements], type: Gin)
 }
 
 model MonthlyStats {

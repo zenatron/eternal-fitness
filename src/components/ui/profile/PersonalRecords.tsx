@@ -1,5 +1,6 @@
 import { TrophyIcon, ScaleIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
+import { formatVolume } from '@/utils/formatters';
 
 interface PersonalRecordsProps {
   stats: UserStatsData;
@@ -60,16 +61,13 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
                   {record.exerciseName}
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {record.type === 'weight' ? 'Max Weight' : 
-                   record.type === 'reps' ? 'Max Reps' : 'Max Volume'}
+                  {record.type === 'weight' ? 'Max Weight' : 'Max Volume'}
                 </p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                {record.type === 'weight' ? formatWeight(record.value) : 
-                 record.type === 'reps' ? `${record.value} reps` :
-                 formatWeight(record.value)}
+                {record.type === 'weight' ? formatWeight(record.value) : formatVolume(record.value, useMetric)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {formatDate(record.achievedAt)}

@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { motion } from 'framer-motion';
+import { formatVolume } from '@/utils/formatters';
 
 interface TopExercisesModalProps {
   isOpen: boolean;
@@ -31,15 +32,7 @@ export function TopExercisesModal({ isOpen, onClose, stats, useMetric }: TopExer
   const [sortBy, setSortBy] = useState<SortOption>('volume');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
+
 
   const formatWeight = (weight: number) => {
     const unit = useMetric ? 'kg' : 'lbs';
@@ -227,7 +220,7 @@ export function TopExercisesModal({ isOpen, onClose, stats, useMetric }: TopExer
                               </div>
                               <div className="text-right">
                                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                  {formatVolume(exercise.totalVolume)}
+                                  {formatVolume(exercise.totalVolume, useMetric)}
                                 </p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
                                   Total Volume

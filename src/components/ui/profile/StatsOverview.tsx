@@ -7,6 +7,7 @@ import {
   BoltIcon,
 } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
+import { formatVolume } from '@/utils/formatters';
 
 interface StatsOverviewProps {
   stats: UserStatsData;
@@ -14,15 +15,6 @@ interface StatsOverviewProps {
 }
 
 export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
 
   const formatHours = (hours: number) => {
     if (hours >= 1000) {
@@ -58,7 +50,7 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
     },
     {
       title: 'Total Volume',
-      value: formatVolume(stats.totalVolume),
+      value: formatVolume(stats.totalVolume, useMetric),
       icon: ScaleIcon,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',

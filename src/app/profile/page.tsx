@@ -28,11 +28,13 @@ import { StatsOverview } from '@/components/ui/profile/StatsOverview';
 import { RecentActivity } from '@/components/ui/profile/RecentActivity';
 import { PersonalRecords } from '@/components/ui/profile/PersonalRecords';
 import { TopExercises } from '@/components/ui/profile/TopExercises';
+import { Achievements } from '@/components/ui/profile/Achievements';
 
 // Import modals
 import { PersonalRecordsModal } from '@/components/modals/PersonalRecordsModal';
 import { TopExercisesModal } from '@/components/modals/TopExercisesModal';
 import { RecentActivityModal } from '@/components/modals/RecentActivityModal';
+import { AchievementsModal } from '@/components/modals/AchievementsModal';
 import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
 import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 
@@ -43,18 +45,42 @@ export default function Profile() {
   const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
 
   // Modal state management
-  const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | null>(null);
+  const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | 'achievements' | null>(null);
+
+  // Achievements state
+  const [achievements, setAchievements] = useState<any>(null);
+  const [achievementsLoading, setAchievementsLoading] = useState(true);
+
+  // Fetch achievements
+  useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const response = await fetch('/api/user/achievements');
+
+        if (response.ok) {
+          const result = await response.json();
+          setAchievements(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching achievements:', error);
+      } finally {
+        setAchievementsLoading(false);
+      }
+    };
+
+    fetchAchievements();
+  }, []);
 
   // Handle URL query params for modal opening
   useEffect(() => {
     const modal = searchParams.get('modal');
-    if (modal === 'records' || modal === 'exercises' || modal === 'activity') {
-      setActiveModal(modal);
+    if (modal === 'records' || modal === 'exercises' || modal === 'activity' || modal === 'achievements') {
+      setActiveModal(modal as any);
     }
   }, [searchParams]);
 
   // Modal handlers
-  const openModal = (modalType: 'records' | 'exercises' | 'activity') => {
+  const openModal = (modalType: 'records' | 'exercises' | 'activity' | 'achievements') => {
     setActiveModal(modalType);
     // Update URL without causing navigation
     const newUrl = new URL(window.location.href);
@@ -301,6 +327,16 @@ export default function Profile() {
             />
           )}
 
+          {/* Achievements */}
+          {achievements && !achievementsLoading && (
+            <Achievements
+              achievements={achievements.achievements}
+              unlockedCount={achievements.unlockedCount}
+              totalCount={achievements.totalCount}
+              onViewAll={() => openModal('achievements')}
+            />
+          )}
+
           {/* Monthly Progress */}
           {stats && (
             <MonthlyProgress stats={stats} useMetric={profile?.useMetric || false} />
@@ -338,6 +374,17 @@ export default function Profile() {
             useMetric={profile?.useMetric || false}
           />
         </>
+      )}
+
+      {/* Achievements Modal */}
+      {achievements && (
+        <AchievementsModal
+          isOpen={activeModal === 'achievements'}
+          onClose={closeModal}
+          achievements={achievements.achievements}
+          unlockedCount={achievements.unlockedCount}
+          totalCount={achievements.totalCount}
+        />
       )}
     </div>
   );

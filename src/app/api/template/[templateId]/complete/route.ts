@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 import { WorkoutTemplate } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 201) => {
@@ -205,6 +206,25 @@ export async function POST(
 
       return createdSession;
     }); // End Transaction
+
+    // Update achievements after successful workout completion
+    try {
+      // Extract exercise keys from performance data
+      const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
+
+      // Update unique exercises count
+      await updateUniqueExercisesCount(userId, exerciseKeys);
+
+      // Update achievements
+      const achievementResult = await updateUserAchievements(userId);
+
+      if (achievementResult.newAchievements.length > 0) {
+        console.log(`🏆 User ${userId} unlocked ${achievementResult.newAchievements.length} new achievements:`, achievementResult.newAchievements);
+      }
+    } catch (achievementError) {
+      console.error('Error updating achievements:', achievementError);
+      // Don't fail the workout completion for achievement errors
+    }
 
     return successResponse(newSession);
   } catch (error: any) {

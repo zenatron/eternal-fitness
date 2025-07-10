@@ -1,5 +1,6 @@
 import { BoltIcon, ScaleIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
+import { formatVolume } from '@/utils/formatters';
 
 interface TopExercisesProps {
   stats: UserStatsData;
@@ -8,15 +9,6 @@ interface TopExercisesProps {
 }
 
 export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps) {
-  const formatVolume = (volume: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M ${unit}`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K ${unit}`;
-    }
-    return `${volume.toFixed(0)} ${unit}`;
-  };
 
   const formatWeight = (weight: number) => {
     const unit = useMetric ? 'kg' : 'lbs';
@@ -91,7 +83,7 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    {formatVolume(exercise.totalVolume)}
+                    {formatVolume(exercise.totalVolume, useMetric)}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Total Volume

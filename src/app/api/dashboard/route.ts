@@ -222,13 +222,26 @@ export async function GET() {
         },
       },
     });
+    // Calculate personal records count from UserStats
+    let personalRecordsCount = 0;
+    if (userStats?.personalRecords) {
+      const personalRecords = userStats.personalRecords as any;
+      personalRecordsCount = Object.keys(personalRecords).reduce((count, exerciseName) => {
+        const exercisePR = personalRecords[exerciseName];
+        let exerciseCount = 0;
+        if (exercisePR.maxWeight) exerciseCount++;
+        if (exercisePR.maxVolume) exerciseCount++;
+        return count + exerciseCount;
+      }, 0);
+    }
+
     // Format the response
     const dashboardData = {
       activityData,
       streak: currentStreak,
       progress: {
         workoutsCompleted: userStats?.totalWorkouts || 0,
-        personalRecords: 0, // TODO: Implement PR tracking later
+        personalRecords: personalRecordsCount,
         weightProgress: {
           current: user.weight || 0,
           goal: user.weightGoal || 0,

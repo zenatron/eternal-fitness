@@ -301,56 +301,62 @@ async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string |
 
 // 🏆 PERSONAL RECORDS
 async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
-  const exerciseFilter = exerciseKey 
-    ? `AND exercise_key = '${exerciseKey}'`
-    : '';
+  // Get user's stored personal records from UserStats
+  const userStats = await prisma.userStats.findUnique({
+    where: { userId },
+    select: { personalRecords: true }
+  });
 
-  // 🎯 EXTRACT PERSONAL RECORDS FROM JSON
-  const personalRecords = await prisma.$queryRaw`
-    SELECT 
-      exercise_key,
-      exercise_name,
-      MAX(max_weight) as best_weight,
-      MAX(max_reps) as best_reps,
-      MAX(total_volume) as best_volume,
-      MAX(completed_at) as latest_pr_date
-    FROM (
-      SELECT 
-        jsonb_path_query(
-          performance_data, 
-          '$.performance.*.exerciseKey'
-        ) #>> '{}' as exercise_key,
-        jsonb_path_query(
-          performance_data, 
-          '$.templateSnapshot.exercises[*] ? (@.exerciseKey == $key).name',
-          jsonb_build_object('key', jsonb_path_query(performance_data, '$.performance.*.exerciseKey') #>> '{}')
-        ) #>> '{}' as exercise_name,
-        (jsonb_path_query(
-          performance_data, 
-          '$.performance.*.sets[*].actualWeight'
-        ) #>> '{}')::numeric as max_weight,
-        (jsonb_path_query(
-          performance_data, 
-          '$.performance.*.sets[*].actualReps'
-        ) #>> '{}')::numeric as max_reps,
-        (jsonb_path_query(
-          performance_data, 
-          '$.performance.*.totalVolume'
-        ) #>> '{}')::numeric as total_volume,
-        completed_at
-      FROM workout_sessions 
-      WHERE user_id = ${userId} 
-        AND completed_at IS NOT NULL
-        AND completed_at >= NOW() - INTERVAL '365 days'
-    ) pr_data
-    WHERE exercise_key IS NOT NULL ${exerciseFilter}
-    GROUP BY exercise_key, exercise_name
-    ORDER BY best_volume DESC
-  `;
+  if (!userStats?.personalRecords) {
+    return successResponse({
+      exerciseKey: exerciseKey || 'all',
+      personalRecords: [],
+      period: '365 days',
+    });
+  }
+
+  const personalRecords = userStats.personalRecords as any;
+  const analyticsRecords: Array<{
+    exercise_key: string;
+    exercise_name: string;
+    best_weight: number;
+    best_reps: number;
+    best_volume: number;
+    latest_pr_date: string;
+  }> = [];
+
+  // Convert stored PR data to analytics format
+  Object.entries(personalRecords).forEach(([exerciseName, exercisePR]: [string, any]) => {
+    // Filter by exercise if specified
+    if (exerciseKey && exerciseName.toLowerCase() !== exerciseKey.toLowerCase()) {
+      return;
+    }
+
+    const exerciseKeyFormatted = exerciseName.toLowerCase().replace(/\s+/g, '_');
+
+    // Get the latest PR date from both maxWeight and maxVolume
+    const maxWeightDate = exercisePR.maxWeight?.achievedAt;
+    const maxVolumeDate = exercisePR.maxVolume?.achievedAt;
+    const latestDate = [maxWeightDate, maxVolumeDate]
+      .filter(Boolean)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+    analyticsRecords.push({
+      exercise_key: exerciseKeyFormatted,
+      exercise_name: exerciseName,
+      best_weight: exercisePR.maxWeight?.value || 0,
+      best_reps: exercisePR.maxWeight?.reps || 0,
+      best_volume: exercisePR.maxVolume?.value || 0,
+      latest_pr_date: latestDate || new Date().toISOString(),
+    });
+  });
+
+  // Sort by best volume descending
+  analyticsRecords.sort((a, b) => b.best_volume - a.best_volume);
 
   return successResponse({
     exerciseKey: exerciseKey || 'all',
-    personalRecords,
+    personalRecords: analyticsRecords,
     period: '365 days',
   });
 }
