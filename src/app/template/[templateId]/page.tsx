@@ -24,7 +24,8 @@ import {
   getTemplateExercises,
   formatSetDisplay,
   getDifficultyColor,
-  getWorkoutTypeColor
+  getWorkoutTypeColor,
+  getTotalSetsCount
 } from '@/utils/workoutDisplayUtils';
 
 // 🚀 JSON-BASED EXERCISE DISPLAY COMPONENT
@@ -35,70 +36,108 @@ interface ExerciseDisplayProps {
 
 function ExerciseDisplay({ exercise, profile }: ExerciseDisplayProps) {
   return (
-    <div className="border dark:border-gray-700 rounded-xl overflow-hidden">
-      <div className="bg-gray-100 dark:bg-gray-700 p-4">
-        <h4 className="font-semibold text-gray-900 dark:text-white">
-          {exercise.name}
-        </h4>
-        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          <span className="font-medium">Muscles:</span>{' '}
-          {exercise.muscles?.join(', ') || 'N/A'}
-        </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-medium">Equipment:</span>{' '}
-          {exercise.equipment?.join(', ') || 'N/A'}
-        </div>
-        {exercise.instructions && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            <span className="font-medium">Instructions:</span> {exercise.instructions}
+    <motion.div
+      className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+      <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+            <div className="w-6 h-6 bg-purple-600 dark:bg-purple-400 rounded"></div>
           </div>
-        )}
-        {exercise.restBetweenSets && (
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <span className="font-medium">Rest:</span> {exercise.restBetweenSets}s between sets
+          <div className="flex-1">
+            <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+              {exercise.name}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-purple-600 dark:text-purple-400">💪 Muscles:</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {exercise.muscles?.join(', ') || 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-purple-600 dark:text-purple-400">🏋️ Equipment:</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {exercise.equipment?.join(', ') || 'N/A'}
+                </span>
+              </div>
+              {exercise.restBetweenSets && (
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">⏱️ Rest:</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {exercise.restBetweenSets}s between sets
+                  </span>
+                </div>
+              )}
+            </div>
+            {exercise.instructions && (
+              <div className="mt-3 p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                <span className="font-semibold text-purple-600 dark:text-purple-400 text-sm">📝 Instructions:</span>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                  {exercise.instructions}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
-      <div className="p-4">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 dark:text-gray-400">
-              <th className="pb-2">Set</th>
-              <th className="pb-2">Type</th>
-              <th className="pb-2">Target</th>
-              <th className="pb-2">Rest</th>
-            </tr>
-          </thead>
-          <tbody>
+
+      <div className="p-6">
+        <h5 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <span className="text-purple-600 dark:text-purple-400">📊</span>
+          Sets Configuration
+        </h5>
+
+        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-4 gap-4 p-4 bg-gray-100 dark:bg-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400">
+            <div>Set</div>
+            <div>Type</div>
+            <div>Target</div>
+            <div>Rest</div>
+          </div>
+
+          <div className="divide-y divide-gray-200 dark:divide-gray-600">
             {exercise.sets.map((set, index) => (
-              <tr
+              <div
                 key={set.id}
-                className="border-t border-gray-200 dark:border-gray-600"
+                className="grid grid-cols-4 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
               >
-                <td className="py-2 text-gray-700 dark:text-gray-300">
-                  {index + 1}
-                </td>
-                <td className="py-2">
-                  <span className={`px-2 py-1 rounded-full text-xs ${
+                <div className="flex items-center">
+                  <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-sm font-bold text-purple-600 dark:text-purple-400">
+                    {index + 1}
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                     set.type === 'warmup' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                     set.type === 'working' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                   }`}>
                     {set.type}
                   </span>
-                </td>
-                <td className="py-2 text-gray-700 dark:text-gray-300">
-                  {formatSetDisplay(set)}
-                </td>
-                <td className="py-2 text-gray-700 dark:text-gray-300">
-                  {set.restTime ? `${set.restTime}s` : '-'}
-                </td>
-              </tr>
+                </div>
+                <div className="flex items-center text-gray-700 dark:text-gray-300 font-medium">
+                  {formatSetDisplay(set, profile?.useMetric)}
+                </div>
+                <div className="flex items-center text-gray-700 dark:text-gray-300">
+                  {set.restTime ? (
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded-md text-xs">
+                      {set.restTime}s
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -125,6 +164,8 @@ export default function TemplateDetailPage({
   console.log('✅ JSON-based template loaded:', {
     template: template?.name,
     exercises: exercises.length,
+    totalSets: template ? getTotalSetsCount(template) : 0,
+    exerciseCount: template?.exerciseCount, // This was incorrectly used for sets
     totalVolume: template?.totalVolume,
     difficulty: template?.difficulty,
     workoutType: template?.workoutType,
@@ -185,128 +226,177 @@ export default function TemplateDetailPage({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full min-h-screen py-12 px-4 bg-gray-50 dark:bg-gray-900"
+      className="w-full min-h-screen py-8 px-4 bg-gray-50 dark:bg-gray-900"
     >
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-4 mb-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            aria-label="Go back"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex-1">
-            Template Details
-          </h1>
-        </div>
+      <div className="max-w-6xl mx-auto">
+        {/* Enhanced Header */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-br from-purple-600 via-blue-600 to-purple-800 px-8 py-8 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => router.back()}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-label="Go back"
+                  >
+                    <ArrowLeftIcon className="h-6 w-6" />
+                  </button>
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2">
+                      {template.name}
+                    </h1>
+                    <div className="flex items-center gap-2 text-purple-100">
+                      <ClockIcon className="h-5 w-5" />
+                      <span>
+                        Created {formatUTCDateToLocalDateFriendly(template.createdAt, {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  {/* Start Workout Button */}
+                  <motion.button
+                    onClick={() => router.push(`/session/active/${templateId}`)}
+                    className="px-6 py-3 bg-green-500 hover:bg-green-600 rounded-xl transition-colors flex items-center gap-2 font-semibold"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    aria-label="Start workout session"
+                  >
+                    <PlayCircleIcon className="w-5 h-5" />
+                    Start Workout
+                  </motion.button>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-3xl font-bold text-white mb-2">
-                  {template.name}
-                </h2>
-                <div className="flex items-center gap-2 text-blue-100">
-                  <ClockIcon className="h-5 w-5" />
-                  <span>
-                    Created:{' '}
-                    {formatUTCDateToLocalDateFriendly(template.createdAt, {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
+                  <button
+                    onClick={handleToggleFavorite}
+                    className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-label={template.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    {template.favorite ? (
+                      <StarSolid className="h-6 w-6 text-amber-400" />
+                    ) : (
+                      <StarOutline className="h-6 w-6 text-white" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => router.push(`/template/edit/${templateId}`)}
+                    className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-label="Edit template"
+                  >
+                    <PencilIcon className="h-6 w-6 text-white" />
+                  </button>
+                  <button
+                    onClick={handleDeleteTemplate}
+                    className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-label="Delete template"
+                  >
+                    <TrashIcon className="h-6 w-6 text-white" />
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleToggleFavorite}
-                  className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label={
-                    template.favorite
-                      ? 'Remove from favorites'
-                      : 'Add to favorites'
-                  }
-                >
-                  {template.favorite ? (
-                    <StarSolid className="h-6 w-6 text-amber-400" />
-                  ) : (
-                    <StarOutline className="h-6 w-6 text-white" />
-                  )}
-                </button>
-                <button
-                  onClick={() => router.push(`/template/edit/${templateId}`)}
-                  className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label="Edit template"
-                >
-                  <PencilIcon className="h-6 w-6 text-white" />
-                </button>
-                <button
-                  onClick={handleDeleteTemplate}
-                  className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                  aria-label="Delete template"
-                >
-                  <TrashIcon className="h-6 w-6 text-white" />
-                </button>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap gap-4 mt-4 text-sm text-white">
-              <div className="bg-white/20 rounded-lg px-3 py-1">
-                {exercises.length} exercises
-              </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1">
-                {template.exerciseCount} total sets
-              </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1">
-                {formatVolume(template.totalVolume, profile?.useMetric)} volume
-              </div>
-              <div className="bg-white/20 rounded-lg px-3 py-1">
-                ~{template.estimatedDuration} min
-              </div>
-              <div className={`rounded-lg px-3 py-1 ${getDifficultyColor(template.difficulty)}`}>
-                {template.difficulty}
-              </div>
-              <div className={`rounded-lg px-3 py-1 ${getWorkoutTypeColor(template.workoutType)}`}>
-                {template.workoutType}
+              {/* Enhanced Stats Section */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold">{exercises.length}</div>
+                  <div className="text-sm text-purple-100">Exercises</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold">{getTotalSetsCount(template)}</div>
+                  <div className="text-sm text-purple-100">Total Sets</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold">{formatVolume(template.totalVolume, profile?.useMetric)}</div>
+                  <div className="text-sm text-purple-100">Volume</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold">~{template.estimatedDuration}</div>
+                  <div className="text-sm text-purple-100">Minutes</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-lg font-bold capitalize">{template.difficulty}</div>
+                  <div className="text-sm text-purple-100">Difficulty</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                  <div className="text-lg font-bold capitalize">{template.workoutType}</div>
+                  <div className="text-sm text-purple-100">Type</div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-              Exercises in Template
-            </h3>
+        {/* Exercises Section */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+              <div className="w-6 h-6 bg-purple-600 dark:bg-purple-400 rounded"></div>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Workout Exercises
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                {exercises.length} exercise{exercises.length === 1 ? '' : 's'} configured for this template
+              </p>
+            </div>
+          </div>
 
-            <div className="space-y-6">
-              {/* 🚀 Map over JSON-based exercises */}
-              {exercises.length > 0 ? (
-                exercises.map((exercise) => (
+          <div className="space-y-6">
+            {exercises.length > 0 ? (
+              exercises.map((exercise, index) => (
+                <motion.div
+                  key={exercise.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
                   <ExerciseDisplay
-                    key={exercise.id}
                     exercise={exercise}
                     profile={profile}
                   />
-                ))
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                  This template currently has no exercises.
+                </motion.div>
+              ))
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full w-20 h-20 mx-auto mb-6">
+                  <div className="w-12 h-12 bg-gray-400 rounded mx-auto"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  No Exercises Found
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  This template currently has no exercises configured.
                 </p>
-              )}
-            </div>
+                <button
+                  onClick={() => router.push(`/template/edit/${templateId}`)}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Add Exercises
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Action Section */}
         <div className="text-center">
-          <button
+          <motion.button
             onClick={() => router.push(`/session/active/${templateId}`)}
-            className="btn btn-quaternary btn-lg flex items-center gap-2 mx-auto"
+            className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 flex items-center gap-3 mx-auto font-semibold text-lg shadow-lg hover:shadow-xl"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <PlayCircleIcon className="w-6 h-6" />
-            Start Session with this Template
-          </button>
+            <PlayCircleIcon className="w-7 h-7" />
+            Start Workout Session
+          </motion.button>
+          <p className="text-gray-600 dark:text-gray-400 mt-3 text-sm">
+            Begin a new workout session using this template
+          </p>
         </div>
       </div>
     </motion.div>

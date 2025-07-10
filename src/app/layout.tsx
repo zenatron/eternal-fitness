@@ -5,6 +5,7 @@ import { ThemeHandler } from '@/components/theme/ThemeHandler';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ClerkProvider } from '@clerk/nextjs';
+import ActiveWorkoutIndicator from '@/components/workout/ActiveWorkoutIndicator';
 
 export const metadata: Metadata = {
   title: 'Eternal Fitness',
@@ -24,6 +25,7 @@ export default async function RootLayout({
             <ThemeHandler>
               <div className="min-h-screen flex flex-col">
                 <Header />
+                <ActiveWorkoutIndicator />
                 <main className="flex-1 pt-16 app-bg">{children}</main>
                 <Footer />
               </div>

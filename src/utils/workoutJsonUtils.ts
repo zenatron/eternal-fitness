@@ -9,8 +9,8 @@ import {
   ExercisePerformance,
   PerformedSet,
   SessionMetrics,
-  PersonalRecord,
-  VolumeRecord,
+  LegacyPersonalRecord,
+  LegacyVolumeRecord,
   SetType,
   WorkoutType,
   Difficulty,
@@ -162,8 +162,8 @@ export function calculateSessionMetrics(
   let skippedSets = 0;
   let totalRpe = 0;
   let rpeCount = 0;
-  const personalRecords: PersonalRecord[] = [];
-  const volumeRecords: VolumeRecord[] = [];
+  const personalRecords: LegacyPersonalRecord[] = [];
+  const volumeRecords: LegacyVolumeRecord[] = [];
 
   Object.values(performance).forEach(exercisePerf => {
     totalVolume += exercisePerf.totalVolume;
@@ -231,8 +231,8 @@ export function detectPersonalRecords(
     maxReps?: number;
     maxVolume?: number;
   }
-): PersonalRecord[] {
-  const records: PersonalRecord[] = [];
+): LegacyPersonalRecord[] {
+  const records: LegacyPersonalRecord[] = [];
   const currentDate = new Date().toISOString();
 
   // Check for weight PR

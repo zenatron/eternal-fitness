@@ -4,9 +4,10 @@ import { UserStatsData } from '@/lib/hooks/useUserStats';
 interface TopExercisesProps {
   stats: UserStatsData;
   useMetric: boolean;
+  onViewAll?: () => void;
 }
 
-export function TopExercises({ stats, useMetric }: TopExercisesProps) {
+export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps) {
   const formatVolume = (volume: number) => {
     const unit = useMetric ? 'kg' : 'lbs';
     if (volume >= 1000000) {
@@ -48,7 +49,7 @@ export function TopExercises({ stats, useMetric }: TopExercisesProps) {
         Top Exercises
       </h3>
       <div className="space-y-4">
-        {stats.topExercises.slice(0, 6).map((exercise, index) => {
+        {stats.topExercises.slice(0, 4).map((exercise, index) => {
           const volumePercentage = (exercise.totalVolume / maxVolume) * 100;
           
           return (
@@ -101,10 +102,16 @@ export function TopExercises({ stats, useMetric }: TopExercisesProps) {
           );
         })}
       </div>
-      {stats.topExercises.length > 6 && (
+      {stats.topExercises.length > 4 && (
         <div className="mt-4 text-center">
-          <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm">
-            View All Exercises
+          <button
+            onClick={onViewAll}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+          >
+            View All Exercises ({stats.topExercises.length})
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       )}

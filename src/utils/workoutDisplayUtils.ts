@@ -208,26 +208,28 @@ export function calculateSetPerformance(
 /**
  * Formats set display text
  */
-export function formatSetDisplay(set: WorkoutSet): string {
-  const reps = typeof set.targetReps === 'number' 
+export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false): string {
+  const reps = typeof set.targetReps === 'number'
     ? set.targetReps.toString()
     : `${set.targetReps?.min}-${set.targetReps?.max}`;
-  
-  const weight = set.targetWeight ? ` × ${set.targetWeight}kg` : '';
+
+  const unit = useMetric ? 'kg' : 'lbs';
+  const weight = set.targetWeight ? ` × ${set.targetWeight}${unit}` : '';
   const duration = set.targetDuration ? ` (${set.targetDuration}s)` : '';
-  
+
   return `${reps}${weight}${duration}`;
 }
 
 /**
  * Formats performed set display text
  */
-export function formatPerformedSetDisplay(set: PerformedSet): string {
+export function formatPerformedSetDisplay(set: PerformedSet, useMetric: boolean = false): string {
   const reps = set.actualReps ? set.actualReps.toString() : '0';
-  const weight = set.actualWeight ? ` × ${set.actualWeight}kg` : '';
+  const unit = useMetric ? 'kg' : 'lbs';
+  const weight = set.actualWeight ? ` × ${set.actualWeight}${unit}` : '';
   const duration = set.actualDuration ? ` (${set.actualDuration}s)` : '';
   const rpe = set.actualRpe ? ` @${set.actualRpe}` : '';
-  
+
   return `${reps}${weight}${duration}${rpe}`;
 }
 

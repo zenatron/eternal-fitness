@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PlusCircleIcon,
@@ -9,6 +9,8 @@ import {
   CheckCircleIcon,
   DocumentDuplicateIcon,
   Bars3Icon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { exercises } from '@/lib/exercises';
@@ -54,6 +56,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
   const [workoutType, setWorkoutType] = useState(initialData?.workoutType || 'strength');
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'intermediate');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+  const [exerciseSearch, setExerciseSearch] = useState('');
   const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>(() => {
     const exercises = (initialData?.exercises as TemplateExercise[]) || [];
     // Ensure all sets have unique IDs
@@ -65,6 +68,95 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
       }))
     }));
   });
+
+  // Fuzzy search function with scoring
+  const fuzzySearch = (text: string, searchTerms: string[]): number => {
+    if (!text || searchTerms.length === 0) return 0;
+
+    const textLower = text.toLowerCase();
+    let score = 0;
+
+    for (const term of searchTerms) {
+      if (!term || term.length === 0) continue;
+
+      if (textLower.includes(term)) {
+        // Exact substring match gets high score
+        score += 10;
+
+        // Bonus for word boundary matches
+        const wordBoundaryRegex = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+        if (wordBoundaryRegex.test(text)) {
+          score += 5;
+        }
+
+        // Bonus for matches at the beginning
+        if (textLower.startsWith(term)) {
+          score += 3;
+        }
+      } else if (term.length >= 2) {
+        // Check for partial character matches (fuzzy) - only for terms 2+ chars
+        let partialScore = 0;
+        let lastIndex = -1;
+
+        for (const char of term) {
+          const charIndex = textLower.indexOf(char, lastIndex + 1);
+          if (charIndex > lastIndex) {
+            partialScore += 1;
+            lastIndex = charIndex;
+          }
+        }
+
+        // Only add partial score if we matched a significant portion
+        const threshold = Math.max(2, Math.ceil(term.length * 0.6));
+        if (partialScore >= threshold) {
+          score += partialScore * 0.5;
+        }
+      }
+    }
+
+    return score;
+  };
+
+  // Filter and sort exercises based on fuzzy search
+  const filteredExercises = useMemo(() => {
+    if (!exerciseSearch.trim()) {
+      return Object.entries(exercises);
+    }
+
+    const searchTerms = exerciseSearch.toLowerCase().trim().split(/\s+/);
+
+    const exerciseScores = Object.entries(exercises).map(([key, exercise]) => {
+      let totalScore = 0;
+
+      // Search by exercise name (highest weight)
+      const nameScore = fuzzySearch(exercise.name, searchTerms) * 3;
+      totalScore += nameScore;
+
+      // Search by muscle groups (medium weight)
+      const muscleScore = exercise.muscles.reduce((score, muscle) => {
+        return score + fuzzySearch(muscle, searchTerms);
+      }, 0) * 2;
+      totalScore += muscleScore;
+
+      // Search by equipment (lower weight)
+      const equipmentScore = exercise.equipment.reduce((score, equipment) => {
+        return score + fuzzySearch(equipment, searchTerms);
+      }, 0);
+      totalScore += equipmentScore;
+
+      return {
+        key,
+        exercise,
+        score: totalScore
+      };
+    });
+
+    // Filter out exercises with no matches and sort by score
+    return exerciseScores
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(item => [item.key, item.exercise] as [string, typeof item.exercise]);
+  }, [exerciseSearch]);
 
   // Handle drag end for sets
   const handleSetDragEnd = (result: DropResult, exerciseIndex: number) => {
@@ -345,25 +437,106 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
               </div>
             </div>
 
+            {/* Search Input */}
+            <div className="mb-6">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={exerciseSearch}
+                  onChange={(e) => setExerciseSearch(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                  placeholder="Search exercises... Try 'chest press', 'leg quad', or 'dumbbell'"
+                />
+                {exerciseSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setExerciseSearch('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
+                  </button>
+                )}
+              </div>
+
+              {!exerciseSearch && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Quick searches:</span>
+                  {['chest', 'legs', 'back', 'shoulders', 'barbell', 'dumbbell'].map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => setExerciseSearch(term)}
+                      className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {exerciseSearch && (
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Found {filteredExercises.length} exercise{filteredExercises.length === 1 ? '' : 's'}
+                    {filteredExercises.length > 0 && (
+                      <span className="text-green-600 dark:text-green-400 font-medium"> (sorted by relevance)</span>
+                    )}
+                  </p>
+                  {exerciseSearch.includes(' ') && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      💡 Multi-word search active
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Exercise Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto pr-2">
-              {Object.entries(exercises).map(([key, exercise]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => addExercise(key)}
-                  className="p-4 text-left border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
-                >
-                  <div className="font-semibold text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors">
-                    {exercise.name}
+              {filteredExercises.length === 0 ? (
+                <div className="col-span-full text-center py-8">
+                  <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full w-16 h-16 mx-auto mb-4">
+                    <MagnifyingGlassIcon className="w-8 h-8 text-gray-400 mx-auto" />
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {exercise.muscles.slice(0, 2).join(', ')}
-                  </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {exercise.equipment.slice(0, 2).join(', ')}
-                  </div>
-                </button>
-              ))}
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    No exercises found
+                  </h4>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Try adjusting your search terms or browse all exercises
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setExerciseSearch('')}
+                    className="px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors font-medium"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              ) : (
+                filteredExercises.map(([key, exercise]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => addExercise(key)}
+                    className="p-4 text-left border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
+                  >
+                    <div className="font-semibold text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors">
+                      {exercise.name}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      {exercise.muscles.slice(0, 2).join(', ')}
+                      {exercise.muscles.length > 2 && ` +${exercise.muscles.length - 2} more`}
+                    </div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      {exercise.equipment.slice(0, 2).join(', ')}
+                      {exercise.equipment.length > 2 && ` +${exercise.equipment.length - 2} more`}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </motion.div>

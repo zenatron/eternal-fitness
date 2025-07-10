@@ -175,7 +175,7 @@ export interface ExercisePerformance {
   // Exercise-level metrics
   totalVolume: number;
   averageRpe?: number;
-  personalRecords?: PersonalRecord[];
+  personalRecords?: LegacyPersonalRecord[];
 
   // Performance insights
   performanceRating?: number; // 1-5 scale
@@ -218,8 +218,8 @@ export interface SessionMetrics {
   intensityScore?: number; // calculated intensity rating
 
   // Performance achievements
-  personalRecords: PersonalRecord[];
-  volumeRecords: VolumeRecord[];
+  personalRecords: LegacyPersonalRecord[];
+  volumeRecords: LegacyVolumeRecord[];
 
   // Session quality indicators
   adherenceScore: number; // % of planned work completed
@@ -227,7 +227,8 @@ export interface SessionMetrics {
   fatigueLevel?: number; // post-workout fatigue (1-10)
 }
 
-export interface PersonalRecord {
+// Legacy PR types for session metrics (deprecated - use personalRecords.ts types instead)
+export interface LegacyPersonalRecord {
   exerciseKey: string;
   exerciseName: string;
   type: 'weight' | 'reps' | 'volume' | 'duration' | 'distance';
@@ -237,7 +238,7 @@ export interface PersonalRecord {
   date: string; // ISO date string
 }
 
-export interface VolumeRecord {
+export interface LegacyVolumeRecord {
   type: 'session' | 'exercise' | 'muscle_group';
   identifier: string; // session, exercise key, or muscle group
   volume: number;
@@ -380,7 +381,7 @@ export interface UserAnalyticsData {
     currentStreak: number;
     longestStreak: number;
     totalWorkouts: number;
-    personalRecords: PersonalRecord[];
+    personalRecords: LegacyPersonalRecord[];
     milestones: Array<{
       type: string;
       description: string;
@@ -403,8 +404,8 @@ export interface MonthlyAnalyticsData {
 
   // Performance metrics
   averageRpe: number;
-  personalRecords: PersonalRecord[];
-  volumeRecords: VolumeRecord[];
+  personalRecords: LegacyPersonalRecord[];
+  volumeRecords: LegacyVolumeRecord[];
 
   // Consistency metrics
   workoutDays: string[]; // ISO date strings
@@ -418,7 +419,7 @@ export interface MonthlyAnalyticsData {
 }
 
 // ============================================================================
-// FORM AND UI TYPES (for backward compatibility)
+// EXERCISE LIBRARY TYPES
 // ============================================================================
 
 export type FormExercise = {
@@ -427,24 +428,6 @@ export type FormExercise = {
   equipment: string[];
 };
 
-export type FormSet = {
-  reps: number;
-  weight: number;
-  duration?: number;
-};
-
-export type FormExerciseWithSets = FormExercise & {
-  sets: FormSet[];
-};
-
 export type ExerciseList = {
   [key: string]: FormExercise;
-};
-
-// Legacy types for backward compatibility during migration
-export type WorkoutTemplateWithSets = WorkoutTemplate;
-export type Set = FormSet & { id: string };
-export type WorkoutDay = {
-  day: string;
-  exercises: FormExerciseWithSets[];
 };

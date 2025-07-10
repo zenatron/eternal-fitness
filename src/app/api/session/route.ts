@@ -10,6 +10,7 @@ import {
   ExercisePerformance,
   WorkoutTemplateData
 } from '@/types/workout';
+import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 200) => {
@@ -119,22 +120,41 @@ export async function POST(request: Request) {
       const sessionData = createWorkoutSession(templateData, jsonPerformance);
       const metrics = calculateSessionMetrics(jsonPerformance);
 
-      const newSession = await prisma.workoutSession.create({
-        data: {
-          userId,
-          workoutTemplateId: templateId,
-          completedAt: new Date(),
-          duration,
-          notes,
-          performanceData: sessionData,
-          totalVolume: metrics.totalVolume,
-          totalSets: metrics.totalSets,
-          totalExercises: metrics.totalExercises,
-          personalRecords: metrics.personalRecords?.length || 0,
-        } as any,
-        include: {
-          workoutTemplate: { select: { name: true } },
-        },
+      const newSession = await prisma.$transaction(async (tx) => {
+        // Create the session
+        const session = await tx.workoutSession.create({
+          data: {
+            userId,
+            workoutTemplateId: templateId,
+            completedAt: new Date(),
+            duration,
+            notes,
+            performanceData: sessionData,
+            totalVolume: metrics.totalVolume,
+            totalSets: metrics.totalSets,
+            totalExercises: metrics.totalExercises,
+            personalRecords: metrics.personalRecords?.length || 0,
+          } as any,
+          include: {
+            workoutTemplate: { select: { name: true } },
+          },
+        });
+
+        // Process personal records
+        try {
+          const prResults = await processWorkoutSessionPRs(
+            userId,
+            session.id,
+            jsonPerformance,
+            templateData
+          );
+          console.log(`✅ Processed ${prResults.newPRs.length} new PRs for legacy session ${session.id}`);
+        } catch (error) {
+          console.error('Error processing PRs:', error);
+          // Don't fail the session creation if PR processing fails
+        }
+
+        return session;
       });
 
       return successResponse(newSession, 201);

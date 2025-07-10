@@ -61,7 +61,7 @@ export function RecentActivityCard({ activities }: RecentActivityCardProps) {
         )}
 
         <Link
-          href="/activity"
+          href="/profile?modal=activity"
           className="mt-6 w-full btn btn-secondary inline-flex items-center justify-center gap-2 group"
         >
           View All Activity

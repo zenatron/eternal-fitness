@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 import { WorkoutTemplate } from '@/types/workout';
+import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 201) => {
@@ -28,7 +29,23 @@ const errorResponse = (message: string, status = 500, details?: any) => {
 const completeTemplateSchema = z.object({
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
-  // Add performance data schema here if needed
+  performance: z.record(z.object({
+    exerciseKey: z.string(),
+    sets: z.array(z.object({
+      setId: z.string(),
+      actualReps: z.number().optional(),
+      actualWeight: z.number().optional(),
+      actualDuration: z.number().optional(),
+      actualRpe: z.number().optional(),
+      completed: z.boolean(),
+      skipped: z.boolean().optional(),
+      notes: z.string().optional(),
+      restTime: z.number().optional(),
+    })),
+    exerciseNotes: z.string().optional(),
+    totalVolume: z.number(),
+    averageRpe: z.number().optional(),
+  })).optional(),
 });
 
 export async function POST(
@@ -59,7 +76,7 @@ export async function POST(
       return errorResponse('Invalid input', 400, validationResult.error.errors);
     }
 
-    const { duration, notes } = validationResult.data;
+    const { duration, notes, performance } = validationResult.data;
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
@@ -85,19 +102,34 @@ export async function POST(
       const templateData = template.workoutData;
       const totalSets = getTotalSetsCount(template as WorkoutTemplate);
 
-      // Create basic performance data structure for the completed session
+      // Create performance data structure for the completed session
+      let actualTotalVolume = sessionTotalVolume;
+      let completedSets = totalSets;
+      let skippedSets = 0;
+
+      if (performance) {
+        // Calculate actual metrics from performance data
+        actualTotalVolume = Object.values(performance).reduce((total, exercisePerf) => total + exercisePerf.totalVolume, 0);
+        completedSets = Object.values(performance).reduce((total, exercisePerf) =>
+          total + exercisePerf.sets.filter(set => set.completed).length, 0);
+        skippedSets = Object.values(performance).reduce((total, exercisePerf) =>
+          total + exercisePerf.sets.filter(set => set.skipped).length, 0);
+      }
+
+      const adherenceScore = totalSets > 0 ? Math.round(((completedSets + skippedSets) / totalSets) * 100) : 100;
+
       const performanceData = {
         templateSnapshot: templateData,
-        performance: {}, // Empty performance data since we don't track detailed performance in this simple completion
+        performance: performance || {}, // Use provided performance data or empty object
         metrics: {
-          totalVolume: sessionTotalVolume,
+          totalVolume: actualTotalVolume,
           totalSets: totalSets,
           totalExercises: template.exerciseCount || 0,
-          completedSets: totalSets, // Assume all sets completed for simple completion
-          skippedSets: 0,
-          personalRecords: [],
-          volumeRecords: [],
-          adherenceScore: 100, // Assume 100% adherence for simple completion
+          completedSets: completedSets,
+          skippedSets: skippedSets,
+          personalRecords: [], // TODO: Calculate PRs from performance data
+          volumeRecords: [], // TODO: Calculate volume records
+          adherenceScore: adherenceScore,
         },
         environment: {},
       };
@@ -109,18 +141,27 @@ export async function POST(
           completedAt: completionTime,
           duration: duration,
           notes: notes,
-          totalVolume: sessionTotalVolume,
-          totalSets: totalSets,
+          totalVolume: actualTotalVolume,
+          totalSets: completedSets,
           totalExercises: template.exerciseCount || 0,
-          averageRpe: null,
-          personalRecords: 0,
+          personalRecords: [], // Empty array for PRs
           scheduledAt: null, // Not scheduled
           performanceData: performanceData as any, // Prisma Json type
         },
         include: { workoutTemplate: { select: { name: true } } },
       });
 
-      // 3. Update UserStats
+      // 3. Process Personal Records if performance data is available
+      if (performance && Object.keys(performance).length > 0) {
+        try {
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
+        } catch (prError) {
+          console.error('Error processing PRs:', prError);
+          // Don't fail the entire transaction for PR processing errors
+        }
+      }
+
+      // 4. Update UserStats
       await tx.userStats.upsert({
         where: { userId: userId },
         update: {
@@ -140,7 +181,7 @@ export async function POST(
         },
       });
 
-      // 4. Update MonthlyStats
+      // 5. Update MonthlyStats
       const currentYear = completionTime.getFullYear();
       const currentMonth = completionTime.getMonth() + 1;
       await tx.monthlyStats.upsert({

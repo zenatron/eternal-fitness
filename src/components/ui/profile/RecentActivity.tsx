@@ -4,9 +4,10 @@ import { UserStatsData } from '@/lib/hooks/useUserStats';
 interface RecentActivityProps {
   stats: UserStatsData;
   useMetric: boolean;
+  onViewAll?: () => void;
 }
 
-export function RecentActivity({ stats, useMetric }: RecentActivityProps) {
+export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
   const formatVolume = (volume: number) => {
     const unit = useMetric ? 'kg' : 'lbs';
     return `${volume.toFixed(0)} ${unit}`;
@@ -58,7 +59,7 @@ export function RecentActivity({ stats, useMetric }: RecentActivityProps) {
         Recent Activity
       </h3>
       <div className="space-y-4">
-        {stats.recentSessions.slice(0, 5).map((session, index) => (
+        {stats.recentSessions.slice(0, 4).map((session, index) => (
           <div
             key={session.id}
             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -88,10 +89,16 @@ export function RecentActivity({ stats, useMetric }: RecentActivityProps) {
           </div>
         ))}
       </div>
-      {stats.recentSessions.length > 5 && (
+      {stats.recentSessions.length > 0 && onViewAll && (
         <div className="mt-4 text-center">
-          <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm">
-            View All Activity
+          <button
+            onClick={onViewAll}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+          >
+            View All Activity ({stats.recentSessions.length})
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       )}

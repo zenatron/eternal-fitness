@@ -239,16 +239,21 @@ export async function GET() {
               : 0,
         },
       },
-      recentActivity: recentSessions.map((session) => ({
-        id: session.id,
-        title: session.workoutTemplate.name,
-        details: `Completed ${formatTimeAgo(
-          session.completedAt,
-        )} • ${session.totalVolume.toFixed(0)} ${
-          user.useMetric ? 'kg' : 'lbs'
-        } Vol.`, // Example detail
-        timeAgo: formatTimeAgo(session.completedAt), // Use existing helper
-      })),
+      recentActivity: recentSessions.map((session) => {
+        const unit = user.useMetric ? 'kg' : 'lbs';
+        const formattedVolume = session.totalVolume >= 1000000
+          ? `${(session.totalVolume / 1000000).toFixed(1)}M ${unit}`
+          : session.totalVolume >= 1000
+          ? `${(session.totalVolume / 1000).toFixed(1)}K ${unit}`
+          : `${session.totalVolume.toFixed(0)} ${unit}`;
+
+        return {
+          id: session.id,
+          title: session.workoutTemplate.name,
+          details: `Completed ${formatTimeAgo(session.completedAt)} • ${formattedVolume} Vol.`,
+          timeAgo: formatTimeAgo(session.completedAt),
+        };
+      }),
       stats: {
         totalWorkouts: userStats?.totalWorkouts || 0, // Should reflect sessions
         hoursTrained: userStats?.totalTrainingHours || 0,

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   UserCircleIcon,
@@ -28,13 +28,47 @@ import { StatsOverview } from '@/components/ui/profile/StatsOverview';
 import { RecentActivity } from '@/components/ui/profile/RecentActivity';
 import { PersonalRecords } from '@/components/ui/profile/PersonalRecords';
 import { TopExercises } from '@/components/ui/profile/TopExercises';
+
+// Import modals
+import { PersonalRecordsModal } from '@/components/modals/PersonalRecordsModal';
+import { TopExercisesModal } from '@/components/modals/TopExercisesModal';
+import { RecentActivityModal } from '@/components/modals/RecentActivityModal';
 import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
 import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 
 export default function Profile() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile, isLoading, error } = useProfile();
   const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
+
+  // Modal state management
+  const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | null>(null);
+
+  // Handle URL query params for modal opening
+  useEffect(() => {
+    const modal = searchParams.get('modal');
+    if (modal === 'records' || modal === 'exercises' || modal === 'activity') {
+      setActiveModal(modal);
+    }
+  }, [searchParams]);
+
+  // Modal handlers
+  const openModal = (modalType: 'records' | 'exercises' | 'activity') => {
+    setActiveModal(modalType);
+    // Update URL without causing navigation
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('modal', modalType);
+    window.history.pushState({}, '', newUrl.toString());
+  };
+
+  const closeModal = () => {
+    setActiveModal(null);
+    // Remove modal param from URL
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('modal');
+    window.history.pushState({}, '', newUrl.toString());
+  };
 
   useEffect(() => {
     // Only perform checks and redirects after the initial loading is done.
@@ -203,13 +237,13 @@ export default function Profile() {
                   <CalendarDaysIcon className="w-4 h-4" />
                   Templates
                 </Link>
-                <Link
-                  href="/activity"
+                <button
+                  onClick={() => openModal('activity')}
                   className="btn btn-tertiary inline-flex items-center justify-center gap-2 text-sm"
                 >
                   <ChartBarIcon className="w-4 h-4" />
                   Activity
-                </Link>
+                </button>
                 <Link
                   href="/account"
                   className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
@@ -242,17 +276,29 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Recent Activity */}
           {stats && (
-            <RecentActivity stats={stats} useMetric={profile?.useMetric || false} />
+            <RecentActivity
+              stats={stats}
+              useMetric={profile?.useMetric || false}
+              onViewAll={() => openModal('activity')}
+            />
           )}
 
           {/* Personal Records */}
           {stats && (
-            <PersonalRecords stats={stats} useMetric={profile?.useMetric || false} />
+            <PersonalRecords
+              stats={stats}
+              useMetric={profile?.useMetric || false}
+              onViewAll={() => openModal('records')}
+            />
           )}
 
           {/* Top Exercises */}
           {stats && (
-            <TopExercises stats={stats} useMetric={profile?.useMetric || false} />
+            <TopExercises
+              stats={stats}
+              useMetric={profile?.useMetric || false}
+              onViewAll={() => openModal('exercises')}
+            />
           )}
 
           {/* Monthly Progress */}
@@ -269,6 +315,30 @@ export default function Profile() {
           <SavedWorkouts />
         </div>
       </div>
+
+      {/* Modals */}
+      {stats && (
+        <>
+          <PersonalRecordsModal
+            isOpen={activeModal === 'records'}
+            onClose={closeModal}
+            stats={stats}
+            useMetric={profile?.useMetric || false}
+          />
+          <TopExercisesModal
+            isOpen={activeModal === 'exercises'}
+            onClose={closeModal}
+            stats={stats}
+            useMetric={profile?.useMetric || false}
+          />
+          <RecentActivityModal
+            isOpen={activeModal === 'activity'}
+            onClose={closeModal}
+            stats={stats}
+            useMetric={profile?.useMetric || false}
+          />
+        </>
+      )}
     </div>
   );
 }

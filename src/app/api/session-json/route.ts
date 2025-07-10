@@ -2,19 +2,20 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-import { 
+import {
   createWorkoutSession,
   calculateSessionMetrics,
   calculateExerciseVolume,
   detectPersonalRecords,
   validateWorkoutSession
 } from '@/utils/workoutJsonUtils';
-import { 
+import {
   WorkoutSessionData,
   ExercisePerformance,
   PerformedSet,
   WorkoutTemplateData
 } from '@/types/workout';
+import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 200) => {
@@ -199,9 +200,10 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
     }
 
     const completionTime = new Date();
-    
-    const [newSession] = await prisma.$transaction([
-      prisma.workoutSession.create({
+
+    const [newSession] = await prisma.$transaction(async (tx) => {
+      // Create the session
+      const session = await tx.workoutSession.create({
         data: {
           userId,
           workoutTemplateId: templateId,
@@ -216,9 +218,24 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
           performanceData: sessionData as any,
         },
         include: { workoutTemplate: { select: { name: true } } },
-      }),
+      });
+
+      // Process personal records
+      try {
+        const prResults = await processWorkoutSessionPRs(
+          userId,
+          session.id,
+          performance,
+          templateData
+        );
+        console.log(`✅ Processed ${prResults.newPRs.length} new PRs for session ${session.id}`);
+      } catch (error) {
+        console.error('Error processing PRs:', error);
+        // Don't fail the session creation if PR processing fails
+      }
+
       // Update user stats
-      prisma.userStats.upsert({
+      const userStats = await tx.userStats.upsert({
         where: { userId },
         update: {
           totalWorkouts: { increment: 1 },
@@ -239,8 +256,10 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
           currentStreak: 1,
           longestStreak: 1,
         },
-      }),
-    ]);
+      });
+
+      return session;
+    });
 
     console.log(`✅ Created completed JSON session: ${newSession.id}`);
     return successResponse(newSession, 201);
@@ -283,8 +302,9 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
 
   const completionTime = new Date();
 
-  const [updatedSession] = await prisma.$transaction([
-    prisma.workoutSession.update({
+  const [updatedSession] = await prisma.$transaction(async (tx) => {
+    // Update the session
+    const session = await tx.workoutSession.update({
       where: { id: scheduledSessionId },
       data: {
         completedAt: completionTime,
@@ -297,9 +317,24 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
         performanceData: sessionData as any,
       },
       include: { workoutTemplate: { select: { name: true } } },
-    }),
+    });
+
+    // Process personal records
+    try {
+      const prResults = await processWorkoutSessionPRs(
+        userId,
+        session.id,
+        performance,
+        templateData
+      );
+      console.log(`✅ Processed ${prResults.newPRs.length} new PRs for scheduled session ${session.id}`);
+    } catch (error) {
+      console.error('Error processing PRs:', error);
+      // Don't fail the session completion if PR processing fails
+    }
+
     // Update user stats
-    prisma.userStats.upsert({
+    const userStats = await tx.userStats.upsert({
       where: { userId },
       update: {
         totalWorkouts: { increment: 1 },
@@ -320,8 +355,10 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
         currentStreak: 1,
         longestStreak: 1,
       },
-    }),
-  ]);
+    });
+
+    return session;
+  });
 
   console.log(`✅ Completed scheduled JSON session: ${updatedSession.id}`);
   return successResponse(updatedSession);

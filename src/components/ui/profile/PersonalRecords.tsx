@@ -4,9 +4,10 @@ import { UserStatsData } from '@/lib/hooks/useUserStats';
 interface PersonalRecordsProps {
   stats: UserStatsData;
   useMetric: boolean;
+  onViewAll?: () => void;
 }
 
-export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
+export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecordsProps) {
   const formatWeight = (weight: number) => {
     const unit = useMetric ? 'kg' : 'lbs';
     return `${weight.toFixed(1)} ${unit}`;
@@ -45,7 +46,7 @@ export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
         Personal Records
       </h3>
       <div className="space-y-3">
-        {stats.personalRecords.slice(0, 8).map((record, index) => (
+        {stats.personalRecords.slice(0, 4).map((record, index) => (
           <div
             key={`${record.exerciseKey}_${record.type}`}
             className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800"
@@ -77,10 +78,16 @@ export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
           </div>
         ))}
       </div>
-      {stats.personalRecords.length > 8 && (
+      {stats.personalRecords.length > 4 && (
         <div className="mt-4 text-center">
-          <button className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium text-sm">
-            View All Records
+          <button
+            onClick={onViewAll}
+            className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+          >
+            View All Records ({stats.personalRecords.length})
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       )}

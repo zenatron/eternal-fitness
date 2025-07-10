@@ -39,7 +39,7 @@ export function QuickActionsCard() {
       description: 'View your stats',
     },
     {
-      href: '/activity',
+      href: '/profile?modal=activity',
       label: 'Activity',
       icon: ChartBarIcon,
       color: 'from-orange-500 to-orange-600',

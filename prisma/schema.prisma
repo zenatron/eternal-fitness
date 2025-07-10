@@ -108,8 +108,16 @@ model UserStats {
   longestStreak      Int       @default(0)
   lastWorkoutAt      DateTime?
   activeWeeks        Int       @default(0)
+
+  // 🏆 PERSONAL RECORDS TRACKING
+  // JSON object with exercise names as keys, containing maxWeight and maxVolume PRs
+  personalRecords    Json?     @db.JsonB
+
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  // Index for PR queries
+  @@index([personalRecords], type: Gin)
 }
 
 model MonthlyStats {

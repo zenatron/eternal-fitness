@@ -74,13 +74,15 @@ export async function GET() {
     allSessions.forEach(session => {
       if (session.performanceData && typeof session.performanceData === 'object') {
         const data = session.performanceData as any;
-        
-        // Extract exercise data from performance data
-        if (data.templateSnapshot?.exercises) {
-          data.templateSnapshot.exercises.forEach((exercise: any) => {
-            const key = exercise.exerciseKey;
-            const name = exercise.name;
-            
+
+        // Extract exercise data from actual performance data
+        if (data.performance) {
+          Object.values(data.performance).forEach((exercisePerf: any) => {
+            const key = exercisePerf.exerciseKey;
+            // Get exercise name from template snapshot
+            const templateExercise = data.templateSnapshot?.exercises?.find((ex: any) => ex.exerciseKey === key);
+            const name = templateExercise?.name || key;
+
             if (!exerciseStats.has(key)) {
               exerciseStats.set(key, {
                 exerciseKey: key,
@@ -90,27 +92,30 @@ export async function GET() {
                 maxWeight: 0,
               });
             }
-            
+
             const stats = exerciseStats.get(key);
             stats.sessionCount += 1;
-            
-            // Calculate volume and max weight from sets
-            if (exercise.sets) {
-              exercise.sets.forEach((set: any) => {
-                const volume = (set.reps || 0) * (set.weight || 0);
-                stats.totalVolume += volume;
-                stats.maxWeight = Math.max(stats.maxWeight, set.weight || 0);
-                
-                // Track personal records
-                const recordKey = `${key}_weight`;
-                if (!personalRecords.has(recordKey) || personalRecords.get(recordKey).value < (set.weight || 0)) {
-                  personalRecords.set(recordKey, {
-                    exerciseKey: key,
-                    exerciseName: name,
-                    type: 'weight',
-                    value: set.weight || 0,
-                    achievedAt: session.completedAt,
-                  });
+
+            // Add the total volume from this session
+            stats.totalVolume += exercisePerf.totalVolume || 0;
+
+            // Calculate max weight from actual performed sets
+            if (exercisePerf.sets) {
+              exercisePerf.sets.forEach((set: any) => {
+                if (set.completed && set.actualWeight) {
+                  stats.maxWeight = Math.max(stats.maxWeight, set.actualWeight);
+
+                  // Track personal records
+                  const recordKey = `${key}_weight`;
+                  if (!personalRecords.has(recordKey) || personalRecords.get(recordKey).value < set.actualWeight) {
+                    personalRecords.set(recordKey, {
+                      exerciseKey: key,
+                      exerciseName: name,
+                      type: 'weight',
+                      value: set.actualWeight,
+                      achievedAt: session.completedAt,
+                    });
+                  }
                 }
               });
             }
