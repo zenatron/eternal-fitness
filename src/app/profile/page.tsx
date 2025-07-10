@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -38,7 +38,7 @@ import { AchievementsModal } from '@/components/modals/AchievementsModal';
 import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
 import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 
-export default function Profile() {
+function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { profile, isLoading, error } = useProfile();
@@ -387,5 +387,13 @@ export default function Profile() {
         />
       )}
     </div>
+  );
+}
+
+export default function Profile() {
+  return (
+    <Suspense fallback={<ProfileSkeleton />}>
+      <ProfileContent />
+    </Suspense>
   );
 }
