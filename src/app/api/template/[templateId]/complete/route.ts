@@ -3,6 +3,10 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
+import { WorkoutTemplate } from '@/types/workout';
+import { processWorkoutSessionPRs } from '@/utils/personalRecords';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 201) => {
@@ -26,12 +30,28 @@ const errorResponse = (message: string, status = 500, details?: any) => {
 const completeTemplateSchema = z.object({
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
-  // Add performance data schema here if needed
+  performance: z.record(z.object({
+    exerciseKey: z.string(),
+    sets: z.array(z.object({
+      setId: z.string(),
+      actualReps: z.number().optional(),
+      actualWeight: z.number().optional(),
+      actualDuration: z.number().optional(),
+      actualRpe: z.number().optional(),
+      completed: z.boolean(),
+      skipped: z.boolean().optional(),
+      notes: z.string().optional(),
+      restTime: z.number().optional(),
+    })),
+    exerciseNotes: z.string().optional(),
+    totalVolume: z.number(),
+    averageRpe: z.number().optional(),
+  })).optional(),
 });
 
 export async function POST(
   request: Request,
-  { params }: { params: { templateId: string } },
+  { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
     const { userId } = await auth();
@@ -39,7 +59,7 @@ export async function POST(
       return errorResponse('Unauthorized', 401);
     }
 
-    const { templateId } = params;
+    const { templateId } = await params;
     let body = {}; // Default to empty object if no body is expected/sent
     try {
       // Try to parse body, but allow empty body
@@ -57,14 +77,19 @@ export async function POST(
       return errorResponse('Invalid input', 400, validationResult.error.errors);
     }
 
-    const { duration, notes } = validationResult.data;
+    const { duration, notes, performance } = validationResult.data;
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
-      // 1. Fetch the template, verify ownership, and get totalVolume
+      // 1. Fetch the template, verify ownership, and get required data
       const template = await tx.workoutTemplate.findUnique({
         where: { id: templateId, userId },
-        select: { id: true, totalVolume: true }, // Need totalVolume
+        select: {
+          id: true,
+          totalVolume: true,
+          workoutData: true,
+          exerciseCount: true
+        },
       });
 
       if (!template) {
@@ -74,7 +99,42 @@ export async function POST(
       const completionTime = new Date();
       const sessionTotalVolume = template.totalVolume;
 
-      // 2. Create the WorkoutSession record
+      // 2. Create the WorkoutSession record with required performanceData
+      const templateData = template.workoutData;
+      const totalSets = getTotalSetsCount(template as WorkoutTemplate);
+
+      // Create performance data structure for the completed session
+      let actualTotalVolume = sessionTotalVolume;
+      let completedSets = totalSets;
+      let skippedSets = 0;
+
+      if (performance) {
+        // Calculate actual metrics from performance data
+        actualTotalVolume = Object.values(performance).reduce((total, exercisePerf) => total + exercisePerf.totalVolume, 0);
+        completedSets = Object.values(performance).reduce((total, exercisePerf) =>
+          total + exercisePerf.sets.filter(set => set.completed).length, 0);
+        skippedSets = Object.values(performance).reduce((total, exercisePerf) =>
+          total + exercisePerf.sets.filter(set => set.skipped).length, 0);
+      }
+
+      const adherenceScore = totalSets > 0 ? Math.round(((completedSets + skippedSets) / totalSets) * 100) : 100;
+
+      const performanceData = {
+        templateSnapshot: templateData,
+        performance: performance || {}, // Use provided performance data or empty object
+        metrics: {
+          totalVolume: actualTotalVolume,
+          totalSets: totalSets,
+          totalExercises: template.exerciseCount || 0,
+          completedSets: completedSets,
+          skippedSets: skippedSets,
+          personalRecords: [], // TODO: Calculate PRs from performance data
+          volumeRecords: [], // TODO: Calculate volume records
+          adherenceScore: adherenceScore,
+        },
+        environment: {},
+      };
+
       const createdSession = await tx.workoutSession.create({
         data: {
           userId: userId,
@@ -82,13 +142,27 @@ export async function POST(
           completedAt: completionTime,
           duration: duration,
           notes: notes,
-          totalVolume: sessionTotalVolume,
+          totalVolume: actualTotalVolume,
+          totalSets: completedSets,
+          totalExercises: template.exerciseCount || 0,
+          personalRecords: [], // Empty array for PRs
           scheduledAt: null, // Not scheduled
+          performanceData: performanceData as any, // Prisma Json type
         },
         include: { workoutTemplate: { select: { name: true } } },
       });
 
-      // 3. Update UserStats
+      // 3. Process Personal Records if performance data is available
+      if (performance && Object.keys(performance).length > 0) {
+        try {
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
+        } catch (prError) {
+          console.error('Error processing PRs:', prError);
+          // Don't fail the entire transaction for PR processing errors
+        }
+      }
+
+      // 4. Update UserStats
       await tx.userStats.upsert({
         where: { userId: userId },
         update: {
@@ -108,7 +182,7 @@ export async function POST(
         },
       });
 
-      // 4. Update MonthlyStats
+      // 5. Update MonthlyStats
       const currentYear = completionTime.getFullYear();
       const currentMonth = completionTime.getMonth() + 1;
       await tx.monthlyStats.upsert({
@@ -133,20 +207,40 @@ export async function POST(
       return createdSession;
     }); // End Transaction
 
+    // Update achievements after successful workout completion
+    try {
+      // Extract exercise keys from performance data
+      const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
+
+      // Update unique exercises count
+      await updateUniqueExercisesCount(userId, exerciseKeys);
+
+      // Update achievements
+      const achievementResult = await updateUserAchievements(userId);
+
+      if (achievementResult.newAchievements.length > 0) {
+        console.log(`🏆 User ${userId} unlocked ${achievementResult.newAchievements.length} new achievements:`, achievementResult.newAchievements);
+      }
+    } catch (achievementError) {
+      console.error('Error updating achievements:', achievementError);
+      // Don't fail the workout completion for achievement errors
+    }
+
     return successResponse(newSession);
   } catch (error: any) {
+    const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404, {
-        templateId: params.templateId,
+        templateId,
       });
     }
 
-    console.error(`Error completing template ${params.templateId}:`, error);
+    console.error(`Error completing template ${templateId}:`, error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       console.error('Prisma Error Code:', error.code);
     }
     return errorResponse('Internal Server Error completing template', 500, {
-      templateId: params.templateId,
+      templateId,
       error: error instanceof Error ? error.message : String(error),
     });
   }

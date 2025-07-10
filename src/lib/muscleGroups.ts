@@ -15,6 +15,9 @@ export type MuscleGroup =
   | 'Calves'
   | 'Core'
   | 'Hip Flexors'
+  | 'Adductors'
+  | 'Abductors'
+  | 'Obliques'
   | 'Forearms'
   | 'Upper Chest'
   | 'Shoulders'
@@ -38,6 +41,9 @@ export const muscleGroups: MuscleGroup[] = [
   'Calves',
   'Core',
   'Hip Flexors',
+  'Adductors',
+  'Abductors',
+  'Obliques',
   'Forearms',
   'Upper Chest',
   'Shoulders',

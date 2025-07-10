@@ -23,7 +23,7 @@ const errorResponse = (message: string, status = 500, details?: any) => {
 // POST handler to toggle favorite status
 export async function POST(
   request: Request,
-  { params }: { params: { templateId: string } },
+  { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
     const { userId } = await auth();
@@ -31,7 +31,7 @@ export async function POST(
       return errorResponse('Unauthorized', 401);
     }
 
-    const { templateId } = params;
+    const { templateId } = await params;
 
     // Use transaction for atomicity (fetch and update)
     const updatedTemplate = await prisma.$transaction(async (tx) => {
@@ -57,12 +57,20 @@ export async function POST(
         data: {
           favorite: newFavoriteStatus,
         },
-        // Include necessary data for the response (frontend might need full template)
-        include: {
-          sets: {
-            orderBy: { createdAt: 'asc' },
-            include: { exercise: true },
-          },
+        // 🚀 Return JSON-based template data
+        select: {
+          id: true,
+          name: true,
+          favorite: true,
+          createdAt: true,
+          updatedAt: true,
+          workoutData: true,
+          totalVolume: true,
+          estimatedDuration: true,
+          exerciseCount: true,
+          difficulty: true,
+          workoutType: true,
+          userId: true,
         },
       });
       console.log(
@@ -73,21 +81,22 @@ export async function POST(
 
     return successResponse(updatedTemplate);
   } catch (error: any) {
+    const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404, {
-        templateId: params.templateId,
+        templateId,
       });
     }
 
     console.error(
-      `Error toggling favorite for template ${params.templateId}:`,
+      `Error toggling favorite for template ${templateId}:`,
       error,
     );
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       console.error('Prisma Error Code:', error.code);
     }
     return errorResponse('Internal Server Error toggling favorite', 500, {
-      templateId: params.templateId,
+      templateId,
       error: error instanceof Error ? error.message : String(error),
     });
   }

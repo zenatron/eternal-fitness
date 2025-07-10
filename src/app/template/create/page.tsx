@@ -1,33 +1,55 @@
 'use client';
 
 import React from 'react';
-import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
+import { ArrowLeftIcon, PlusCircleIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import JsonTemplateForm from '@/components/ui/JsonTemplateForm';
 
 export default function CreateTemplatePage() {
-  return (
-    <div className="w-full max-w-4xl mx-auto py-8 px-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Create New Workout Template
-        </h1>
-        <p className="text-secondary mt-1">
-          Design your reusable workout blueprint.
-        </p>
-      </div>
+  const router = useRouter();
 
-      <TemplateFormEditor
-        mode="create"
-        headerElement={
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Template Details
-            </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Create a template that you can use for multiple workout sessions
-            </p>
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Enhanced Header */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-br from-purple-600 via-blue-600 to-purple-800 px-8 py-8 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => router.back()}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                    aria-label="Go back"
+                  >
+                    <ArrowLeftIcon className="h-6 w-6" />
+                  </button>
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                      <SparklesIcon className="h-8 w-8" />
+                      Create Workout Template
+                    </h1>
+                    <p className="text-purple-100">
+                      Design your perfect workout blueprint with our advanced template system
+                    </p>
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <div className="text-right">
+                    <p className="text-purple-100 text-sm">Step 1 of 1</p>
+                    <p className="text-xl font-semibold">
+                      Template Builder
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        }
-      />
+        </div>
+
+        {/* Form Container */}
+        <JsonTemplateForm mode="create" />
+      </div>
     </div>
   );
 }

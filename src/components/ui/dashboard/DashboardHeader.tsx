@@ -16,7 +16,7 @@ export function DashboardHeader({ title = 'Dashboard' }: DashboardHeaderProps) {
       </div>
       <div className="flex gap-3">
         <Link
-          href="/session/start"
+          href="/templates"
           className="btn btn-quaternary inline-flex items-center"
         >
           <PlayIcon className="h-5 w-5 mr-1" />

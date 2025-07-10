@@ -136,10 +136,16 @@ export async function GET() {
       where: { userId, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
       take: 3,
-      include: {
+      select: {
+        id: true,
+        completedAt: true,
+        totalVolume: true,
+        totalSets: true,
+        totalExercises: true,
+        duration: true,
+        performanceData: true, // Include JSON performance data
         workoutTemplate: {
-          // Include template name
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     });
@@ -205,19 +211,37 @@ export async function GET() {
       orderBy: {
         scheduledAt: 'asc',
       },
-      include: {
+      select: {
+        id: true,
+        scheduledAt: true,
+        createdAt: true,
+        notes: true,
+        performanceData: true, // Include JSON performance data
         workoutTemplate: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     });
+    // Calculate personal records count from UserStats
+    let personalRecordsCount = 0;
+    if (userStats?.personalRecords) {
+      const personalRecords = userStats.personalRecords as any;
+      personalRecordsCount = Object.keys(personalRecords).reduce((count, exerciseName) => {
+        const exercisePR = personalRecords[exerciseName];
+        let exerciseCount = 0;
+        if (exercisePR.maxWeight) exerciseCount++;
+        if (exercisePR.maxVolume) exerciseCount++;
+        return count + exerciseCount;
+      }, 0);
+    }
+
     // Format the response
     const dashboardData = {
       activityData,
       streak: currentStreak,
       progress: {
         workoutsCompleted: userStats?.totalWorkouts || 0,
-        personalRecords: 0, // TODO: Implement PR tracking later
+        personalRecords: personalRecordsCount,
         weightProgress: {
           current: user.weight || 0,
           goal: user.weightGoal || 0,
@@ -228,16 +252,21 @@ export async function GET() {
               : 0,
         },
       },
-      recentActivity: recentSessions.map((session) => ({
-        id: session.id,
-        title: session.workoutTemplate.name,
-        details: `Completed ${formatTimeAgo(
-          session.completedAt,
-        )} • ${session.totalVolume.toFixed(0)} ${
-          user.useMetric ? 'kg' : 'lbs'
-        } Vol.`, // Example detail
-        timeAgo: formatTimeAgo(session.completedAt), // Use existing helper
-      })),
+      recentActivity: recentSessions.map((session) => {
+        const unit = user.useMetric ? 'kg' : 'lbs';
+        const formattedVolume = session.totalVolume >= 1000000
+          ? `${(session.totalVolume / 1000000).toFixed(1)}M ${unit}`
+          : session.totalVolume >= 1000
+          ? `${(session.totalVolume / 1000).toFixed(1)}K ${unit}`
+          : `${session.totalVolume.toFixed(0)} ${unit}`;
+
+        return {
+          id: session.id,
+          title: session.workoutTemplate.name,
+          details: `Completed ${formatTimeAgo(session.completedAt)} • ${formattedVolume} Vol.`,
+          timeAgo: formatTimeAgo(session.completedAt),
+        };
+      }),
       stats: {
         totalWorkouts: userStats?.totalWorkouts || 0, // Should reflect sessions
         hoursTrained: userStats?.totalTrainingHours || 0,

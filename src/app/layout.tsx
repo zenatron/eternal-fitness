@@ -5,6 +5,7 @@ import { ThemeHandler } from '@/components/theme/ThemeHandler';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ClerkProvider } from '@clerk/nextjs';
+import ActiveWorkoutIndicator from '@/components/workout/ActiveWorkoutIndicator';
 
 export const metadata: Metadata = {
   title: 'Eternal Fitness',
@@ -19,12 +20,13 @@ export default async function RootLayout({
   return (
     <ClerkProvider afterSignOutUrl="/" signInUrl="/login" signUpUrl="/signup">
       <html lang="en" suppressHydrationWarning>
-        <body suppressHydrationWarning>
+        <body suppressHydrationWarning className="app-bg">
           <Providers>
             <ThemeHandler>
               <div className="min-h-screen flex flex-col">
                 <Header />
-                <main className="flex-1 pt-16 app-bg">{children}</main>
+                <ActiveWorkoutIndicator />
+                <main className="flex-1 pt-16">{children}</main>
                 <Footer />
               </div>
             </ThemeHandler>

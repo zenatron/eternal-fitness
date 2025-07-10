@@ -48,16 +48,18 @@ export function DashboardCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden ${className}`}
+      className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 ${className}`}
     >
-      <div className={`bg-gradient-to-r ${gradientMap[color]} p-4 text-white`}>
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6">{icon}</div>
-          <h2 className="text-xl font-semibold">{title}</h2>
+      <div className={`h-2 bg-gradient-to-r ${gradientMap[color]}`}></div>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
+          <div className={`p-3 rounded-xl bg-${color}-50 dark:bg-${color}-900/20`}>
+            <div className={`h-6 w-6 text-${color}-600 dark:text-${color}-400`}>{icon}</div>
+          </div>
         </div>
+        {children}
       </div>
-
-      <div className="p-6">{children}</div>
     </motion.div>
   );
 }

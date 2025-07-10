@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-// Import the static exercises data
 import { exercises as staticExercisesData } from '@/lib/exercises';
+import {
+  createWorkoutTemplate,
+  validateWorkoutTemplate,
+  calculateTemplateVolume,
+  calculateEstimatedDuration,
+  extractMuscleGroups,
+  extractEquipment
+} from '@/utils/workoutJsonUtils';
+import {
+  WorkoutTemplateData,
+  WorkoutType,
+  Difficulty,
+  SetType
+} from '@/types/workout';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 201) => {
-  // Default 201 for POST success
   return NextResponse.json({ data }, { status });
 };
 
@@ -24,77 +35,55 @@ const errorResponse = (message: string, status = 500, details?: any) => {
   );
 };
 
-// --- Zod Schema for POST Request (Template Creation) ---
+// 🚀 NEW JSON-BASED SCHEMA FOR TEMPLATE CREATION
 const createSetSchema = z.object({
-  reps: z.number().int().nonnegative(),
-  weight: z.number().nonnegative(),
-  exercises: z
-    .array(z.string())
-    .length(1, 'Each set must link to exactly one exercise ID'),
+  reps: z.number().int().positive(),
+  weight: z.number().nonnegative().optional(),
+  duration: z.number().positive().optional(), // for time-based exercises
+  type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest']).optional().default('standard'),
+  restTime: z.number().positive().optional(),
+  notes: z.string().optional(),
+});
+
+const createExerciseSchema = z.object({
+  exerciseKey: z.string().min(1, 'Exercise key is required'),
+  sets: z.array(createSetSchema).min(1, 'Each exercise must have at least one set'),
+  instructions: z.string().optional(),
+  restBetweenSets: z.number().positive().optional(),
 });
 
 const createTemplateSchema = z.object({
   name: z.string().trim().min(1, { message: 'Template name is required' }),
-  favorite: z.boolean().optional().default(false), // Default favorite to false
-  sets: z
-    .array(createSetSchema)
-    .min(1, { message: 'Template must have at least one set' }),
+  description: z.string().optional(),
+  favorite: z.boolean().optional().default(false),
+  workoutType: z.enum(['strength', 'cardio', 'hybrid', 'flexibility', 'sports']).optional().default('strength'),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional().default('intermediate'),
+  tags: z.array(z.string()).optional().default([]),
+  exercises: z.array(createExerciseSchema).min(1, { message: 'Template must have at least one exercise' }),
 });
 
-// Type alias for validated POST data
 type CreateTemplateData = z.infer<typeof createTemplateSchema>;
 
-// --- Helper: Find or Create Exercise (Identical to the one in [templateId]/route.ts) ---
-// Consider moving this to a shared lib/utils file if used in multiple places
-async function findOrCreateExercise(
-  tx: Prisma.TransactionClient,
-  exerciseIdKey: string,
-): Promise<string | null> {
-  const existing = await tx.exercise.findUnique({
-    where: { id: exerciseIdKey },
-    select: { id: true },
-  });
-  if (existing) return existing.id;
-
-  const staticData =
-    staticExercisesData[exerciseIdKey as keyof typeof staticExercisesData];
-  if (!staticData) {
-    console.warn(`Static exercise data not found for key: ${exerciseIdKey}`);
-    return null;
+// 🚀 HELPER: GET EXERCISE DATA FROM STATIC DATA (for enrichment)
+function getExerciseData(exerciseKey: string) {
+  const staticData = staticExercisesData[exerciseKey as keyof typeof staticExercisesData];
+  if (staticData) {
+    return {
+      name: staticData.name,
+      muscles: staticData.muscles,
+      equipment: staticData.equipment,
+    };
   }
 
-  try {
-    const newExercise = await tx.exercise.create({
-      data: {
-        id: exerciseIdKey,
-        name: staticData.name,
-        muscles: staticData.muscles,
-        equipment: staticData.equipment,
-      },
-      select: { id: true },
-    });
-    return newExercise.id;
-  } catch (error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      console.warn(
-        `Race condition creating exercise ${exerciseIdKey}, finding again.`,
-      );
-      const foundAfterRace = await tx.exercise.findUnique({
-        where: { id: exerciseIdKey },
-        select: { id: true },
-      });
-      return foundAfterRace?.id ?? null;
-    } else {
-      console.error(`Failed to create exercise ${exerciseIdKey}:`, error);
-      return null;
-    }
-  }
+  // Fallback for unknown exercises
+  return {
+    name: exerciseKey, // Use the key as the name
+    muscles: [],
+    equipment: [],
+  };
 }
 
-// --- POST Handler ---
+// 🚀 NEW JSON-BASED POST HANDLER
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -116,65 +105,70 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Use transaction for atomicity
-    const createdTemplate = await prisma.$transaction(async (tx) => {
-      // 1. Create the WorkoutTemplate base record
-      const template = await tx.workoutTemplate.create({
-        data: {
-          name: validatedData.name,
-          userId: userId,
-          favorite: validatedData.favorite, // Already defaulted by Zod
-          totalVolume: 0, // Initialize, will calculate next
-        },
-      });
+    // 🎯 BUILD JSON WORKOUT DATA
+    const exercisesWithData = validatedData.exercises.map((ex, index) => {
+      const exerciseData = getExerciseData(ex.exerciseKey);
+      return {
+        exerciseKey: ex.exerciseKey,
+        name: exerciseData.name,
+        muscles: exerciseData.muscles,
+        equipment: exerciseData.equipment,
+        sets: ex.sets.map((set, setIndex) => ({
+          reps: set.reps,
+          weight: set.weight,
+          type: set.type,
+          restTime: set.restTime,
+          notes: set.notes,
+        })),
+        instructions: ex.instructions,
+        restBetweenSets: ex.restBetweenSets,
+      };
+    });
 
-      // 2. Create Sets and calculate Total Volume
-      let calculatedTotalVolume = 0;
-      for (const setData of validatedData.sets) {
-        const exerciseIdKey = setData.exercises[0];
-        const exerciseIdToConnect = await findOrCreateExercise(
-          tx,
-          exerciseIdKey,
-        );
-
-        const reps = setData.reps;
-        const weight = setData.weight;
-        const setVolume = reps * weight;
-        calculatedTotalVolume += setVolume;
-
-        await tx.set.create({
-          data: {
-            reps,
-            weight,
-            volume: setVolume,
-            workoutTemplate: { connect: { id: template.id } },
-            exercise: { connect: { id: exerciseIdToConnect ?? '' } },
-          },
-        });
+    // Create the JSON workout template data
+    const workoutData = createWorkoutTemplate(
+      validatedData.name,
+      exercisesWithData,
+      {
+        description: validatedData.description,
+        tags: validatedData.tags,
+        workoutType: validatedData.workoutType as WorkoutType,
+        difficulty: validatedData.difficulty as Difficulty,
       }
+    );
 
-      // 3. Update the template with the calculated volume
-      const finalTemplate = await tx.workoutTemplate.update({
-        where: { id: template.id },
-        data: { totalVolume: calculatedTotalVolume },
-        include: {
-          sets: {
-            orderBy: { createdAt: 'asc' },
-            include: { exercise: true },
-          },
-        },
-      });
-
-      return finalTemplate;
-    }); // End Transaction
-
-    return successResponse(createdTemplate); // Use 201 Created status
-  } catch (error: any) {
-    console.error('Error creating template:', error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Handle potential unique constraint errors on template name if needed
-      console.error('Prisma Error Code:', error.code);
+    // Validate the created workout data
+    if (!validateWorkoutTemplate(workoutData)) {
+      return errorResponse('Invalid workout template structure', 500);
     }
+
+    // Calculate computed fields
+    const totalVolume = calculateTemplateVolume(workoutData.exercises);
+    const estimatedDuration = calculateEstimatedDuration(workoutData.exercises);
+    const exerciseCount = workoutData.exercises.length;
+
+    // 🎯 CREATE TEMPLATE WITH JSON DATA
+    const createdTemplate = await prisma.workoutTemplate.create({
+      data: {
+        name: validatedData.name,
+        description: validatedData.description,
+        favorite: validatedData.favorite,
+        userId: userId,
+        workoutData: workoutData as any, // Prisma Json type
+        totalVolume,
+        estimatedDuration,
+        exerciseCount,
+        difficulty: validatedData.difficulty,
+        workoutType: validatedData.workoutType,
+        tags: validatedData.tags || [],
+      },
+    });
+
+    console.log(`✅ Created JSON-based workout template: ${createdTemplate.name} (${createdTemplate.id})`);
+
+    return successResponse(createdTemplate);
+  } catch (error: any) {
+    console.error('Error creating JSON-based template:', error);
     return errorResponse('Internal Server Error creating template', 500, {
       error: error instanceof Error ? error.message : String(error),
     });

@@ -185,33 +185,37 @@ export async function PUT(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Check if user actually exists before trying to update
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, useMetric: true }, // Select useMetric for potential fallback
-    });
-
-    if (!existingUser) {
-      return errorResponse('Profile not found', 404);
-    }
-
     try {
-      // Update the user profile
-      const updatedUser = await prisma.user.update({
+      // Get current user email from Clerk
+      const user = await currentUser();
+      const email = user?.emailAddresses?.[0]?.emailAddress || '';
+
+      // Use upsert to create or update the user profile
+      const updatedUser = await prisma.user.upsert({
         where: { id: userId },
-        data: {
+        create: {
+          id: userId,
+          email,
           ...validatedData,
-          // Ensure nullable fields are correctly passed
+          // Ensure nullable fields are correctly passed for creation
           age: validatedData.age ?? null,
           gender: validatedData.gender ?? null,
           height: validatedData.height ?? null,
           weight: validatedData.weight ?? null,
           weightGoal: validatedData.weightGoal ?? null,
-          // useMetric needs careful handling: only update if provided
-          useMetric:
-            validatedData.useMetric !== undefined
-              ? validatedData.useMetric
-              : existingUser.useMetric,
+          useMetric: validatedData.useMetric ?? true, // Default to metric for new users
+          points: 0, // Initialize points for new users
+        },
+        update: {
+          ...validatedData,
+          // Ensure nullable fields are correctly passed for updates
+          age: validatedData.age ?? null,
+          gender: validatedData.gender ?? null,
+          height: validatedData.height ?? null,
+          weight: validatedData.weight ?? null,
+          weightGoal: validatedData.weightGoal ?? null,
+          // Only update useMetric if provided, otherwise keep existing value
+          ...(validatedData.useMetric !== undefined && { useMetric: validatedData.useMetric }),
         },
         // Select the fields needed for the response
         select: {
