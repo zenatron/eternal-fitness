@@ -3,21 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WorkoutTemplateData, ExercisePerformance, ActiveWorkoutSessionData, ActiveSessionUpdatePayload } from '@/types/workout';
 
-// Legacy interface for backward compatibility with localStorage
-interface LegacyActiveWorkoutState {
-  templateId: string;
-  templateName: string;
-  startTime: number;
-  pausedTime: number;
-  isTimerActive: boolean;
-  sessionNotes: string;
-  workoutPerformance: { [exerciseId: string]: ExercisePerformance };
-  modifiedTemplate?: WorkoutTemplateData;
-  exerciseProgress?: { [exerciseId: string]: any };
-  lastPauseTime?: number;
-}
-
-const ACTIVE_WORKOUT_KEY = 'eternal-fitness-active-workout';
+// Removed legacy localStorage support - all session data now stored server-side
 
 export function useActiveWorkout() {
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkoutSessionData | null>(null);
@@ -129,40 +115,9 @@ export function useActiveWorkout() {
     const loadActiveSession = async () => {
       setIsLoading(true);
       try {
-        // First try to get from server
         const serverSession = await fetchActiveSession();
         if (serverSession) {
           setActiveWorkout(serverSession);
-        } else {
-          // Fallback to localStorage for migration
-          const saved = localStorage.getItem(ACTIVE_WORKOUT_KEY);
-          if (saved) {
-            try {
-              const parsed: LegacyActiveWorkoutState = JSON.parse(saved);
-              // Convert legacy format to new format
-              const migratedSession: ActiveWorkoutSessionData = {
-                templateId: parsed.templateId,
-                templateName: parsed.templateName,
-                originalTemplate: parsed.modifiedTemplate || {} as WorkoutTemplateData,
-                startedAt: new Date(parsed.startTime),
-                pausedTime: parsed.pausedTime,
-                isTimerActive: parsed.isTimerActive,
-                lastPauseTime: parsed.lastPauseTime ? new Date(parsed.lastPauseTime) : undefined,
-                modifiedTemplate: parsed.modifiedTemplate,
-                performance: parsed.workoutPerformance,
-                exerciseProgress: parsed.exerciseProgress || {},
-                sessionNotes: parsed.sessionNotes,
-                version: 1,
-                lastUpdated: new Date(),
-              };
-              setActiveWorkout(migratedSession);
-              // Clear localStorage after migration
-              localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-            } catch (error) {
-              console.error('Failed to migrate legacy workout data:', error);
-              localStorage.removeItem(ACTIVE_WORKOUT_KEY);
-            }
-          }
         }
       } catch (error) {
         console.error('Error loading active session:', error);
@@ -257,7 +212,7 @@ export function useActiveWorkout() {
       await fetch('/api/session/active', { method: 'DELETE' });
       setActiveWorkout(null);
       // Clear any remaining localStorage data
-      localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+      // Legacy localStorage cleanup no longer needed
     } catch (error) {
       console.error('Error ending workout:', error);
       // Still clear local state even if server call fails

@@ -37,6 +37,10 @@ export enum SetType {
   EMOM = 'emom', // Every Minute On the Minute
   TABATA = 'tabata',
   REST = 'rest',
+  // Cardio-specific set types
+  CARDIO_INTERVAL = 'cardio_interval',
+  CARDIO_STEADY = 'cardio_steady',
+  CARDIO_HIIT = 'cardio_hiit',
 }
 
 // ============================================================================
@@ -98,12 +102,19 @@ export interface WorkoutSet {
   id: string; // unique within exercise
   type: SetType;
 
-  // Targets (what the workout prescribes)
+  // Strength training targets
   targetReps?: number | { min: number; max: number };
   targetWeight?: number;
+  targetRpe?: number; // Rate of Perceived Exertion
+
+  // Cardio targets
   targetDuration?: number; // seconds, for time-based exercises
   targetDistance?: number; // meters, for cardio
-  targetRpe?: number; // Rate of Perceived Exertion
+  targetCalories?: number; // calories, for cardio
+  targetHeartRate?: number; // BPM, for cardio
+  targetPace?: number; // seconds per unit distance
+  targetIncline?: number; // percentage, for treadmill/bike
+  targetResistance?: number; // level, for cardio machines
 
   // Set relationships
   restTime?: number; // seconds
@@ -175,7 +186,7 @@ export interface ExercisePerformance {
   // Exercise-level metrics
   totalVolume: number;
   averageRpe?: number;
-  personalRecords?: LegacyPersonalRecord[];
+  personalRecords?: PersonalRecord[];
 
   // Performance insights
   performanceRating?: number; // 1-5 scale
@@ -185,12 +196,19 @@ export interface ExercisePerformance {
 export interface PerformedSet {
   setId: string; // matches template set ID
 
-  // Actual performance
+  // Strength training performance
   actualReps?: number;
   actualWeight?: number;
+  actualRpe?: number; // Rate of Perceived Exertion (1-10)
+
+  // Cardio performance
   actualDuration?: number; // seconds
   actualDistance?: number; // meters
-  actualRpe?: number; // Rate of Perceived Exertion (1-10)
+  actualCalories?: number; // calories burned
+  actualHeartRate?: number; // average BPM
+  actualPace?: number; // seconds per unit distance
+  actualIncline?: number; // percentage
+  actualResistance?: number; // level
 
   // Set metadata
   restTime?: number; // actual rest taken
@@ -218,8 +236,8 @@ export interface SessionMetrics {
   intensityScore?: number; // calculated intensity rating
 
   // Performance achievements
-  personalRecords: LegacyPersonalRecord[];
-  volumeRecords: LegacyVolumeRecord[];
+  personalRecords: PersonalRecord[];
+  volumeRecords: VolumeRecord[];
 
   // Session quality indicators
   adherenceScore: number; // % of planned work completed
@@ -227,18 +245,18 @@ export interface SessionMetrics {
   fatigueLevel?: number; // post-workout fatigue (1-10)
 }
 
-// Legacy PR types for session metrics (deprecated - use personalRecords.ts types instead)
-export interface LegacyPersonalRecord {
+// Personal Record types for session metrics
+export interface PersonalRecord {
   exerciseKey: string;
   exerciseName: string;
-  type: 'weight' | 'reps' | 'volume' | 'duration' | 'distance';
+  type: 'weight' | 'reps' | 'volume' | 'duration' | 'distance' | 'calories';
   value: number;
   previousBest?: number;
   improvement: number;
   date: string; // ISO date string
 }
 
-export interface LegacyVolumeRecord {
+export interface VolumeRecord {
   type: 'session' | 'exercise' | 'muscle_group';
   identifier: string; // session, exercise key, or muscle group
   volume: number;
@@ -420,7 +438,7 @@ export interface UserAnalyticsData {
     currentStreak: number;
     longestStreak: number;
     totalWorkouts: number;
-    personalRecords: LegacyPersonalRecord[];
+    personalRecords: PersonalRecord[];
     milestones: Array<{
       type: string;
       description: string;
@@ -443,8 +461,8 @@ export interface MonthlyAnalyticsData {
 
   // Performance metrics
   averageRpe: number;
-  personalRecords: LegacyPersonalRecord[];
-  volumeRecords: LegacyVolumeRecord[];
+  personalRecords: PersonalRecord[];
+  volumeRecords: VolumeRecord[];
 
   // Consistency metrics
   workoutDays: string[]; // ISO date strings

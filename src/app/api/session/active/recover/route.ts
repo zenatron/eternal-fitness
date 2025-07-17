@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('No active workout session found to recover', 404);
     }
 
-    const currentSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const currentSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
 
     // Validate session data integrity
     const issues: string[] = [];
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         where: { userId },
         data: {
           activeWorkoutId: template.id,
-          activeWorkoutData: recoveredSessionData,
+          activeWorkoutData: recoveredSessionData as any,
           activeWorkoutStartedAt: recoveredSessionData.startedAt,
         },
       });
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       where: { userId },
       data: {
         activeWorkoutId: null,
-        activeWorkoutData: null,
+        activeWorkoutData: null as any,
         activeWorkoutStartedAt: null,
       },
     });

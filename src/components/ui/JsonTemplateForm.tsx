@@ -22,9 +22,15 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 
 interface ExerciseSet {
   id?: string; // Add unique ID for drag and drop
-  reps: number;
+  reps?: number;
   weight?: number;
   duration?: number;
+  distance?: number;
+  calories?: number;
+  heartRate?: number;
+  pace?: number;
+  incline?: number;
+  resistance?: number;
   type: string;
   restTime?: number;
   notes?: string;
@@ -289,8 +295,16 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
       for (let j = 0; j < exercise.sets.length; j++) {
         const set = exercise.sets[j];
 
-        if (set.reps <= 0) {
-          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Reps must be greater than 0`);
+        // For strength exercises, require reps; for cardio, require duration or distance
+        const isCardioSet = set.type?.includes('cardio') || set.duration || set.distance || set.calories;
+
+        if (!isCardioSet && (!set.reps || set.reps <= 0)) {
+          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Strength training sets must have reps greater than 0`);
+          return;
+        }
+
+        if (isCardioSet && !set.duration && !set.distance && !set.calories) {
+          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Cardio sets must have duration, distance, or calories specified`);
           return;
         }
 

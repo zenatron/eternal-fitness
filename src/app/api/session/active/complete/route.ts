@@ -14,11 +14,11 @@ const errorResponse = (message: string, status = 500, details?: any) => {
     { status }
   );
 };
-import { 
-  ActiveWorkoutSessionData, 
+import {
+  ActiveWorkoutSessionData,
   WorkoutSessionData,
   SessionMetrics,
-  ExercisePerformance 
+  ExercisePerformance
 } from '@/types/workout';
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No active workout session found');
       }
 
-      const activeSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+      const activeSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
       const completionTime = completedAt ? new Date(completedAt) : new Date();
 
       // Calculate session duration if not provided
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
           completedAt: completionTime,
           duration: sessionDuration,
           notes: notes || activeSessionData.sessionNotes,
-          performanceData: sessionData,
+          performanceData: sessionData as any,
           totalVolume: metrics.totalVolume,
           totalSets: metrics.totalSets,
           totalExercises: metrics.totalExercises,
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         data: {
           // Clear active session
           activeWorkoutId: null,
-          activeWorkoutData: null,
+          activeWorkoutData: null as any,
           activeWorkoutStartedAt: null,
 
           // Update workout stats

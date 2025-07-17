@@ -37,12 +37,29 @@ const errorResponse = (message: string, status = 500, details?: any) => {
 
 // 🚀 NEW JSON-BASED SCHEMA FOR TEMPLATE CREATION
 const createSetSchema = z.object({
-  reps: z.number().int().positive(),
+  // Strength training fields
+  reps: z.number().int().positive().optional(),
   weight: z.number().nonnegative().optional(),
-  duration: z.number().positive().optional(), // for time-based exercises
-  type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest']).optional().default('standard'),
+
+  // Cardio fields
+  duration: z.number().positive().optional(), // seconds
+  distance: z.number().positive().optional(), // meters
+  calories: z.number().positive().optional(),
+  heartRate: z.number().positive().optional(), // BPM
+  pace: z.number().positive().optional(), // seconds per unit distance
+  incline: z.number().nonnegative().optional(), // percentage
+  resistance: z.number().positive().optional(), // level
+
+  type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest', 'cardio_interval', 'cardio_steady', 'cardio_hiit']).optional().default('standard'),
   restTime: z.number().positive().optional(),
   notes: z.string().optional(),
+}).refine((data) => {
+  // Either reps (for strength) or duration/distance/calories (for cardio) must be provided
+  const hasStrengthData = data.reps && data.reps > 0;
+  const hasCardioData = data.duration || data.distance || data.calories;
+  return hasStrengthData || hasCardioData;
+}, {
+  message: "Set must have either reps (for strength training) or duration/distance/calories (for cardio)"
 });
 
 const createExerciseSchema = z.object({
@@ -116,6 +133,13 @@ export async function POST(request: Request) {
         sets: ex.sets.map((set, setIndex) => ({
           reps: set.reps,
           weight: set.weight,
+          duration: set.duration,
+          distance: set.distance,
+          calories: set.calories,
+          heartRate: set.heartRate,
+          pace: set.pace,
+          incline: set.incline,
+          resistance: set.resistance,
           type: set.type,
           restTime: set.restTime,
           notes: set.notes,

@@ -66,7 +66,7 @@ export async function GET() {
       return successResponse({ activeSession: null });
     }
 
-    const activeSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const activeSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
     
     return successResponse({ 
       activeSession: {
@@ -146,13 +146,13 @@ export async function POST(request: NextRequest) {
       where: { userId },
       update: {
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData,
+        activeWorkoutData: activeSessionData as any,
         activeWorkoutStartedAt: now,
       },
       create: {
         userId,
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData,
+        activeWorkoutData: activeSessionData as any,
         activeWorkoutStartedAt: now,
         totalWorkouts: 0,
         totalSets: 0,
@@ -210,7 +210,7 @@ export async function PATCH(request: NextRequest) {
       return errorResponse('No active workout session found', 404);
     }
 
-    const currentSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const currentSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
     const now = new Date();
 
     // Check for version conflicts (optimistic locking)
@@ -239,7 +239,7 @@ export async function PATCH(request: NextRequest) {
     await prisma.userStats.update({
       where: { userId },
       data: {
-        activeWorkoutData: updatedSessionData,
+        activeWorkoutData: updatedSessionData as any,
       },
     });
 
@@ -269,7 +269,7 @@ export async function DELETE() {
       where: { userId },
       data: {
         activeWorkoutId: null,
-        activeWorkoutData: null,
+        activeWorkoutData: null as any,
         activeWorkoutStartedAt: null,
       },
     });
