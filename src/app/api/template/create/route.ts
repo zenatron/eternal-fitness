@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { createValidatedApiHandler } from '@/lib/api-utils';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import {
   createWorkoutTemplate,
@@ -17,23 +16,6 @@ import {
   Difficulty,
   SetType
 } from '@/types/workout';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/create]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
 
 // 🚀 NEW JSON-BASED SCHEMA FOR TEMPLATE CREATION
 const createSetSchema = z.object({
@@ -101,26 +83,9 @@ function getExerciseData(exerciseKey: string) {
 }
 
 // 🚀 NEW JSON-BASED POST HANDLER
-export async function POST(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-
-    // Validate request body
-    const validationResult = createTemplateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse(
-        'Invalid template data',
-        400,
-        validationResult.error.errors,
-      );
-    }
-
-    const validatedData = validationResult.data;
+export const POST = createValidatedApiHandler(
+  createTemplateSchema,
+  async (userId, validatedData) => {
 
     // 🎯 BUILD JSON WORKOUT DATA
     const exercisesWithData = validatedData.exercises.map((ex, index) => {
@@ -140,7 +105,7 @@ export async function POST(request: Request) {
           pace: set.pace,
           incline: set.incline,
           resistance: set.resistance,
-          type: set.type,
+          type: set.type as SetType || SetType.WORKING,
           restTime: set.restTime,
           notes: set.notes,
         })),
@@ -163,7 +128,7 @@ export async function POST(request: Request) {
 
     // Validate the created workout data
     if (!validateWorkoutTemplate(workoutData)) {
-      return errorResponse('Invalid workout template structure', 500);
+      throw new Error('Invalid workout template structure');
     }
 
     // Calculate computed fields
@@ -189,12 +154,6 @@ export async function POST(request: Request) {
     });
 
     console.log(`✅ Created JSON-based workout template: ${createdTemplate.name} (${createdTemplate.id})`);
-
-    return successResponse(createdTemplate);
-  } catch (error: any) {
-    console.error('Error creating JSON-based template:', error);
-    return errorResponse('Internal Server Error creating template', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return createdTemplate;
   }
-}
+);

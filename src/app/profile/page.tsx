@@ -41,7 +41,7 @@ import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { profile, isLoading, error } = useProfile();
+  const { data: profile, isLoading, error } = useProfile();
   const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
 
   // Modal state management

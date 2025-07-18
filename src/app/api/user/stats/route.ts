@@ -97,7 +97,7 @@ export async function GET() {
       where: {
         userId,
         completedAt: { not: null },
-        performanceData: { not: null }
+        performanceData: { not: null as any }
       },
       select: {
         id: true,

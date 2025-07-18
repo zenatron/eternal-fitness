@@ -21,7 +21,7 @@ export async function GET() {
     }
 
     // If no config exists, return default
-    const config = user.dashboardConfig as DashboardConfig || DEFAULT_DASHBOARD_CONFIG;
+    const config = (user.dashboardConfig as unknown as DashboardConfig) || DEFAULT_DASHBOARD_CONFIG;
 
     return NextResponse.json(config);
   } catch (error) {
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        dashboardConfig: config,
+        dashboardConfig: config as any,
       },
       select: { dashboardConfig: true },
     });

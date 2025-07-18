@@ -17,7 +17,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
-import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
+import {
+  useActiveSession,
+  useStartSession,
+  useUpdateActiveSession,
+  useCompleteSession,
+  useCancelSession,
+  useActiveWorkoutLegacy
+} from '@/lib/hooks';
 
 
 
@@ -32,11 +39,11 @@ export default function ActiveSessionPage({
   const scheduledSessionId = searchParams.get('scheduledSessionId');
 
   const {
-    template,
+    data: template,
     isLoading: templateLoading,
     error: templateError,
   } = useTemplate(templateId);
-  const { profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
@@ -44,25 +51,36 @@ export default function ActiveSessionPage({
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
   // Active workout state management
+  const { data: activeWorkoutData, isLoading: isActiveWorkoutLoading } = useActiveSession();
+  const startWorkoutMutation = useStartSession();
+  const updateWorkoutMutation = useUpdateActiveSession();
+  const completeWorkoutMutation = useCompleteSession();
+  const cancelWorkoutMutation = useCancelSession();
+
+  // Legacy compatibility wrapper for timer functionality
   const {
-    activeWorkout,
-    isLoading: isActiveWorkoutLoading,
-    startWorkout,
-    updatePerformance,
-    updateSessionNotes,
-    updateModifiedTemplate,
-    updateExerciseProgress,
-    endWorkout,
-    completeWorkout,
-    recoverSession,
+    formatWorkoutDuration,
     hasActiveWorkout,
     getWorkoutDuration,
-    formatWorkoutDuration,
-    toggleTimer,
-    isTimerActive,
-  } = useActiveWorkout();
+  } = useActiveWorkoutLegacy();
+
+  // Extract active workout from data
+  const activeWorkout = activeWorkoutData?.activeSession;
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+
+  // Recovery function for session management
+  const recoverSession = useCallback(async (templateId: string, forceRecover = false) => {
+    try {
+      // For now, just cancel any existing session and let user start fresh
+      if (activeWorkout && activeWorkout.templateId !== templateId) {
+        await cancelWorkoutMutation.mutateAsync();
+      }
+    } catch (error) {
+      console.error('Error in session recovery:', error);
+      throw error;
+    }
+  }, [activeWorkout, cancelWorkoutMutation]);
 
   // Check for existing active workout on page load
   useEffect(() => {
@@ -85,24 +103,28 @@ export default function ActiveSessionPage({
     if (!template) return;
 
     try {
-      await startWorkout(template.id, template.name, template.workoutData);
+      await startWorkoutMutation.mutateAsync({
+        templateId: template.id,
+        templateName: template.name,
+        template: template.workoutData
+      });
     } catch (error) {
       console.error('Failed to start workout:', error);
       // Handle error - maybe show a toast notification
     }
-  }, [template, startWorkout]);
+  }, [template, startWorkoutMutation]);
 
   // No more state synchronization needed - everything comes from activeWorkout directly
 
   const handleTemplateModification = useCallback((newTemplate: any) => {
-    updateModifiedTemplate(newTemplate);
+    updateWorkoutMutation.mutate({ modifiedTemplate: newTemplate });
     setShowSaveTemplatePrompt(true);
-  }, [updateModifiedTemplate]);
+  }, [updateWorkoutMutation]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
     console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
-    updatePerformance(performance);
-  }, [updatePerformance]);
+    updateWorkoutMutation.mutate({ performance });
+  }, [updateWorkoutMutation]);
 
   const handleNotesUpdate = useCallback((notes: string) => {
     updateSessionNotes(notes);

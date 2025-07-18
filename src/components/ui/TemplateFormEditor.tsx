@@ -58,7 +58,7 @@ export default function TemplateFormEditor({
   const [saveMessage, setSaveMessage] = useState('');
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  const { profile } = useProfile();
+  const { data: profile } = useProfile();
 
   // Update state if initialValues change (e.g. when data loads)
   useEffect(() => {
@@ -176,6 +176,8 @@ export default function TemplateFormEditor({
       name: exerciseDetails.name,
       muscles: exerciseDetails.muscles,
       equipment: exerciseDetails.equipment,
+      category: 'strength', // Default category
+      difficulty: 'intermediate', // Default difficulty
       createdAt: new Date(),
       updatedAt: new Date(),
       // Initialize with one empty set matching WorkoutSet type

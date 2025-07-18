@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 import {
   createWorkoutSession,
   calculateSessionMetrics,
   calculateExerciseVolume,
   detectPersonalRecords,
-  validateWorkoutSession
+  validateWorkoutSession,
+  convertExerciseProgressToPerformance
 } from '@/utils/workoutJsonUtils';
 import {
   WorkoutSessionData,
@@ -16,23 +16,6 @@ import {
   WorkoutTemplateData
 } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [session-json/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
 
 // 🚀 JSON-BASED SESSION SCHEMAS
 const performedSetSchema = z.object({
@@ -99,35 +82,17 @@ const postSessionSchema = z.union([
 ]);
 
 // 🚀 POST - Create or Complete JSON-based Session
-export async function POST(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = postSessionSchema.safeParse(body);
-    
-    if (!validationResult.success) {
-      return errorResponse('Invalid session data', 400, validationResult.error.errors);
-    }
-
-    const validatedData = validationResult.data;
-
+export const POST = createValidatedApiHandler(
+  postSessionSchema,
+  async (userId, validatedData) => {
     // Check if this is completing a scheduled session
     if ('scheduledSessionId' in validatedData) {
       return await completeScheduledSession(userId, validatedData);
     } else {
       return await createNewSession(userId, validatedData);
     }
-  } catch (error) {
-    console.error('Error in POST /api/session-json:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
-}
+);
 
 // 🎯 CREATE NEW SESSION (immediate or scheduled)
 async function createNewSession(userId: string, data: z.infer<typeof createSessionSchema>) {
@@ -147,7 +112,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
   });
 
   if (!template) {
-    return errorResponse('Template not found or not owned by user', 404, { templateId });
+    throw new Error('Template not found or not owned by user');
   }
 
   const templateData = template.workoutData as unknown as WorkoutTemplateData;
@@ -186,22 +151,24 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
     });
 
     console.log(`✅ Created scheduled JSON session: ${newSession.id}`);
-    return successResponse(newSession, 201);
+    return newSession;
   } else {
     // Create immediate completed session
     if (!performance) {
-      return errorResponse('Performance data required for completed session', 400);
+      throw new Error('Performance data required for completed session');
     }
 
-    const sessionData = createWorkoutSession(templateData, performance);
+    // Convert performance data to the expected format
+    const convertedPerformance = convertExerciseProgressToPerformance(performance, templateData);
+    const sessionData = createWorkoutSession(templateData, convertedPerformance);
     
     if (!validateWorkoutSession(sessionData)) {
-      return errorResponse('Invalid workout session structure', 500);
+      throw new Error('Invalid workout session structure');
     }
 
     const completionTime = new Date();
 
-    const [newSession] = await prisma.$transaction(async (tx) => {
+    const newSession = await prisma.$transaction(async (tx) => {
       // Create the session
       const session = await tx.workoutSession.create({
         data: {
@@ -262,7 +229,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
     });
 
     console.log(`✅ Created completed JSON session: ${newSession.id}`);
-    return successResponse(newSession, 201);
+    return newSession;
   }
 }
 
@@ -285,14 +252,15 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
   });
 
   if (!scheduledSession) {
-    return errorResponse('Scheduled session not found or already completed', 404, { scheduledSessionId });
+    throw new Error('Scheduled session not found or already completed');
   }
 
-  const templateData = scheduledSession.workoutTemplate.workoutData as WorkoutTemplateData;
-  const sessionData = createWorkoutSession(templateData, performance);
-  
+  const templateData = scheduledSession.workoutTemplate.workoutData as unknown as WorkoutTemplateData;
+  const convertedPerformance = convertExerciseProgressToPerformance(performance, templateData);
+  const sessionData = createWorkoutSession(templateData, convertedPerformance);
+
   if (!validateWorkoutSession(sessionData)) {
-    return errorResponse('Invalid workout session structure', 500);
+    throw new Error('Invalid workout session structure');
   }
 
   // Add environment data if provided
@@ -302,7 +270,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
 
   const completionTime = new Date();
 
-  const [updatedSession] = await prisma.$transaction(async (tx) => {
+  const updatedSession = await prisma.$transaction(async (tx) => {
     // Update the session
     const session = await tx.workoutSession.update({
       where: { id: scheduledSessionId },
@@ -361,48 +329,36 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
   });
 
   console.log(`✅ Completed scheduled JSON session: ${updatedSession.id}`);
-  return successResponse(updatedSession);
+  return updatedSession;
 }
 
 // 🚀 GET - Fetch JSON-based Sessions
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const sessions = await prisma.workoutSession.findMany({
-      where: {
-        userId,
-        completedAt: { not: null },
+export const GET = createApiHandler(async (userId) => {
+  const sessions = await prisma.workoutSession.findMany({
+    where: {
+      userId,
+      completedAt: { not: null },
+    },
+    orderBy: { completedAt: 'desc' },
+    select: {
+      id: true,
+      completedAt: true,
+      scheduledAt: true,
+      duration: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      performanceData: true,
+      totalVolume: true,
+      totalSets: true,
+      totalExercises: true,
+      personalRecords: true,
+      workoutTemplate: {
+        select: { id: true, name: true },
       },
-      orderBy: { completedAt: 'desc' },
-      select: {
-        id: true,
-        completedAt: true,
-        scheduledAt: true,
-        duration: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        performanceData: true,
-        totalVolume: true,
-        totalSets: true,
-        totalExercises: true,
-        personalRecords: true,
-        workoutTemplate: {
-          select: { id: true, name: true },
-        },
-      },
-    });
+    },
+  });
 
-    console.log(`✅ Fetched ${sessions.length} JSON-based sessions for user ${userId}`);
-    return successResponse(sessions);
-  } catch (error) {
-    console.error('Error in GET /api/session-json:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+  console.log(`✅ Fetched ${sessions.length} JSON-based sessions for user ${userId}`);
+  return sessions;
+});

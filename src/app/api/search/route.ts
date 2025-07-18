@@ -41,7 +41,12 @@ export async function GET(request: Request) {
       return errorResponse('At least one search parameter is required', 400);
     }
 
-    const results = {
+    const results: {
+      templates: any[];
+      sessions: any[];
+      exercises: any[];
+      analytics: any;
+    } = {
       templates: [],
       sessions: [],
       exercises: [],
@@ -56,7 +61,7 @@ export async function GET(request: Request) {
         difficulty,
         workoutType,
         limit,
-      });
+      }) as any[];
     }
 
     if (type === 'all' || type === 'sessions') {
@@ -65,7 +70,7 @@ export async function GET(request: Request) {
         muscleGroup,
         equipment,
         limit,
-      });
+      }) as any[];
     }
 
     if (type === 'all' || type === 'exercises') {
@@ -74,7 +79,7 @@ export async function GET(request: Request) {
         muscleGroup,
         equipment,
         limit,
-      });
+      }) as any[];
     }
 
     if (type === 'analytics') {
@@ -327,7 +332,7 @@ async function getSearchAnalytics(userId: string, filters: any) {
   const { query, muscleGroup, equipment } = filters;
 
   // 🎯 ANALYZE SEARCH PATTERNS AND TRENDS
-  const analytics = await prisma.$queryRaw`
+  const analyticsData = await prisma.$queryRaw`
     SELECT 
       'search_insights' as type,
       COUNT(DISTINCT ws.id) as total_sessions,
@@ -362,7 +367,7 @@ async function getSearchAnalytics(userId: string, filters: any) {
       )` : ''}
   `;
 
-  return analytics[0] || {};
+  return (analyticsData as any[])[0] || {};
 }
 
 console.log('🔍 Advanced JSON Search API loaded with JSONB search superpowers!');

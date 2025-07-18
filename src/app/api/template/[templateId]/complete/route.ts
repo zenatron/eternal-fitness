@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutTemplateData } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 
@@ -101,7 +101,7 @@ export async function POST(
 
       // 2. Create the WorkoutSession record with required performanceData
       const templateData = template.workoutData;
-      const totalSets = getTotalSetsCount(template as WorkoutTemplate);
+      const totalSets = getTotalSetsCount(template as any);
 
       // Create performance data structure for the completed session
       let actualTotalVolume = sessionTotalVolume;
@@ -155,7 +155,7 @@ export async function POST(
       // 3. Process Personal Records if performance data is available
       if (performance && Object.keys(performance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData as unknown as WorkoutTemplateData);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
           // Don't fail the entire transaction for PR processing errors

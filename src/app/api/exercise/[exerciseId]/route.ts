@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { exercises } from '@/lib/exercises';
 
 // --- Standard Response Helpers ---
 const successResponse = (data: any, status = 200) => {
@@ -25,9 +25,11 @@ export async function GET(
   try {
     const { exerciseId } = await params;
 
-    const exercise = await prisma.exercise.findUnique({
-      where: { id: exerciseId },
-    });
+    const exercise = exercises[exerciseId];
+
+    if (!exercise) {
+      return errorResponse('Exercise not found', 404);
+    }
 
     return successResponse(exercise);
   } catch (error) {

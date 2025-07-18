@@ -1,19 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Response helpers
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json(data, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status }
-  );
-};
+import { createValidatedApiHandler } from '@/lib/api-utils';
 import {
   ActiveWorkoutSessionData,
   WorkoutSessionData,
@@ -38,21 +25,10 @@ const completeSessionSchema = z.object({
 // POST: Complete active workout session
 // ============================================================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = completeSessionSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return errorResponse('Invalid completion data', 400, validationResult.error.errors);
-    }
-
-    const { duration, notes, completedAt } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  completeSessionSchema,
+  async (userId, { duration, notes, completedAt }) => {
+    let finalPerformanceData: any = {};
 
     const session = await prisma.$transaction(async (tx) => {
       // Get current active session
@@ -92,6 +68,9 @@ export async function POST(request: NextRequest) {
         performanceData = convertExerciseProgressToPerformance(activeSessionData.exerciseProgress, finalTemplate);
         console.log('✅ Converted performance data:', JSON.stringify(performanceData, null, 2));
       }
+
+      // Store for use outside transaction
+      finalPerformanceData = performanceData;
 
       // Calculate session metrics
       console.log('🔍 Performance data structure:', JSON.stringify(performanceData, null, 2));
@@ -211,23 +190,19 @@ export async function POST(request: NextRequest) {
 
     // Update achievements and unique exercises count (outside transaction for better performance)
     try {
+      const exerciseKeys = Object.keys(finalPerformanceData || {});
       await Promise.all([
         updateUserAchievements(userId),
-        updateUniqueExercisesCount(userId),
+        updateUniqueExercisesCount(userId, exerciseKeys),
       ]);
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
       // Don't fail the whole request if achievements fail
     }
 
-    return successResponse({
+    return {
       session,
       message: 'Workout completed successfully'
-    });
-
-  } catch (error) {
-    console.error('Error completing active session:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);
+    };
   }
-}
+);
