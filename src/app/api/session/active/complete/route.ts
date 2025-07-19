@@ -162,7 +162,7 @@ export const POST = createValidatedApiHandler(
           totalVolume: { increment: metrics.totalVolume },
           totalSets: { increment: metrics.totalSets },
           totalExercises: { increment: metrics.totalExercises },
-          totalTrainingHours: { increment: sessionDuration ? sessionDuration / 3600 : 0 },
+          totalTrainingHours: { increment: sessionDuration ? sessionDuration / 60 : 0 },
           lastWorkoutAt: completionTime,
           currentStreak: newStreak,
           longestStreak: newLongestStreak,
@@ -180,7 +180,7 @@ export const POST = createValidatedApiHandler(
         update: {
           workoutsCount: { increment: 1 },
           volume: { increment: metrics.totalVolume },
-          trainingHours: { increment: sessionDuration ? sessionDuration / 3600 : 0 },
+          trainingHours: { increment: sessionDuration ? sessionDuration / 60 : 0 },
         },
         create: {
           userId,

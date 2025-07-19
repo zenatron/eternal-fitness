@@ -20,7 +20,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTemplates } from '@/lib/hooks/useTemplates';
-import { useScheduledSessions } from '@/lib/hooks/useScheduledSessions';
+import { useScheduledSessions } from '@/lib/hooks/session-hooks';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
@@ -219,7 +219,7 @@ export default function TemplatesPage() {
   const router = useRouter();
   const { data: templates, isLoading, error, refetch } = useTemplates();
   const {
-    sessions: scheduledSessions,
+    data: scheduledSessions = [],
     isLoading: scheduledLoading,
     error: scheduledError,
   } = useScheduledSessions();
@@ -274,8 +274,7 @@ export default function TemplatesPage() {
         throw new Error(errorData.error?.message || errorData.error || 'Failed to schedule session');
       }
 
-      // Refresh the page to show the new scheduled session
-      window.location.reload();
+      // React Query will automatically refresh the scheduled sessions
     } catch (error) {
       console.error('Error scheduling session:', error);
       // You could add error toast notification here

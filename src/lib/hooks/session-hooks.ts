@@ -85,7 +85,7 @@ export function useUpdateActiveSession() {
 export function useCompleteSession() {
   return useApiMutation<WorkoutSession>('/session/active/complete', {
     successMessage: 'Workout completed successfully!',
-    invalidateQueries: ['session'],
+    invalidateQueries: ['session', ['session', 'scheduled'], ['user', 'stats']],
   });
 }
 
@@ -118,7 +118,7 @@ export function useCancelSession() {
 export function useCreateSession() {
   return useApiMutation<WorkoutSession>('/session', {
     successMessage: 'Workout session created!',
-    invalidateQueries: ['session'],
+    invalidateQueries: ['session', ['session', 'scheduled'], ['user', 'stats']],
   });
 }
 
