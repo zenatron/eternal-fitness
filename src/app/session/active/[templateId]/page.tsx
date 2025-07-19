@@ -171,10 +171,6 @@ export default function ActiveSessionPage({
     });
   }, [completeWorkoutMutation]);
 
-  const endWorkout = useCallback(async () => {
-    await cancelWorkoutMutation.mutateAsync();
-  }, [cancelWorkoutMutation]);
-
   const saveAsNewTemplate = async () => {
     if (!activeWorkout?.modifiedTemplate || !template) return;
 
