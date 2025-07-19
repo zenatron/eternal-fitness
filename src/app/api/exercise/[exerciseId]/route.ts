@@ -1,23 +1,8 @@
 import { NextResponse } from 'next/server';
 import { exercises } from '@/lib/exercises';
+import { createApiHandler } from '@/lib/api-utils';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [exercise/{id}]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
-
+// Note: This route doesn't require authentication since it's just static exercise data
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ exerciseId: string }> }
@@ -28,15 +13,22 @@ export async function GET(
     const exercise = exercises[exerciseId];
 
     if (!exercise) {
-      return errorResponse('Exercise not found', 404);
+      return NextResponse.json(
+        { error: { message: 'Exercise not found' } },
+        { status: 404 }
+      );
     }
 
-    return successResponse(exercise);
+    return NextResponse.json({ data: exercise });
   } catch (error) {
-    return errorResponse(
-      'Internal Server Error',
-      500,
-      error instanceof Error ? error.message : String(error),
+    return NextResponse.json(
+      {
+        error: {
+          message: 'Internal Server Error',
+          details: error instanceof Error ? error.message : String(error)
+        }
+      },
+      { status: 500 }
     );
   }
 }

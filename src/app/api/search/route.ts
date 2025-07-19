@@ -2,31 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [search/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler } from '@/lib/api-utils';
 
 // 🔍 ADVANCED JSON SEARCH CAPABILITIES
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId, request) => {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -38,7 +17,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20');
 
     if (!query && !muscleGroup && !equipment && !difficulty && !workoutType) {
-      return errorResponse('At least one search parameter is required', 400);
+      throw new Error('At least one search parameter is required');
     }
 
     const results: {
@@ -90,14 +69,8 @@ export async function GET(request: Request) {
       });
     }
 
-    return successResponse(results);
-  } catch (error) {
-    console.error('Error in GET /api/search:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+    return results;
+});
 
 // 🎯 SEARCH WORKOUT TEMPLATES WITH JSONB
 async function searchTemplates(userId: string, filters: any) {

@@ -7,24 +7,7 @@ import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 import { WorkoutTemplate, WorkoutTemplateData } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
-  // 201 for creating session
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}/complete]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
 // --- Zod Schema for POST Request ---
 const completeTemplateSchema = z.object({
@@ -49,35 +32,10 @@ const completeTemplateSchema = z.object({
   })).optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const { templateId } = await params;
-    let body = {}; // Default to empty object if no body is expected/sent
-    try {
-      // Try to parse body, but allow empty body
-      const text = await request.text();
-      if (text) {
-        body = JSON.parse(text);
-      }
-    } catch (e) {
-      // Ignore JSON parse error if body is empty or malformed, Zod will catch it
-    }
-
-    // Validate request body (even if empty)
-    const validationResult = completeTemplateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse('Invalid input', 400, validationResult.error.errors);
-    }
-
-    const { duration, notes, performance } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  completeTemplateSchema,
+  async (userId, { duration, notes, performance }, request, params) => {
+    const { templateId } = params;
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
@@ -226,22 +184,6 @@ export async function POST(
       // Don't fail the workout completion for achievement errors
     }
 
-    return successResponse(newSession);
-  } catch (error: any) {
-    const { templateId } = await params;
-    if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error completing template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error completing template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return newSession;
   }
-}
+);

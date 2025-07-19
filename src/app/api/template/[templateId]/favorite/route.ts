@@ -2,36 +2,11 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client'; // Import Prisma types
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}/favorite]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler } from '@/lib/api-utils';
 
 // POST handler to toggle favorite status
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const { templateId } = await params;
+export const POST = createApiHandler(async (userId, request, params) => {
+  const { templateId } = params;
 
     // Use transaction for atomicity (fetch and update)
     const updatedTemplate = await prisma.$transaction(async (tx) => {
@@ -79,25 +54,5 @@ export async function POST(
       return result;
     }); // End transaction
 
-    return successResponse(updatedTemplate);
-  } catch (error: any) {
-    const { templateId } = await params;
-    if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(
-      `Error toggling favorite for template ${templateId}:`,
-      error,
-    );
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error toggling favorite', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+    return updatedTemplate;
+});

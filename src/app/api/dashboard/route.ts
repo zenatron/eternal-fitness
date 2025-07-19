@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 
 import prisma from '@/lib/prisma'; // Add this line
 import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils'; // Import utility
+import { createApiHandler } from '@/lib/api-utils';
 
 // Helper function to calculate streak based on workout dates
 function calculateStreak(sessionDates: Date[]): number {
@@ -66,13 +67,7 @@ function calculateStreak(sessionDates: Date[]): number {
   return streak;
 }
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+export const GET = createApiHandler(async (userId) => {
 
     const user = await prisma.user.findUnique({
       where: {
@@ -282,17 +277,8 @@ export async function GET() {
       upcomingWorkouts: upcomingWorkouts,
     };
 
-    return NextResponse.json(dashboardData);
-  } catch (error) {
-    console.error('Dashboard API error:', error);
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal Server Error',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    );
-  }
-}
+    return dashboardData;
+});
 
 // Helper function to format time ago
 function formatTimeAgo(dateInput: Date | string | null): string {
