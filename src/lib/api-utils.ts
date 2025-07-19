@@ -83,19 +83,15 @@ export async function validateRequest<T>(
 ): Promise<T> {
   try {
     const body = await request.json();
-    console.log('🔍 Request body received:', body);
     const result = schema.safeParse(body);
 
     if (!result.success) {
-      console.error('🚨 Validation failed:', result.error.errors);
       throw new ApiError('Invalid request data', 400, result.error.errors);
     }
 
-    console.log('✅ Validation successful:', result.data);
     return result.data;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    console.error('🚨 JSON parsing failed:', error);
     throw new ApiError('Invalid JSON in request body', 400);
   }
 }

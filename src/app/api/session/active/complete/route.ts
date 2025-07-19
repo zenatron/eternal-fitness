@@ -28,7 +28,6 @@ const completeSessionSchema = z.object({
 export const POST = createValidatedApiHandler(
   completeSessionSchema,
   async (userId, { duration, notes, completedAt }) => {
-    console.log('🔍 Complete session API called with:', { userId, duration, notes, completedAt });
     let finalPerformanceData: any = {};
 
     const session = await prisma.$transaction(async (tx) => {

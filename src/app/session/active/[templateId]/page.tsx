@@ -230,7 +230,6 @@ export default function ActiveSessionPage({
 
   const stopTimerAndSave = async () => {
     const workoutDurationSeconds = getWorkoutDuration();
-    console.log('🕐 Raw workout duration (seconds):', workoutDurationSeconds);
 
     // Validate duration
     if (isNaN(workoutDurationSeconds) || workoutDurationSeconds < 0) {
@@ -241,7 +240,6 @@ export default function ActiveSessionPage({
     }
 
     const finalDurationMinutes = Math.max(1, Math.round(workoutDurationSeconds / 60)); // Duration in minutes, ensure at least 1
-    console.log('🕐 Final duration (minutes):', finalDurationMinutes);
 
     // --- Call API to save session ---
     setIsSaving(true);
@@ -275,13 +273,6 @@ export default function ActiveSessionPage({
     } else {
       // Creating a new immediate session - use the new active session completion API
       try {
-        console.log('🚀 Completing workout with active session data:', {
-          performance: activeWorkout?.performance,
-          duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || '',
-          activeWorkout: activeWorkout
-        });
-
         // Validate the data before sending
         if (typeof finalDurationMinutes !== 'number' || isNaN(finalDurationMinutes)) {
           throw new Error(`Invalid duration: ${finalDurationMinutes}`);
