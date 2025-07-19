@@ -8,6 +8,7 @@ export {
   useApiQuery,
   useApiMutation,
   useApiUpdateMutation,
+  useApiPatchMutation,
   useApiDeleteMutation,
   useResourceList,
   useResource,

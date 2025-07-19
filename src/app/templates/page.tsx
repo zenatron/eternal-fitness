@@ -259,7 +259,7 @@ export default function TemplatesPage() {
     if (!selectedTemplateId) return;
 
     try {
-      const response = await fetch('/api/session-json', {
+      const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

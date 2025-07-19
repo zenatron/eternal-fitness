@@ -108,6 +108,46 @@ export function useApiUpdateMutation<TData, TVariables = any>(
 }
 
 /**
+ * Generic PATCH mutation hook
+ */
+export function useApiPatchMutation<TData, TVariables = any>(
+  endpoint: string,
+  options?: {
+    onSuccess?: (data: TData, variables: TVariables) => void;
+    onError?: (error: ApiClientError, variables: TVariables) => void;
+    invalidateQueries?: string | string[];
+    successMessage?: string;
+    errorMessage?: string;
+  } & Omit<UseMutationOptions<TData, ApiClientError, TVariables>, 'mutationFn'>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation<TData, ApiClientError, TVariables>({
+    mutationFn: (data: TVariables) => apiPatch<TData>(endpoint, data),
+    onSuccess: (data, variables) => {
+      if (options?.successMessage) {
+        toast.success(options.successMessage);
+      }
+
+      if (options?.invalidateQueries) {
+        const keys = Array.isArray(options.invalidateQueries)
+          ? options.invalidateQueries
+          : [options.invalidateQueries];
+        keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+      }
+
+      options?.onSuccess?.(data, variables);
+    },
+    onError: (error, variables) => {
+      const message = options?.errorMessage || error.message || 'An error occurred';
+      toast.error(message);
+      options?.onError?.(error, variables);
+    },
+    ...options,
+  });
+}
+
+/**
  * Generic DELETE mutation hook
  */
 export function useApiDeleteMutation<TData = any>(

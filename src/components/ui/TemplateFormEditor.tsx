@@ -330,7 +330,7 @@ export default function TemplateFormEditor({
     setIsSaving(true);
     const endpoint =
       mode === 'create'
-        ? '/api/template/create'
+        ? '/api/template'
         : `/api/template/${templateId}`;
 
     const method = mode === 'create' ? 'POST' : 'PUT';

@@ -1,7 +1,7 @@
 // 🚀 SESSION-SPECIFIC HOOKS
 // Specialized hooks for workout session CRUD operations
 
-import { useApiQuery, useApiMutation, useApiUpdateMutation } from './api-hooks';
+import { useApiQuery, useApiMutation, useApiUpdateMutation, useApiPatchMutation } from './api-hooks';
 import { WorkoutSession, ActiveWorkoutSessionData } from '@/types/workout';
 
 // ============================================================================
@@ -73,7 +73,7 @@ export function useStartSession() {
  * Hook to update an active workout session
  */
 export function useUpdateActiveSession() {
-  return useApiUpdateMutation<ActiveWorkoutSessionData>('/session/active', {
+  return useApiPatchMutation<ActiveWorkoutSessionData>('/session/active', {
     invalidateQueries: ['session'],
     // No success message for frequent updates
   });
@@ -93,7 +93,7 @@ export function useCompleteSession() {
  * Hook to pause/resume an active workout session
  */
 export function usePauseResumeSession() {
-  return useApiUpdateMutation<ActiveWorkoutSessionData>('/session/active', {
+  return useApiPatchMutation<ActiveWorkoutSessionData>('/session/active', {
     invalidateQueries: ['session'],
   });
 }

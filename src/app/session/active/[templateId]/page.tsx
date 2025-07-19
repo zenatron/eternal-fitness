@@ -127,8 +127,8 @@ export default function ActiveSessionPage({
   }, [updateWorkoutMutation]);
 
   const handleNotesUpdate = useCallback((notes: string) => {
-    updateSessionNotes(notes);
-  }, [updateSessionNotes]);
+    updateWorkoutMutation.mutate({ sessionNotes: notes });
+  }, [updateWorkoutMutation]);
 
   const saveAsNewTemplate = async () => {
     if (!activeWorkout?.modifiedTemplate || !template) return;
@@ -250,7 +250,7 @@ export default function ActiveSessionPage({
     }
 
     try {
-      const response = await fetch('/api/session-json', {
+      const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData),
