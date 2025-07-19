@@ -59,7 +59,10 @@ function ProfileContent() {
 
         if (response.ok) {
           const result = await response.json();
-          setAchievements(result.data);
+          setAchievements(result.data); // Extract data from the new API response format
+        } else {
+          const errorData = await response.json().catch(() => null);
+          console.error('Failed to fetch achievements:', errorData?.error?.message || 'Unknown error');
         }
       } catch (error) {
         console.error('Error fetching achievements:', error);
