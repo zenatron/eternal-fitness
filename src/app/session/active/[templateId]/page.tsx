@@ -38,6 +38,26 @@ export default function ActiveSessionPage({
   const searchParams = useSearchParams();
   const scheduledSessionId = searchParams.get('scheduledSessionId');
 
+  // Handle case where templateId is undefined or invalid
+  if (!templateId || templateId === 'undefined') {
+    return (
+      <div className="min-h-screen app-bg py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
+            <h2 className="font-semibold mb-2">Invalid Session</h2>
+            <p>This workout session appears to be corrupted or invalid.</p>
+            <button
+              onClick={() => router.push('/templates')}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Go to Templates
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const {
     data: template,
     isLoading: templateLoading,

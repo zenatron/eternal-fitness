@@ -25,6 +25,14 @@ export default function ActiveWorkoutIndicator() {
   }
 
   const handleContinueWorkout = () => {
+    if (!activeWorkout.templateId) {
+      console.error('Cannot continue workout: templateId is missing');
+      // End the corrupted workout session
+      if (confirm('This workout session appears to be corrupted. Would you like to end it?')) {
+        endWorkout();
+      }
+      return;
+    }
     router.push(`/session/active/${activeWorkout.templateId}`);
   };
 

@@ -70,6 +70,11 @@ function getExerciseData(exerciseKey: string) {
 export const GET = createApiHandler(async (userId, request, params) => {
   const { templateId } = params;
 
+  // Validate templateId
+  if (!templateId || templateId === 'undefined') {
+    throw new Error('Invalid template ID provided');
+  }
+
     // 🎯 FETCH JSON-BASED TEMPLATE
     const template = await prisma.workoutTemplate.findUnique({
       where: {
@@ -107,6 +112,11 @@ export const PUT = createValidatedApiHandler(
   updateTemplateSchema,
   async (userId, validatedData, request, params) => {
     const { templateId } = params;
+
+    // Validate templateId
+    if (!templateId || templateId === 'undefined') {
+      throw new Error('Invalid template ID provided');
+    }
 
     // Debug: Log the incoming request body
     console.log('PUT /api/template/[templateId] - Received body:', JSON.stringify(validatedData, null, 2));
@@ -191,6 +201,11 @@ export const PUT = createValidatedApiHandler(
 // DELETE a template
 export const DELETE = createApiHandler(async (userId, request, params) => {
   const { templateId } = params;
+
+  // Validate templateId
+  if (!templateId || templateId === 'undefined') {
+    throw new Error('Invalid template ID provided');
+  }
 
     // Use a transaction for atomicity, although deleting dependencies first is key
     await prisma.$transaction(async (tx) => {

@@ -23,6 +23,7 @@ export function useTemplates() {
 export function useTemplate(templateId: string) {
   return useResource<WorkoutTemplate>('template', templateId, {
     staleTime: 10 * 60 * 1000, // 10 minutes
+    enabled: !!templateId && templateId !== 'undefined', // Don't fetch if templateId is invalid
   });
 }
 
