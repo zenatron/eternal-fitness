@@ -14,11 +14,12 @@ export {
 } from './session-hooks';
 
 // Legacy compatibility - for components that expect the old interface
-import { useActiveSession } from './session-hooks';
+import { useActiveSession, useCancelSession } from './session-hooks';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function useActiveWorkoutLegacy() {
   const { data: activeSessionData, isLoading } = useActiveSession();
+  const cancelWorkoutMutation = useCancelSession();
   const [currentTime, setCurrentTime] = useState<string>('0:00');
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -53,7 +54,8 @@ export function useActiveWorkoutLegacy() {
 
   // Update timer display every second
   useEffect(() => {
-    const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData;
+    // Extract active workout from the API response structure
+    const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData?.activeSession;
 
     const updateTimer = () => {
       if (activeWorkout) {
@@ -67,7 +69,17 @@ export function useActiveWorkoutLegacy() {
     return () => clearInterval(interval);
   }, [activeSessionData, getElapsedSeconds, formatTime]);
 
-  const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData;
+  // Extract active workout from the API response structure
+  const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData?.activeSession;
+
+  // End workout function
+  const endWorkout = useCallback(async () => {
+    try {
+      await cancelWorkoutMutation.mutateAsync();
+    } catch (error) {
+      console.error('Failed to end workout:', error);
+    }
+  }, [cancelWorkoutMutation]);
 
   return {
     activeWorkout,
@@ -76,5 +88,6 @@ export function useActiveWorkoutLegacy() {
     hasActiveWorkout: !!activeWorkout,
     isTimerActive: activeWorkout?.isTimerActive || false,
     getWorkoutDuration: () => activeWorkout ? getElapsedSeconds(activeWorkout) : 0,
+    endWorkout,
   };
 }

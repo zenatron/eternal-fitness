@@ -85,8 +85,8 @@ export default function ActiveSessionPage({
     isTimerActive,
   } = useActiveWorkoutLegacy();
 
-  // Extract active workout from data
-  const activeWorkout = activeWorkoutData?.activeSession;
+  // Extract active workout from data (consistent with legacy hook)
+  const activeWorkout = activeWorkoutData?.data?.activeSession || activeWorkoutData?.activeSession;
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
 
