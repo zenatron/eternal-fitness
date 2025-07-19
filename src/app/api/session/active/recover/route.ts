@@ -112,7 +112,7 @@ export const POST = createValidatedApiHandler(
       });
 
       return {
-        activeSession: recoveredSessionData,
+        data: { activeSession: recoveredSessionData },
         recovered: true,
         issues: issues.length > 0 ? issues : undefined,
         message: 'Active workout session recovered successfully'
@@ -130,7 +130,7 @@ export const POST = createValidatedApiHandler(
     });
 
     return {
-      activeSession: null,
+      data: { activeSession: null },
       recovered: false,
       issues,
       message: 'Active workout session cleared due to unrecoverable issues'

@@ -3,8 +3,12 @@
 // 🚀 STREAMLINED ACTIVE WORKOUT HOOK
 // Uses the new unified session hooks for consistent data management
 
+import { useActiveSession, useCancelSession } from './session-hooks';
+import { useState, useEffect, useCallback } from 'react';
+
+// Re-export session hooks for convenience
 export {
-  useActiveSession as useActiveWorkout,
+  useActiveSession,
   useStartSession,
   useUpdateActiveSession,
   useCompleteSession,
@@ -13,15 +17,17 @@ export {
   useRecoverSession
 } from './session-hooks';
 
-// Legacy compatibility - for components that expect the old interface
-import { useActiveSession, useCancelSession } from './session-hooks';
-import { useState, useEffect, useRef, useCallback } from 'react';
-
-export function useActiveWorkoutLegacy() {
-  const { data: activeSessionData, isLoading } = useActiveSession();
+/**
+ * Enhanced active workout hook with timer functionality
+ * Provides a clean interface for components that need timer display
+ */
+export function useActiveWorkout() {
+  const { data: activeSessionResponse, isLoading } = useActiveSession();
   const cancelWorkoutMutation = useCancelSession();
   const [currentTime, setCurrentTime] = useState<string>('0:00');
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Extract active workout from the standardized API response structure
+  const activeWorkout = activeSessionResponse?.data?.activeSession;
 
   // Calculate elapsed time in seconds
   const getElapsedSeconds = useCallback((workout: any): number => {
@@ -54,23 +60,19 @@ export function useActiveWorkoutLegacy() {
 
   // Update timer display every second
   useEffect(() => {
-    // Extract active workout from the API response structure
-    const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData?.activeSession;
-
     const updateTimer = () => {
       if (activeWorkout) {
         const elapsed = getElapsedSeconds(activeWorkout);
         setCurrentTime(formatTime(elapsed));
+      } else {
+        setCurrentTime('0:00');
       }
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [activeSessionData, getElapsedSeconds, formatTime]);
-
-  // Extract active workout from the API response structure
-  const activeWorkout = activeSessionData?.data?.activeSession || activeSessionData?.activeSession;
+  }, [activeWorkout, getElapsedSeconds, formatTime]);
 
   // End workout function
   const endWorkout = useCallback(async () => {

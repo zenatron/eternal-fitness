@@ -69,7 +69,6 @@ export {
 // ============================================================================
 export {
   useActiveWorkout,
-  useActiveWorkoutLegacy,
   useStartSession as useStartWorkout,
   useCompleteSession as useCompleteWorkout,
   useCancelSession as useEndWorkout,

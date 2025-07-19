@@ -18,13 +18,12 @@ import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
 import {
-  useActiveSession,
+  useActiveWorkout,
   useStartSession,
   useUpdateActiveSession,
   useCompleteSession,
   useCancelSession,
-  useActiveWorkoutLegacy
-} from '@/lib/hooks';
+} from '@/lib/hooks/useActiveWorkout';
 
 
 
@@ -70,23 +69,21 @@ export default function ActiveSessionPage({
   const [saveMessage, setSaveMessage] = useState('');
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
-  // Active workout state management
-  const { data: activeWorkoutData, isLoading: isActiveWorkoutLoading } = useActiveSession();
-  const startWorkoutMutation = useStartSession();
-  const updateWorkoutMutation = useUpdateActiveSession();
-  const completeWorkoutMutation = useCompleteSession();
-  const cancelWorkoutMutation = useCancelSession();
-
-  // Legacy compatibility wrapper for timer functionality
+  // Active workout state management with timer functionality
   const {
+    activeWorkout,
     formatWorkoutDuration,
     hasActiveWorkout,
     getWorkoutDuration,
     isTimerActive,
-  } = useActiveWorkoutLegacy();
+    isLoading: isActiveWorkoutLoading,
+    endWorkout,
+  } = useActiveWorkout();
 
-  // Extract active workout from data (consistent with legacy hook)
-  const activeWorkout = activeWorkoutData?.data?.activeSession || activeWorkoutData?.activeSession;
+  const startWorkoutMutation = useStartSession();
+  const updateWorkoutMutation = useUpdateActiveSession();
+  const completeWorkoutMutation = useCompleteSession();
+  const cancelWorkoutMutation = useCancelSession();
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
 
@@ -160,14 +157,11 @@ export default function ActiveSessionPage({
     }
   }, [activeWorkout, updateWorkoutMutation]);
 
-  const updateExerciseProgress = useCallback((exerciseId: string, progress: any) => {
+  const updateExerciseProgress = useCallback((fullExerciseProgress: any) => {
     updateWorkoutMutation.mutate({
-      exerciseProgress: {
-        ...activeWorkout?.exerciseProgress,
-        [exerciseId]: progress,
-      },
+      exerciseProgress: fullExerciseProgress,
     });
-  }, [activeWorkout, updateWorkoutMutation]);
+  }, [updateWorkoutMutation]);
 
   const completeWorkout = useCallback(async (duration: number, notes: string) => {
     await completeWorkoutMutation.mutateAsync({

@@ -44,16 +44,22 @@ export const GET = createApiHandler(async (userId) => {
   });
 
   if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-    return { activeSession: null };
+    return {
+      data: { activeSession: null },
+      message: 'No active workout session found'
+    };
   }
 
   const activeSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
 
   return {
-    activeSession: {
-      ...activeSessionData,
-      startedAt: userStats.activeWorkoutStartedAt,
-    }
+    data: {
+      activeSession: {
+        ...activeSessionData,
+        startedAt: userStats.activeWorkoutStartedAt,
+      }
+    },
+    message: 'Active workout session retrieved successfully'
   };
 });
 
@@ -129,7 +135,7 @@ export const POST = createValidatedApiHandler(
     });
 
     return {
-      activeSession: activeSessionData,
+      data: { activeSession: activeSessionData },
       message: 'Active workout session started successfully'
     };
   }
@@ -187,7 +193,7 @@ export const PATCH = createValidatedApiHandler(
     });
 
     return {
-      activeSession: updatedSessionData,
+      data: { activeSession: updatedSessionData },
       message: 'Active workout session updated successfully'
     };
   }
@@ -209,6 +215,7 @@ export const DELETE = createApiHandler(async (userId) => {
   });
 
   return {
+    data: { activeSession: null },
     message: 'Active workout session ended successfully'
   };
 });
