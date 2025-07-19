@@ -2,15 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { UserPersonalRecords } from '@/types/personalRecords';
-
-// Helper for standard responses
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 400, details?: any) => {
-  return NextResponse.json({ error: { message, details } }, { status });
-};
+import { createApiHandler } from '@/lib/api-utils';
 
 // Helper function to convert stored PR data to display format
 function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
@@ -52,13 +44,7 @@ function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
     .slice(0, 20);
 }
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId) => {
 
     // Get user stats
     const userStats = await prisma.userStats.findUnique({
@@ -97,7 +83,7 @@ export async function GET() {
       where: {
         userId,
         completedAt: { not: null },
-        performanceData: { not: null }
+        performanceData: { not: null as any }
       },
       select: {
         id: true,
@@ -235,13 +221,5 @@ export async function GET() {
       workoutFrequency,
     };
 
-    return successResponse(statsData);
-  } catch (error) {
-    console.error('Error fetching user stats:', error);
-    return errorResponse(
-      'Internal Server Error',
-      500,
-      error instanceof Error ? error.message : String(error)
-    );
-  }
-}
+    return statsData;
+});

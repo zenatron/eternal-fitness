@@ -94,7 +94,7 @@ function SessionDisplayItem({
           </div>
         </div>
         <Link
-          href={`/session/active/${session.workoutTemplateId}?sessionId=${session.id}`}
+          href={`/session/active/${session.workoutTemplateId}?scheduledSessionId=${session.id}`}
           className="ml-4 px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
         >
           Start

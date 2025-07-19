@@ -4,27 +4,10 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutTemplateData } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
-  // 201 for creating session
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}/complete]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
 // --- Zod Schema for POST Request ---
 const completeTemplateSchema = z.object({
@@ -49,35 +32,10 @@ const completeTemplateSchema = z.object({
   })).optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const { templateId } = await params;
-    let body = {}; // Default to empty object if no body is expected/sent
-    try {
-      // Try to parse body, but allow empty body
-      const text = await request.text();
-      if (text) {
-        body = JSON.parse(text);
-      }
-    } catch (e) {
-      // Ignore JSON parse error if body is empty or malformed, Zod will catch it
-    }
-
-    // Validate request body (even if empty)
-    const validationResult = completeTemplateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse('Invalid input', 400, validationResult.error.errors);
-    }
-
-    const { duration, notes, performance } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  completeTemplateSchema,
+  async (userId, { duration, notes, performance }, request, params) => {
+    const { templateId } = params;
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
@@ -101,7 +59,7 @@ export async function POST(
 
       // 2. Create the WorkoutSession record with required performanceData
       const templateData = template.workoutData;
-      const totalSets = getTotalSetsCount(template as WorkoutTemplate);
+      const totalSets = getTotalSetsCount(template as any);
 
       // Create performance data structure for the completed session
       let actualTotalVolume = sessionTotalVolume;
@@ -155,14 +113,54 @@ export async function POST(
       // 3. Process Personal Records if performance data is available
       if (performance && Object.keys(performance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData as unknown as WorkoutTemplateData);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
           // Don't fail the entire transaction for PR processing errors
         }
       }
 
-      // 4. Update UserStats
+      // 4. Calculate current streak
+      const currentUserStats = await tx.userStats.findUnique({
+        where: { userId },
+        select: { lastWorkoutAt: true, currentStreak: true, longestStreak: true }
+      });
+
+      let newStreak = 1;
+      let newLongestStreak = 1;
+
+      if (currentUserStats) {
+        newLongestStreak = currentUserStats.longestStreak || 1;
+
+        if (currentUserStats.lastWorkoutAt) {
+          const lastWorkoutDate = new Date(currentUserStats.lastWorkoutAt);
+          const completionDate = new Date(completionTime);
+
+          // Set both dates to start of day for comparison
+          lastWorkoutDate.setHours(0, 0, 0, 0);
+          completionDate.setHours(0, 0, 0, 0);
+
+          const daysDifference = Math.floor((completionDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDifference === 0) {
+            // Same day - maintain current streak
+            newStreak = currentUserStats.currentStreak || 1;
+          } else if (daysDifference === 1) {
+            // Consecutive day - increment streak
+            newStreak = (currentUserStats.currentStreak || 0) + 1;
+          } else {
+            // Gap in workouts - reset streak
+            newStreak = 1;
+          }
+        }
+
+        // Update longest streak if current streak is higher
+        if (newStreak > newLongestStreak) {
+          newLongestStreak = newStreak;
+        }
+      }
+
+      // 5. Update UserStats
       await tx.userStats.upsert({
         where: { userId: userId },
         update: {
@@ -170,6 +168,8 @@ export async function POST(
           totalVolume: { increment: sessionTotalVolume },
           totalTrainingHours: { increment: duration ? duration / 60 : 0 },
           lastWorkoutAt: completionTime,
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
         },
         create: {
           userId: userId,
@@ -182,7 +182,7 @@ export async function POST(
         },
       });
 
-      // 5. Update MonthlyStats
+      // 6. Update MonthlyStats
       const currentYear = completionTime.getFullYear();
       const currentMonth = completionTime.getMonth() + 1;
       await tx.monthlyStats.upsert({
@@ -226,22 +226,6 @@ export async function POST(
       // Don't fail the workout completion for achievement errors
     }
 
-    return successResponse(newSession);
-  } catch (error: any) {
-    const { templateId } = await params;
-    if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error completing template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error completing template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return newSession;
   }
-}
+);

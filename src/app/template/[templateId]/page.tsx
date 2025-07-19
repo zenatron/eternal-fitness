@@ -150,12 +150,12 @@ export default function TemplateDetailPage({
   const router = useRouter();
 
   const {
-    template,
+    data: template,
     isLoading: templateLoading,
     error: templateError,
   } = useTemplate(templateId);
-  const { profile, isLoading: profileLoading } = useProfile();
-  const toggleFavoriteMutation = useToggleFavorite();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const toggleFavoriteMutation = useToggleFavorite(templateId);
   const deleteTemplateMutation = useDeleteTemplate();
 
   // 🚀 Get JSON-based exercises
@@ -175,7 +175,7 @@ export default function TemplateDetailPage({
 
   const handleToggleFavorite = () => {
     if (!template) return;
-    toggleFavoriteMutation.mutate(templateId);
+    toggleFavoriteMutation.mutate({ favorite: !template.favorite });
   };
 
   const handleDeleteTemplate = async () => {

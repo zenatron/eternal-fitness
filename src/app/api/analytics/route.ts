@@ -2,31 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [analytics/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler } from '@/lib/api-utils';
 
 // 🚀 ADVANCED JSON ANALYTICS QUERIES
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId, request) => {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'overview';
@@ -52,15 +31,9 @@ export async function GET(request: Request) {
       case 'template-performance':
         return await getTemplatePerformanceAnalytics(userId);
       default:
-        return errorResponse('Invalid analytics type', 400);
+        throw new Error('Invalid analytics type');
     }
-  } catch (error) {
-    console.error('Error in GET /api/analytics:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+});
 
 // 📊 OVERVIEW ANALYTICS
 async function getOverviewAnalytics(userId: string) {
@@ -143,13 +116,13 @@ async function getOverviewAnalytics(userId: string) {
     ORDER BY total_volume DESC
   `;
 
-  return successResponse({
+  return {
     userStats,
     recentSessions,
     exerciseFrequency,
     muscleGroupVolume,
     period: '30 days',
-  });
+  };
 }
 
 // 📈 EXERCISE PROGRESSION ANALYTICS
@@ -204,11 +177,11 @@ async function getExerciseProgression(userId: string, exerciseKey: string, start
     ORDER BY workout_date ASC
   `;
 
-  return successResponse({
+  return {
     exerciseKey,
     progression,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '90 days',
-  });
+  };
 }
 
 // 💪 MUSCLE GROUP VOLUME ANALYTICS
@@ -248,11 +221,11 @@ async function getMuscleGroupVolumeAnalytics(userId: string, muscleGroup?: strin
     ORDER BY workout_date ASC, muscle_group
   `;
 
-  return successResponse({
+  return {
     muscleGroup: muscleGroup || 'all',
     volumeTrends,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '30 days',
-  });
+  };
 }
 
 // 📅 WORKOUT FREQUENCY ANALYTICS
@@ -292,11 +265,11 @@ async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string |
     ORDER BY week_start ASC
   `;
 
-  return successResponse({
+  return {
     frequencyByDay,
     weeklyTrends,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '90 days',
-  });
+  };
 }
 
 // 🏆 PERSONAL RECORDS
@@ -308,11 +281,11 @@ async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
   });
 
   if (!userStats?.personalRecords) {
-    return successResponse({
+    return {
       exerciseKey: exerciseKey || 'all',
       personalRecords: [],
       period: '365 days',
-    });
+    };
   }
 
   const personalRecords = userStats.personalRecords as any;
@@ -354,11 +327,11 @@ async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
   // Sort by best volume descending
   analyticsRecords.sort((a, b) => b.best_volume - a.best_volume);
 
-  return successResponse({
+  return {
     exerciseKey: exerciseKey || 'all',
     personalRecords: analyticsRecords,
     period: '365 days',
-  });
+  };
 }
 
 // 📋 TEMPLATE PERFORMANCE ANALYTICS
@@ -382,9 +355,9 @@ async function getTemplatePerformanceAnalytics(userId: string) {
     ORDER BY usage_count DESC, avg_volume DESC
   `;
 
-  return successResponse({
+  return {
     templatePerformance,
-  });
+  };
 }
 
 console.log('✅ Advanced JSON Analytics API loaded with JSONB superpowers!');

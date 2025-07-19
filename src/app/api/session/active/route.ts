@@ -1,19 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Response helpers
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status }
-  );
-};
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 import { 
   ActiveWorkoutSessionData, 
   ActiveSessionUpdatePayload,
@@ -46,59 +33,43 @@ const updateSessionSchema = z.object({
 // GET: Retrieve active workout session
 // ============================================================================
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId) => {
+  const userStats = await prisma.userStats.findUnique({
+    where: { userId },
+    select: {
+      activeWorkoutId: true,
+      activeWorkoutData: true,
+      activeWorkoutStartedAt: true,
+    },
+  });
 
-    const userStats = await prisma.userStats.findUnique({
-      where: { userId },
-      select: {
-        activeWorkoutId: true,
-        activeWorkoutData: true,
-        activeWorkoutStartedAt: true,
-      },
-    });
+  if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
+    return {
+      data: { activeSession: null },
+      message: 'No active workout session found'
+    };
+  }
 
-    if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-      return successResponse({ activeSession: null });
-    }
+  const activeSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
 
-    const activeSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
-    
-    return successResponse({ 
+  return {
+    data: {
       activeSession: {
         ...activeSessionData,
         startedAt: userStats.activeWorkoutStartedAt,
       }
-    });
-  } catch (error) {
-    console.error('Error fetching active session:', error);
-    return errorResponse('Failed to fetch active session', 500);
-  }
-}
+    },
+    message: 'Active workout session retrieved successfully'
+  };
+});
 
 // ============================================================================
 // POST: Start a new active workout session
 // ============================================================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = startSessionSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return errorResponse('Invalid session data', 400, validationResult.error.errors);
-    }
-
-    const { templateId, templateName, template } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  startSessionSchema,
+  async (userId, { templateId, templateName, template }) => {
 
     // Check if user already has an active session
     const existingUserStats = await prisma.userStats.findUnique({
@@ -111,10 +82,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUserStats?.activeWorkoutId) {
-      return errorResponse('User already has an active workout session', 409, {
-        activeWorkoutId: existingUserStats.activeWorkoutId,
-        startedAt: existingUserStats.activeWorkoutStartedAt,
-      });
+      throw new Error('User already has an active workout session');
     }
 
     // Verify the template exists and belongs to the user
@@ -123,7 +91,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!workoutTemplate) {
-      return errorResponse('Template not found or not owned by user', 404);
+      throw new Error('Template not found or not owned by user');
     }
 
     const now = new Date();
@@ -146,13 +114,13 @@ export async function POST(request: NextRequest) {
       where: { userId },
       update: {
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData,
+        activeWorkoutData: activeSessionData as any,
         activeWorkoutStartedAt: now,
       },
       create: {
         userId,
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData,
+        activeWorkoutData: activeSessionData as any,
         activeWorkoutStartedAt: now,
         totalWorkouts: 0,
         totalSets: 0,
@@ -166,36 +134,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return successResponse({ 
-      activeSession: activeSessionData,
+    return {
+      data: { activeSession: activeSessionData },
       message: 'Active workout session started successfully'
-    });
-  } catch (error) {
-    console.error('Error starting active session:', error);
-    return errorResponse('Failed to start active session', 500);
+    };
   }
-}
+);
 
 // ============================================================================
 // PATCH: Update active workout session
 // ============================================================================
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = updateSessionSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return errorResponse('Invalid update data', 400, validationResult.error.errors);
-    }
-
-    const updates = validationResult.data;
-
+export const PATCH = createValidatedApiHandler(
+  updateSessionSchema,
+  async (userId, updateData) => {
     // Get current active session
     const userStats = await prisma.userStats.findUnique({
       where: { userId },
@@ -207,30 +159,27 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-      return errorResponse('No active workout session found', 404);
+      throw new Error('No active workout session found');
     }
 
-    const currentSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const currentSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
     const now = new Date();
 
     // Check for version conflicts (optimistic locking)
-    if (updates.version && updates.version !== currentSessionData.version) {
-      return errorResponse('Session data has been modified by another client', 409, {
-        currentVersion: currentSessionData.version,
-        providedVersion: updates.version,
-      });
+    if (updateData.version && updateData.version !== currentSessionData.version) {
+      throw new Error('Session data has been modified by another client');
     }
 
     // Validate session data integrity
     if (!currentSessionData.templateId || !currentSessionData.originalTemplate) {
-      return errorResponse('Invalid session data structure', 400);
+      throw new Error('Invalid session data structure');
     }
 
     // Merge updates with current session data
     const updatedSessionData: ActiveWorkoutSessionData = {
       ...currentSessionData,
-      ...updates,
-      lastPauseTime: updates.lastPauseTime ? new Date(updates.lastPauseTime) : currentSessionData.lastPauseTime,
+      ...updateData,
+      lastPauseTime: updateData.lastPauseTime ? new Date(updateData.lastPauseTime) : currentSessionData.lastPauseTime,
       version: currentSessionData.version + 1,
       lastUpdated: now,
     };
@@ -239,46 +188,34 @@ export async function PATCH(request: NextRequest) {
     await prisma.userStats.update({
       where: { userId },
       data: {
-        activeWorkoutData: updatedSessionData,
+        activeWorkoutData: updatedSessionData as any,
       },
     });
 
-    return successResponse({ 
-      activeSession: updatedSessionData,
+    return {
+      data: { activeSession: updatedSessionData },
       message: 'Active workout session updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating active session:', error);
-    return errorResponse('Failed to update active session', 500);
+    };
   }
-}
+);
 
 // ============================================================================
 // DELETE: End active workout session
 // ============================================================================
 
-export async function DELETE() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const DELETE = createApiHandler(async (userId) => {
+  // Clear active session data
+  await prisma.userStats.update({
+    where: { userId },
+    data: {
+      activeWorkoutId: null,
+      activeWorkoutData: null as any,
+      activeWorkoutStartedAt: null,
+    },
+  });
 
-    // Clear active session data
-    await prisma.userStats.update({
-      where: { userId },
-      data: {
-        activeWorkoutId: null,
-        activeWorkoutData: null,
-        activeWorkoutStartedAt: null,
-      },
-    });
-
-    return successResponse({ 
-      message: 'Active workout session ended successfully'
-    });
-  } catch (error) {
-    console.error('Error ending active session:', error);
-    return errorResponse('Failed to end active session', 500);
-  }
-}
+  return {
+    data: { activeSession: null },
+    message: 'Active workout session ended successfully'
+  };
+});

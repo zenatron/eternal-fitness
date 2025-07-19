@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 
 export default function EditProfilePage() {
   const router = useRouter();
-  const { profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const updateProfileMutation = useUpdateProfile();
 
   // Form state
@@ -69,10 +69,10 @@ export default function EditProfilePage() {
     // Convert values to numbers where needed
     const processedData = {
       ...formData,
-      height: formData.height ? parseFloat(formData.height) : null,
-      weight: formData.weight ? parseFloat(formData.weight) : null,
-      age: formData.age ? parseInt(formData.age) : null,
-      weightGoal: formData.weightGoal ? parseFloat(formData.weightGoal) : null,
+      height: formData.height ? parseFloat(formData.height) : undefined,
+      weight: formData.weight ? parseFloat(formData.weight) : undefined,
+      age: formData.age ? parseInt(formData.age) : undefined,
+      weightGoal: formData.weightGoal ? parseFloat(formData.weightGoal) : undefined,
     };
 
     try {

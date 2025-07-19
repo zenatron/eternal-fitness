@@ -74,27 +74,22 @@ export function getTemplateEquipment(template: WorkoutTemplate): string[] {
 }
 
 /**
- * Formats template for backward compatibility with existing components
+ * Formats template sets for display components
  */
-export function formatTemplateForLegacyComponents(template: WorkoutTemplate): {
+export function formatTemplateSets(template: WorkoutTemplate): Array<{
   id: string;
-  name: string;
-  favorite: boolean;
-  totalVolume: number;
-  createdAt: Date;
-  updatedAt: Date;
-  sets: Array<{
+  reps?: number;
+  weight?: number;
+  duration?: number;
+  distance?: number;
+  calories?: number;
+  exercise: {
     id: string;
-    reps: number;
-    weight: number;
-    exercise: {
-      id: string;
-      name: string;
-      muscles: string[];
-      equipment: string[];
-    };
-  }>;
-} {
+    name: string;
+    muscles: string[];
+    equipment: string[];
+  };
+}> {
   const sets: any[] = [];
   
   if (template.workoutData?.exercises) {
@@ -104,6 +99,9 @@ export function formatTemplateForLegacyComponents(template: WorkoutTemplate): {
           id: `${exercise.id}-${set.id}`,
           reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0,
           weight: set.targetWeight || 0,
+          duration: set.targetDuration,
+          distance: set.targetDistance,
+          calories: set.targetCalories,
           exercise: {
             id: exercise.exerciseKey,
             name: exercise.name,
@@ -115,15 +113,7 @@ export function formatTemplateForLegacyComponents(template: WorkoutTemplate): {
     });
   }
 
-  return {
-    id: template.id,
-    name: template.name,
-    favorite: template.favorite,
-    totalVolume: template.totalVolume,
-    createdAt: template.createdAt,
-    updatedAt: template.updatedAt,
-    sets,
-  };
+  return sets;
 }
 
 // ============================================================================

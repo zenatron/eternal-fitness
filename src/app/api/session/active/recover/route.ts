@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-
-// Response helpers
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json(data, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status }
-  );
-};
+import { createValidatedApiHandler } from '@/lib/api-utils';
 import { 
   ActiveWorkoutSessionData, 
   WorkoutTemplateData 
@@ -33,21 +21,9 @@ const recoverSessionSchema = z.object({
 // POST: Recover or reset active workout session
 // ============================================================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = recoverSessionSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return errorResponse('Invalid recovery data', 400, validationResult.error.errors);
-    }
-
-    const { templateId, forceRecover } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  recoverSessionSchema,
+  async (userId, { templateId, forceRecover }) => {
 
     // Get current active session
     const userStats = await prisma.userStats.findUnique({
@@ -60,10 +36,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-      return errorResponse('No active workout session found to recover', 404);
+      throw new Error('No active workout session found to recover');
     }
 
-    const currentSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const currentSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
 
     // Validate session data integrity
     const issues: string[] = [];
@@ -93,13 +69,15 @@ export async function POST(request: NextRequest) {
       issues.push('Template no longer exists or is not accessible');
     }
 
-    // If there are issues and force recover is not enabled, return the issues
+    // If there are issues and force recover is not enabled, throw error with details
     if (issues.length > 0 && !forceRecover) {
-      return errorResponse('Session data integrity issues found', 400, {
+      const error = new Error('Session data integrity issues found');
+      (error as any).details = {
         issues,
         canRecover: !!template,
         suggestion: 'Use forceRecover=true to attempt recovery or clear the session',
-      });
+      };
+      throw error;
     }
 
     // Attempt recovery if template exists
@@ -128,17 +106,17 @@ export async function POST(request: NextRequest) {
         where: { userId },
         data: {
           activeWorkoutId: template.id,
-          activeWorkoutData: recoveredSessionData,
+          activeWorkoutData: recoveredSessionData as any,
           activeWorkoutStartedAt: recoveredSessionData.startedAt,
         },
       });
 
-      return successResponse({ 
-        activeSession: recoveredSessionData,
+      return {
+        data: { activeSession: recoveredSessionData },
         recovered: true,
         issues: issues.length > 0 ? issues : undefined,
         message: 'Active workout session recovered successfully'
-      });
+      };
     }
 
     // If we can't recover, clear the session
@@ -146,20 +124,16 @@ export async function POST(request: NextRequest) {
       where: { userId },
       data: {
         activeWorkoutId: null,
-        activeWorkoutData: null,
+        activeWorkoutData: null as any,
         activeWorkoutStartedAt: null,
       },
     });
 
-    return successResponse({ 
-      activeSession: null,
+    return {
+      data: { activeSession: null },
       recovered: false,
       issues,
       message: 'Active workout session cleared due to unrecoverable issues'
-    });
-
-  } catch (error) {
-    console.error('Error recovering active session:', error);
-    return errorResponse('Failed to recover active session', 500);
+    };
   }
-}
+);

@@ -6,7 +6,7 @@ import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
 import {
   WorkoutTemplate,
   Exercise,
-  Set as WorkoutSet,
+  WorkoutSet,
 } from '@/types/workout';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 
@@ -21,7 +21,7 @@ export default function EditTemplatePage({
   params: Promise<{ templateId: string }>;
 }) {
   const { templateId } = use(params);
-  const { template, isLoading, error } = useTemplate(templateId);
+  const { data: template, isLoading, error } = useTemplate(templateId);
   const [initialTemplateName, setInitialTemplateName] = useState('');
   const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
   const [initialFavorite, setInitialFavorite] = useState(false);
@@ -65,6 +65,8 @@ export default function EditTemplatePage({
           name: workoutExercise.exerciseKey, // Will be resolved by exercise data
           muscles: [], // Will be resolved by exercise data
           equipment: [], // Will be resolved by exercise data
+          category: 'strength', // Default category
+          difficulty: 'intermediate', // Default difficulty
           createdAt: new Date(),
           updatedAt: new Date(),
           sets: formSets,

@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import {
   createWorkoutTemplate,
@@ -18,23 +17,6 @@ import {
   Difficulty,
   SetType
 } from '@/types/workout';
-
-// --- Standard Response Helpers (Re-added) ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
 
 // --- Zod Schema for PUT Request (JSON-based Update) ---
 const updateSetSchema = z.object({
@@ -85,17 +67,13 @@ function getExerciseData(exerciseKey: string) {
 }
 
 // 🚀 GET a single JSON-based template
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId, request, params) => {
+  const { templateId } = params;
 
-    const { templateId } = await params;
+  // Validate templateId
+  if (!templateId || templateId === 'undefined') {
+    throw new Error('Invalid template ID provided');
+  }
 
     // 🎯 FETCH JSON-BASED TEMPLATE
     const template = await prisma.workoutTemplate.findUnique({
@@ -121,53 +99,27 @@ export async function GET(
       },
     });
 
-    if (!template) {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.log(`✅ Fetched JSON-based template: ${template.name} (${template.id})`);
-
-    return successResponse(template);
-  } catch (error) {
-    const { templateId } = await params;
-    console.error(`Error fetching template ${templateId}:`, error);
-    return errorResponse('Internal Server Error', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+  if (!template) {
+    throw new Error('Template not found or access denied');
   }
-}
+
+  console.log(`✅ Fetched JSON-based template: ${template.name} (${template.id})`);
+  return template;
+});
 
 // PUT (update) a template - JSON-based FULL REPLACE
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const PUT = createValidatedApiHandler(
+  updateTemplateSchema,
+  async (userId, validatedData, request, params) => {
+    const { templateId } = params;
 
-    const { templateId } = await params;
-    const body = await request.json();
+    // Validate templateId
+    if (!templateId || templateId === 'undefined') {
+      throw new Error('Invalid template ID provided');
+    }
 
     // Debug: Log the incoming request body
-    console.log('PUT /api/template/[templateId] - Received body:', JSON.stringify(body, null, 2));
-
-    // Validate request body
-    const validationResult = updateTemplateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse(
-        'Invalid template data',
-        400,
-        validationResult.error.errors,
-      );
-    }
-
-    const validatedData = validationResult.data;
+    console.log('PUT /api/template/[templateId] - Received body:', JSON.stringify(validatedData, null, 2));
 
     // Create workout template data structure
     const exercisesWithStaticData = validatedData.exercises.map((ex, exIndex) => {
@@ -177,7 +129,10 @@ export async function PUT(
         name: exerciseData.name,
         muscles: exerciseData.muscles,
         equipment: exerciseData.equipment,
-        sets: ex.sets,
+        sets: ex.sets.map(set => ({
+          ...set,
+          type: set.type as SetType || SetType.WORKING
+        })),
         instructions: ex.instructions,
         restBetweenSets: ex.restBetweenSets,
       };
@@ -189,19 +144,15 @@ export async function PUT(
       {
         description: validatedData.description,
         tags: validatedData.tags,
-        workoutType: validatedData.workoutType,
-        difficulty: validatedData.difficulty,
+        workoutType: validatedData.workoutType as WorkoutType,
+        difficulty: validatedData.difficulty as Difficulty,
       }
     );
 
     // Validate the created workout data
-    const validationErrors = validateWorkoutTemplate(workoutData);
-    if (validationErrors.length > 0) {
-      return errorResponse(
-        'Invalid workout template structure',
-        400,
-        { validationErrors }
-      );
+    const isValid = validateWorkoutTemplate(workoutData);
+    if (!isValid) {
+      throw new Error('Invalid workout template structure');
     }
 
     // Calculate computed fields
@@ -243,40 +194,18 @@ export async function PUT(
 
     console.log(`✅ Updated JSON-based template: ${updatedTemplate.name} (${updatedTemplate.id})`);
 
-    return successResponse(updatedTemplate);
-  } catch (error: any) {
-    const { templateId } = await params;
-
-    // Handle template not found or access denied
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error updating template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error updating template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return updatedTemplate;
   }
-}
+);
 
 // DELETE a template
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const DELETE = createApiHandler(async (userId, request, params) => {
+  const { templateId } = params;
 
-    const { templateId } = await params;
+  // Validate templateId
+  if (!templateId || templateId === 'undefined') {
+    throw new Error('Invalid template ID provided');
+  }
 
     // Use a transaction for atomicity, although deleting dependencies first is key
     await prisma.$transaction(async (tx) => {
@@ -302,26 +231,7 @@ export async function DELETE(
         where: { id: templateId },
       });
       console.log(`✅ Deleted JSON-based template ${templateId}`);
-    }); // End Transaction
+  }); // End Transaction
 
-    return new NextResponse(null, { status: 204 }); // Success, No Content
-  } catch (error: any) {
-    // Handle specific not found error from transaction
-    const { templateId } = await params;
-    if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error deleting template ${templateId}:`, error);
-    // Handle other potential errors (e.g., Prisma constraint errors if relations aren't deleted correctly)
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error deleting template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+  return { message: 'Template deleted successfully', templateId };
+});

@@ -10,8 +10,15 @@ export const useExercise = (exerciseId: string) => {
     error,
   } = useQuery({
     queryKey: ['exercise', exerciseId],
-    queryFn: () =>
-      fetch(`/api/exercise/${exerciseId}`).then((res) => res.json()),
+    queryFn: async () => {
+      const response = await fetch(`/api/exercise/${exerciseId}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || 'Failed to fetch exercise data');
+      }
+      const result = await response.json();
+      return result.data; // Extract data from the new API response format
+    },
   });
 
   return { exercise, isLoading, error };

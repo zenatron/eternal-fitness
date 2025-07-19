@@ -17,7 +17,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
-import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
+import {
+  useActiveWorkout,
+  useStartSession,
+  useUpdateActiveSession,
+  useCompleteSession,
+  useCancelSession,
+} from '@/lib/hooks/useActiveWorkout';
 
 
 
@@ -31,38 +37,68 @@ export default function ActiveSessionPage({
   const searchParams = useSearchParams();
   const scheduledSessionId = searchParams.get('scheduledSessionId');
 
+  // Handle case where templateId is undefined or invalid
+  if (!templateId || templateId === 'undefined') {
+    return (
+      <div className="min-h-screen app-bg py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
+            <h2 className="font-semibold mb-2">Invalid Session</h2>
+            <p>This workout session appears to be corrupted or invalid.</p>
+            <button
+              onClick={() => router.push('/templates')}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Go to Templates
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const {
-    template,
+    data: template,
     isLoading: templateLoading,
     error: templateError,
   } = useTemplate(templateId);
-  const { profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
-  // Active workout state management
+  // Active workout state management with timer functionality
   const {
     activeWorkout,
-    isLoading: isActiveWorkoutLoading,
-    startWorkout,
-    updatePerformance,
-    updateSessionNotes,
-    updateModifiedTemplate,
-    updateExerciseProgress,
-    endWorkout,
-    completeWorkout,
-    recoverSession,
+    formatWorkoutDuration,
     hasActiveWorkout,
     getWorkoutDuration,
-    formatWorkoutDuration,
-    toggleTimer,
     isTimerActive,
+    isLoading: isActiveWorkoutLoading,
+    endWorkout,
   } = useActiveWorkout();
 
+  const startWorkoutMutation = useStartSession();
+  const updateWorkoutMutation = useUpdateActiveSession();
+  const completeWorkoutMutation = useCompleteSession();
+  const cancelWorkoutMutation = useCancelSession();
+
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+
+  // Recovery function for session management
+  const recoverSession = useCallback(async (templateId: string, forceRecover = false) => {
+    try {
+      // For now, just cancel any existing session and let user start fresh
+      if (activeWorkout && activeWorkout.templateId !== templateId) {
+        await cancelWorkoutMutation.mutateAsync();
+      }
+    } catch (error) {
+      console.error('Error in session recovery:', error);
+      throw error;
+    }
+  }, [activeWorkout, cancelWorkoutMutation]);
 
   // Check for existing active workout on page load
   useEffect(() => {
@@ -85,28 +121,55 @@ export default function ActiveSessionPage({
     if (!template) return;
 
     try {
-      await startWorkout(template.id, template.name, template.workoutData);
+      await startWorkoutMutation.mutateAsync({
+        templateId: template.id,
+        templateName: template.name,
+        template: template.workoutData
+      });
     } catch (error) {
       console.error('Failed to start workout:', error);
       // Handle error - maybe show a toast notification
     }
-  }, [template, startWorkout]);
+  }, [template, startWorkoutMutation]);
 
   // No more state synchronization needed - everything comes from activeWorkout directly
 
   const handleTemplateModification = useCallback((newTemplate: any) => {
-    updateModifiedTemplate(newTemplate);
+    updateWorkoutMutation.mutate({ modifiedTemplate: newTemplate });
     setShowSaveTemplatePrompt(true);
-  }, [updateModifiedTemplate]);
+  }, [updateWorkoutMutation]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
     console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
-    updatePerformance(performance);
-  }, [updatePerformance]);
+    updateWorkoutMutation.mutate({ performance });
+  }, [updateWorkoutMutation]);
 
   const handleNotesUpdate = useCallback((notes: string) => {
-    updateSessionNotes(notes);
-  }, [updateSessionNotes]);
+    updateWorkoutMutation.mutate({ sessionNotes: notes });
+  }, [updateWorkoutMutation]);
+
+  const toggleTimer = useCallback(() => {
+    if (activeWorkout) {
+      updateWorkoutMutation.mutate({
+        isTimerActive: !activeWorkout.isTimerActive,
+        lastPauseTime: !activeWorkout.isTimerActive ? undefined : new Date().toISOString(),
+      });
+    }
+  }, [activeWorkout, updateWorkoutMutation]);
+
+  const updateExerciseProgress = useCallback((fullExerciseProgress: any) => {
+    updateWorkoutMutation.mutate({
+      exerciseProgress: fullExerciseProgress,
+    });
+  }, [updateWorkoutMutation]);
+
+  const completeWorkout = useCallback(async (duration: number, notes: string) => {
+    await completeWorkoutMutation.mutateAsync({
+      duration,
+      notes,
+      completedAt: new Date().toISOString(),
+    });
+  }, [completeWorkoutMutation]);
 
   const saveAsNewTemplate = async () => {
     if (!activeWorkout?.modifiedTemplate || !template) return;
@@ -166,7 +229,17 @@ export default function ActiveSessionPage({
   };
 
   const stopTimerAndSave = async () => {
-    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60)); // Duration in minutes, ensure at least 1
+    const workoutDurationSeconds = getWorkoutDuration();
+
+    // Validate duration
+    if (isNaN(workoutDurationSeconds) || workoutDurationSeconds < 0) {
+      console.error('Invalid workout duration:', workoutDurationSeconds);
+      setSaveMessage('Error: Invalid workout duration. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    const finalDurationMinutes = Math.max(1, Math.round(workoutDurationSeconds / 60)); // Duration in minutes, ensure at least 1
 
     // --- Call API to save session ---
     setIsSaving(true);
@@ -175,6 +248,13 @@ export default function ActiveSessionPage({
     // Basic validation: Check if templateId exists
     if (!template?.id) {
       setSaveMessage('Error: Template ID is missing. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    // Check if there's an active workout
+    if (!hasActiveWorkout || !activeWorkout) {
+      setSaveMessage('Error: No active workout found. Cannot save session.');
       setIsSaving(false);
       return;
     }
@@ -193,11 +273,10 @@ export default function ActiveSessionPage({
     } else {
       // Creating a new immediate session - use the new active session completion API
       try {
-        console.log('🚀 Completing workout with active session data:', {
-          performance: activeWorkout?.performance,
-          duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || ''
-        });
+        // Validate the data before sending
+        if (typeof finalDurationMinutes !== 'number' || isNaN(finalDurationMinutes)) {
+          throw new Error(`Invalid duration: ${finalDurationMinutes}`);
+        }
 
         await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
 
@@ -228,7 +307,7 @@ export default function ActiveSessionPage({
     }
 
     try {
-      const response = await fetch('/api/session-json', {
+      const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData),

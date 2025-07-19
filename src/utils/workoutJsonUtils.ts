@@ -9,8 +9,8 @@ import {
   ExercisePerformance,
   PerformedSet,
   SessionMetrics,
-  LegacyPersonalRecord,
-  LegacyVolumeRecord,
+  PersonalRecord,
+  VolumeRecord,
   SetType,
   WorkoutType,
   Difficulty,
@@ -31,8 +31,15 @@ export function createWorkoutTemplate(
     muscles: string[];
     equipment: string[];
     sets: Array<{
-      reps: number;
+      reps?: number;
       weight?: number;
+      duration?: number;
+      distance?: number;
+      calories?: number;
+      heartRate?: number;
+      pace?: number;
+      incline?: number;
+      resistance?: number;
       type?: SetType;
     }>;
   }>,
@@ -52,8 +59,17 @@ export function createWorkoutTemplate(
     sets: ex.sets.map((set, setIndex) => ({
       id: `set-${setIndex + 1}`,
       type: set.type || SetType.STANDARD,
+      // Strength training targets
       targetReps: set.reps,
       targetWeight: set.weight,
+      // Cardio targets
+      targetDuration: set.duration,
+      targetDistance: set.distance,
+      targetCalories: set.calories,
+      targetHeartRate: set.heartRate,
+      targetPace: set.pace,
+      targetIncline: set.incline,
+      targetResistance: set.resistance,
       restTime: 60, // default 60 seconds rest
     })),
     restBetweenSets: 60,
@@ -81,14 +97,29 @@ export function createWorkoutTemplate(
 }
 
 /**
- * Calculates total volume for a workout template
+ * Calculates total volume for a workout template (handles both strength and cardio)
  */
 export function calculateTemplateVolume(exercises: WorkoutExercise[]): number {
   return exercises.reduce((total, exercise) => {
     const exerciseVolume = exercise.sets.reduce((setTotal, set) => {
-      const reps = typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0;
-      const weight = set.targetWeight || 0;
-      return setTotal + (reps * weight);
+      // For strength exercises: reps × weight
+      if (set.targetReps && set.targetWeight) {
+        const reps = typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0;
+        const weight = set.targetWeight || 0;
+        return setTotal + (reps * weight);
+      }
+
+      // For cardio exercises: use calories as volume metric, or distance × duration factor
+      if (set.targetCalories) {
+        return setTotal + set.targetCalories;
+      }
+
+      if (set.targetDistance && set.targetDuration) {
+        // Use distance × time factor as volume metric for cardio
+        return setTotal + (set.targetDistance * set.targetDuration / 60); // normalize by minute
+      }
+
+      return setTotal;
     }, 0);
     return total + exerciseVolume;
   }, 0);
@@ -162,8 +193,8 @@ export function calculateSessionMetrics(
   let skippedSets = 0;
   let totalRpe = 0;
   let rpeCount = 0;
-  const personalRecords: LegacyPersonalRecord[] = [];
-  const volumeRecords: LegacyVolumeRecord[] = [];
+  const personalRecords: PersonalRecord[] = [];
+  const volumeRecords: VolumeRecord[] = [];
 
   Object.values(performance).forEach(exercisePerf => {
     totalVolume += exercisePerf.totalVolume;
@@ -282,8 +313,8 @@ export function detectPersonalRecords(
     maxReps?: number;
     maxVolume?: number;
   }
-): LegacyPersonalRecord[] {
-  const records: LegacyPersonalRecord[] = [];
+): PersonalRecord[] {
+  const records: PersonalRecord[] = [];
   const currentDate = new Date().toISOString();
 
   // Check for weight PR

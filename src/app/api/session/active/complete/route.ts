@@ -1,24 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
-
-// Response helpers
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json(data, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status }
-  );
-};
-import { 
-  ActiveWorkoutSessionData, 
+import { createValidatedApiHandler } from '@/lib/api-utils';
+import {
+  ActiveWorkoutSessionData,
   WorkoutSessionData,
   SessionMetrics,
-  ExercisePerformance 
+  ExercisePerformance
 } from '@/types/workout';
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -38,21 +25,10 @@ const completeSessionSchema = z.object({
 // POST: Complete active workout session
 // ============================================================================
 
-export async function POST(request: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const body = await request.json();
-    const validationResult = completeSessionSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return errorResponse('Invalid completion data', 400, validationResult.error.errors);
-    }
-
-    const { duration, notes, completedAt } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  completeSessionSchema,
+  async (userId, { duration, notes, completedAt }) => {
+    let finalPerformanceData: any = {};
 
     const session = await prisma.$transaction(async (tx) => {
       // Get current active session
@@ -69,7 +45,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No active workout session found');
       }
 
-      const activeSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+      const activeSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
       const completionTime = completedAt ? new Date(completedAt) : new Date();
 
       // Calculate session duration if not provided
@@ -92,6 +68,9 @@ export async function POST(request: NextRequest) {
         performanceData = convertExerciseProgressToPerformance(activeSessionData.exerciseProgress, finalTemplate);
         console.log('✅ Converted performance data:', JSON.stringify(performanceData, null, 2));
       }
+
+      // Store for use outside transaction
+      finalPerformanceData = performanceData;
 
       // Calculate session metrics
       console.log('🔍 Performance data structure:', JSON.stringify(performanceData, null, 2));
@@ -120,7 +99,7 @@ export async function POST(request: NextRequest) {
           completedAt: completionTime,
           duration: sessionDuration,
           notes: notes || activeSessionData.sessionNotes,
-          performanceData: sessionData,
+          performanceData: sessionData as any,
           totalVolume: metrics.totalVolume,
           totalSets: metrics.totalSets,
           totalExercises: metrics.totalExercises,
@@ -133,13 +112,49 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      // Calculate current streak
+      const currentUserStats = await tx.userStats.findUnique({
+        where: { userId },
+        select: { lastWorkoutAt: true, currentStreak: true, longestStreak: true }
+      });
+
+      let newStreak = 1;
+      let newLongestStreak = currentUserStats?.longestStreak || 1;
+
+      if (currentUserStats?.lastWorkoutAt) {
+        const lastWorkoutDate = new Date(currentUserStats.lastWorkoutAt);
+        const completionDate = new Date(completionTime);
+
+        // Set both dates to start of day for comparison
+        lastWorkoutDate.setHours(0, 0, 0, 0);
+        completionDate.setHours(0, 0, 0, 0);
+
+        const daysDifference = Math.floor((completionDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDifference === 0) {
+          // Same day - maintain current streak
+          newStreak = currentUserStats.currentStreak || 1;
+        } else if (daysDifference === 1) {
+          // Consecutive day - increment streak
+          newStreak = (currentUserStats.currentStreak || 0) + 1;
+        } else {
+          // Gap in workouts - reset streak
+          newStreak = 1;
+        }
+      }
+
+      // Update longest streak if current streak is higher
+      if (newStreak > newLongestStreak) {
+        newLongestStreak = newStreak;
+      }
+
       // Update user stats
       await tx.userStats.update({
         where: { userId },
         data: {
           // Clear active session
           activeWorkoutId: null,
-          activeWorkoutData: null,
+          activeWorkoutData: null as any,
           activeWorkoutStartedAt: null,
 
           // Update workout stats
@@ -147,8 +162,10 @@ export async function POST(request: NextRequest) {
           totalVolume: { increment: metrics.totalVolume },
           totalSets: { increment: metrics.totalSets },
           totalExercises: { increment: metrics.totalExercises },
-          totalTrainingHours: { increment: sessionDuration ? sessionDuration / 3600 : 0 },
+          totalTrainingHours: { increment: sessionDuration ? sessionDuration / 60 : 0 },
           lastWorkoutAt: completionTime,
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
         },
       });
 
@@ -163,7 +180,7 @@ export async function POST(request: NextRequest) {
         update: {
           workoutsCount: { increment: 1 },
           volume: { increment: metrics.totalVolume },
-          trainingHours: { increment: sessionDuration ? sessionDuration / 3600 : 0 },
+          trainingHours: { increment: sessionDuration ? sessionDuration / 60 : 0 },
         },
         create: {
           userId,
@@ -211,23 +228,19 @@ export async function POST(request: NextRequest) {
 
     // Update achievements and unique exercises count (outside transaction for better performance)
     try {
+      const exerciseKeys = Object.keys(finalPerformanceData || {});
       await Promise.all([
         updateUserAchievements(userId),
-        updateUniqueExercisesCount(userId),
+        updateUniqueExercisesCount(userId, exerciseKeys),
       ]);
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
       // Don't fail the whole request if achievements fail
     }
 
-    return successResponse({
+    return {
       session,
       message: 'Workout completed successfully'
-    });
-
-  } catch (error) {
-    console.error('Error completing active session:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);
+    };
   }
-}
+);

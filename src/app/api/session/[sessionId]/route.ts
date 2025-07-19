@@ -3,23 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [session/{id}]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
 // --- Zod Schema for PUT ---
 const updateSessionSchema = z.object({
@@ -32,80 +16,45 @@ const updateSessionSchema = z.object({
 });
 
 // GET a specific session by ID
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ sessionId: string }> }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId, request, params) => {
+  const { sessionId } = params;
 
-    const { sessionId } = await params;
-
-    const session = await prisma.workoutSession.findFirst({
-      where: {
-        id: sessionId,
-        userId, // Ensure session belongs to the authenticated user
+  const session = await prisma.workoutSession.findFirst({
+    where: {
+      id: sessionId,
+      userId, // Ensure session belongs to the authenticated user
+    },
+    select: {
+      id: true,
+      completedAt: true,
+      scheduledAt: true,
+      duration: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      performanceData: true, // Include JSON performance data
+      totalVolume: true,
+      totalSets: true,
+      totalExercises: true,
+      personalRecords: true,
+      workoutTemplate: {
+        select: { id: true, name: true },
       },
-      select: {
-        id: true,
-        completedAt: true,
-        scheduledAt: true,
-        duration: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        performanceData: true, // Include JSON performance data
-        totalVolume: true,
-        totalSets: true,
-        totalExercises: true,
-        personalRecords: true,
-        workoutTemplate: {
-          select: { id: true, name: true },
-        },
-      },
-    });
+    },
+  });
 
-    if (!session) {
-      return errorResponse('Session not found or access denied', 404, {
-        sessionId,
-      });
-    }
-
-    return successResponse(session);
-  } catch (error) {
-    console.error('Error in GET /api/session/[sessionId]:', error); // Keep specific logging
-    return errorResponse(
-      'Internal Server Error',
-      500,
-      error instanceof Error ? error.message : String(error),
-    );
+  if (!session) {
+    throw new Error('Session not found or access denied');
   }
-}
+
+  return session;
+});
 
 // PUT (update) a session
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const { sessionId } = await params;
-    const body = await request.json();
-
-    // Validate request body
-    const validationResult = updateSessionSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse('Invalid input', 400, validationResult.error.errors);
-    }
-
-    const validatedData = validationResult.data;
+export const PUT = createValidatedApiHandler(
+  updateSessionSchema,
+  async (userId, validatedData, request, params) => {
+    const { sessionId } = params;
 
     // Verify session exists and belongs to the user before update
     const existingSession = await prisma.workoutSession.findFirst({
@@ -117,9 +66,7 @@ export async function PUT(
     });
 
     if (!existingSession) {
-      return errorResponse('Session not found or access denied', 404, {
-        sessionId,
-      });
+      throw new Error('Session not found or access denied');
     }
 
     // Construct the update data carefully
@@ -157,60 +104,29 @@ export async function PUT(
       },
     });
 
-    return successResponse(updatedSession);
-  } catch (error) {
-    console.error('Error in PUT /api/session/[sessionId]:', error);
-    // Handle potential Prisma errors (e.g., invalid date format if Zod fails)
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Add specific error handling if needed
-    }
-    const { sessionId } = await params;
-    return errorResponse('Internal Server Error updating session', 500, {
-      sessionId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return updatedSession;
   }
-}
+);
 
 // DELETE a session
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ sessionId: string }> }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const DELETE = createApiHandler(async (userId, request, params) => {
+  const { sessionId } = params;
 
-    const { sessionId } = await params;
+  // Use deleteMany for potentially better performance and simpler check
+  // It returns a count of deleted records.
+  const deleteResult = await prisma.workoutSession.deleteMany({
+    where: {
+      id: sessionId,
+      userId, // Ensures only the owner can delete
+    },
+  });
 
-    // Use deleteMany for potentially better performance and simpler check
-    // It returns a count of deleted records.
-    const deleteResult = await prisma.workoutSession.deleteMany({
-      where: {
-        id: sessionId,
-        userId, // Ensures only the owner can delete
-      },
-    });
-
-    // Check if any record was actually deleted
-    if (deleteResult.count === 0) {
-      // This means the session either didn't exist or didn't belong to the user
-      return errorResponse('Session not found or access denied', 404, {
-        sessionId,
-      });
-    }
-
-    // Successfully deleted
-    return new NextResponse(null, { status: 204 }); // Standard practice for successful DELETE
-  } catch (error) {
-    const { sessionId } = await params;
-    console.error('Error in DELETE /api/session/[sessionId]:', error);
-    // Handle potential Prisma errors
-    return errorResponse('Internal Server Error deleting session', 500, {
-      sessionId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+  // Check if any record was actually deleted
+  if (deleteResult.count === 0) {
+    // This means the session either didn't exist or didn't belong to the user
+    throw new Error('Session not found or access denied');
   }
-}
+
+  // Successfully deleted - return empty object for consistency
+  return { deleted: true };
+});

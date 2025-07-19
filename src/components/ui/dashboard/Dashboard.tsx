@@ -84,7 +84,7 @@ export default function Dashboard() {
   };
 
   // Get enabled tiles sorted by order
-  const enabledTiles = config.tiles
+  const enabledTiles = (config?.tiles || [])
     .filter(tile => tile.enabled)
     .sort((a, b) => a.order - b.order);
 

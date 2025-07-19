@@ -12,10 +12,11 @@ export const useDashboardData = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to fetch dashboard data');
+        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to fetch dashboard data');
       }
 
-      return response.json();
+      const result = await response.json();
+      return result.data; // Extract data from the new API response format
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: 'always',
