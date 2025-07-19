@@ -229,7 +229,19 @@ export default function ActiveSessionPage({
   };
 
   const stopTimerAndSave = async () => {
-    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60)); // Duration in minutes, ensure at least 1
+    const workoutDurationSeconds = getWorkoutDuration();
+    console.log('🕐 Raw workout duration (seconds):', workoutDurationSeconds);
+
+    // Validate duration
+    if (isNaN(workoutDurationSeconds) || workoutDurationSeconds < 0) {
+      console.error('Invalid workout duration:', workoutDurationSeconds);
+      setSaveMessage('Error: Invalid workout duration. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    const finalDurationMinutes = Math.max(1, Math.round(workoutDurationSeconds / 60)); // Duration in minutes, ensure at least 1
+    console.log('🕐 Final duration (minutes):', finalDurationMinutes);
 
     // --- Call API to save session ---
     setIsSaving(true);
@@ -238,6 +250,13 @@ export default function ActiveSessionPage({
     // Basic validation: Check if templateId exists
     if (!template?.id) {
       setSaveMessage('Error: Template ID is missing. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    // Check if there's an active workout
+    if (!hasActiveWorkout || !activeWorkout) {
+      setSaveMessage('Error: No active workout found. Cannot save session.');
       setIsSaving(false);
       return;
     }
@@ -259,8 +278,14 @@ export default function ActiveSessionPage({
         console.log('🚀 Completing workout with active session data:', {
           performance: activeWorkout?.performance,
           duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || ''
+          notes: activeWorkout?.sessionNotes || '',
+          activeWorkout: activeWorkout
         });
+
+        // Validate the data before sending
+        if (typeof finalDurationMinutes !== 'number' || isNaN(finalDurationMinutes)) {
+          throw new Error(`Invalid duration: ${finalDurationMinutes}`);
+        }
 
         await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
 
