@@ -62,6 +62,7 @@ export default function ActiveSessionPage({
     formatWorkoutDuration,
     hasActiveWorkout,
     getWorkoutDuration,
+    isTimerActive,
   } = useActiveWorkoutLegacy();
 
   // Extract active workout from data
@@ -129,6 +130,36 @@ export default function ActiveSessionPage({
   const handleNotesUpdate = useCallback((notes: string) => {
     updateWorkoutMutation.mutate({ sessionNotes: notes });
   }, [updateWorkoutMutation]);
+
+  const toggleTimer = useCallback(() => {
+    if (activeWorkout) {
+      updateWorkoutMutation.mutate({
+        isTimerActive: !activeWorkout.isTimerActive,
+        lastPauseTime: !activeWorkout.isTimerActive ? undefined : new Date().toISOString(),
+      });
+    }
+  }, [activeWorkout, updateWorkoutMutation]);
+
+  const updateExerciseProgress = useCallback((exerciseId: string, progress: any) => {
+    updateWorkoutMutation.mutate({
+      exerciseProgress: {
+        ...activeWorkout?.exerciseProgress,
+        [exerciseId]: progress,
+      },
+    });
+  }, [activeWorkout, updateWorkoutMutation]);
+
+  const completeWorkout = useCallback(async (duration: number, notes: string) => {
+    await completeWorkoutMutation.mutateAsync({
+      duration,
+      notes,
+      completedAt: new Date().toISOString(),
+    });
+  }, [completeWorkoutMutation]);
+
+  const endWorkout = useCallback(async () => {
+    await cancelWorkoutMutation.mutateAsync();
+  }, [cancelWorkoutMutation]);
 
   const saveAsNewTemplate = async () => {
     if (!activeWorkout?.modifiedTemplate || !template) return;
