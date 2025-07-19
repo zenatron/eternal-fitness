@@ -301,6 +301,46 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       // Don't fail the session completion if PR processing fails
     }
 
+    // Calculate current streak
+    const currentUserStats = await tx.userStats.findUnique({
+      where: { userId },
+      select: { lastWorkoutAt: true, currentStreak: true, longestStreak: true }
+    });
+
+    let newStreak = 1;
+    let newLongestStreak = 1;
+
+    if (currentUserStats) {
+      newLongestStreak = currentUserStats.longestStreak || 1;
+
+      if (currentUserStats.lastWorkoutAt) {
+        const lastWorkoutDate = new Date(currentUserStats.lastWorkoutAt);
+        const completionDate = new Date(completionTime);
+
+        // Set both dates to start of day for comparison
+        lastWorkoutDate.setHours(0, 0, 0, 0);
+        completionDate.setHours(0, 0, 0, 0);
+
+        const daysDifference = Math.floor((completionDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDifference === 0) {
+          // Same day - maintain current streak
+          newStreak = currentUserStats.currentStreak || 1;
+        } else if (daysDifference === 1) {
+          // Consecutive day - increment streak
+          newStreak = (currentUserStats.currentStreak || 0) + 1;
+        } else {
+          // Gap in workouts - reset streak
+          newStreak = 1;
+        }
+      }
+
+      // Update longest streak if current streak is higher
+      if (newStreak > newLongestStreak) {
+        newLongestStreak = newStreak;
+      }
+    }
+
     // Update user stats
     const userStats = await tx.userStats.upsert({
       where: { userId },
@@ -311,6 +351,8 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
         totalExercises: { increment: sessionData.metrics.totalExercises },
         totalTrainingHours: { increment: duration ? duration / 60 : 0 },
         lastWorkoutAt: completionTime,
+        currentStreak: newStreak,
+        longestStreak: newLongestStreak,
       },
       create: {
         userId,
