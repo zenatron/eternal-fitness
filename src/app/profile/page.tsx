@@ -12,7 +12,6 @@ import {
   Cog6ToothIcon,
   ArrowRightStartOnRectangleIcon,
   ScaleIcon,
-  BoltIcon,
   SparklesIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
@@ -172,7 +171,7 @@ function ProfileContent() {
 
         {/* Enhanced Profile Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8">
-          <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-12 text-white">
+          <div className="relative bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -183,7 +182,7 @@ function ProfileContent() {
                   </div>
                   <div>
                     <h1 className="text-4xl font-bold mb-2">{profile?.name}</h1>
-                    <p className="text-blue-100 mb-1">
+                    <p className="text-slate-100 mb-1">
                       Member since{' '}
                       {new Date(profile?.joinDate || '').toLocaleDateString('en-US', {
                         month: 'long',
@@ -192,7 +191,7 @@ function ProfileContent() {
                       })}
                     </p>
                     {stats && (
-                      <p className="text-blue-200 text-sm">
+                      <p className="text-slate-200 text-sm">
                         {stats.totalWorkouts} workouts completed • {stats.currentStreak} day streak
                       </p>
                     )}
@@ -201,7 +200,7 @@ function ProfileContent() {
                 <div className="flex items-center gap-4">
                   <div className="bg-white/10 rounded-xl px-6 py-4 backdrop-blur-sm text-center">
                     <TrophyIcon className="w-8 h-8 text-yellow-300 mx-auto mb-2" />
-                    <p className="text-sm text-blue-100">Points</p>
+                    <p className="text-sm text-slate-100">Points</p>
                     <p className="text-2xl font-bold">{profile?.points || 0}</p>
                   </div>
                   <Link
@@ -218,13 +217,13 @@ function ProfileContent() {
               <div className="flex flex-wrap gap-3 mt-6">
                 {profile?.age && (
                   <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
-                    <span className="text-blue-100 text-sm">Age:</span>
+                    <span className="text-slate-100 text-sm">Age:</span>
                     <span className="font-medium">{profile.age} yrs</span>
                   </div>
                 )}
                 {profile?.weight && (
                   <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
-                    <ScaleIcon className="w-4 h-4 text-blue-100" />
+                    <ScaleIcon className="w-4 h-4 text-slate-100" />
                     <span className="font-medium">
                       {getDisplayValue(profile.weight)} {getUnitLabel(false)}
                     </span>
@@ -232,7 +231,7 @@ function ProfileContent() {
                 )}
                 {profile?.height && (
                   <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
-                    <SparklesIcon className="w-4 h-4 text-blue-100" />
+                    <SparklesIcon className="w-4 h-4 text-slate-100" />
                     <span className="font-medium">
                       {getDisplayValue(profile.height)} {getUnitLabel(true)}
                     </span>
@@ -240,7 +239,7 @@ function ProfileContent() {
                 )}
                 {profile?.gender && (
                   <div className="bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2">
-                    <span className="text-blue-100 text-sm">Gender:</span>
+                    <span className="text-slate-100 text-sm">Gender:</span>
                     <span className="font-medium">{profile.gender}</span>
                   </div>
                 )}

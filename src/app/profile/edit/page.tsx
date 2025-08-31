@@ -113,7 +113,7 @@ export default function EditProfilePage() {
 
         {/* Enhanced Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-          <div className="relative bg-gradient-to-br from-purple-600 via-blue-600 to-purple-800 px-8 py-12 text-white">
+          <div className="relative bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-12 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex items-center gap-6">
               <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm">
@@ -121,7 +121,7 @@ export default function EditProfilePage() {
               </div>
               <div>
                 <h1 className="text-4xl font-bold mb-2">Edit Profile</h1>
-                <p className="text-purple-100 text-lg">
+                <p className="text-slate-100 text-lg">
                   Update your personal information and preferences
                 </p>
               </div>
@@ -287,15 +287,13 @@ export default function EditProfilePage() {
             <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
               <motion.button
                 type="submit"
-                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-green-600 text-white rounded-xl hover:from-green-700 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={submitting}
-                whileHover={{ scale: submitting ? 1 : 1.02 }}
-                whileTap={{ scale: submitting ? 1 : 0.98 }}
               >
                 {submitting ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving Changes...
+                    {"Saving Changes..."}
                   </div>
                 ) : (
                   'Save Profile'

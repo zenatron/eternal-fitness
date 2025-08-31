@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation';
 import {
   StarIcon,
   PlusCircleIcon,
-  ArrowRightIcon,
-  QuestionMarkCircleIcon,
   PlayCircleIcon,
   MagnifyingGlassIcon,
   CalendarDaysIcon,
   XMarkIcon,
   ClockIcon,
   TrashIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DatePicker from 'react-datepicker';
@@ -88,7 +87,7 @@ function ScheduleModal({
 
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6">
                 <p className="text-blue-800 dark:text-blue-200 font-medium">
-                  📅 Scheduling: <span className="font-bold">"{templateName}"</span>
+                  📅 Scheduling: <span className="font-bold">{templateName}</span>
                 </p>
               </div>
 
@@ -179,7 +178,7 @@ function DeleteConfirmationModal({
 
               <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 mb-6">
                 <p className="text-red-800 dark:text-red-200">
-                  Are you sure you want to delete <span className="font-bold">"{templateName}"</span>?
+                  Are you sure you want to delete <span className="font-bold">{templateName}</span>?
                   This will also delete all associated workout sessions.
                 </p>
               </div>
@@ -223,8 +222,8 @@ export default function TemplatesPage() {
     isLoading: scheduledLoading,
     error: scheduledError,
   } = useScheduledSessions();
-  const toggleFavoriteMutation = useToggleFavorite();
-  const { profile } = useProfile();
+  const toggleFavoriteMutation = useToggleFavorite(templates);
+  const { data: profile } = useProfile();
 
   // Search and modal state
   const [searchTerm, setSearchTerm] = useState('');
@@ -397,18 +396,18 @@ export default function TemplatesPage() {
         {/* Enhanced Header */}
         <div className="mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-8 text-white">
+            <div className="bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-8 text-white">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
                   <h1 className="text-3xl font-bold mb-2">Workout Templates 💪</h1>
-                  <p className="text-blue-100">
+                  <p className="text-slate-100">
                     Create, organize, and start your perfect workouts
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => router.push('/template/create')}
-                    className="btn btn-primary bg-white text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                    className="btn btn-primary bg-white text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <PlusCircleIcon className="w-5 h-5" />
                     Create Template
@@ -619,14 +618,14 @@ export default function TemplatesPage() {
         <section className="mb-10">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <QuestionMarkCircleIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <BoltIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               All Templates
             </h2>
           </div>
 
-          {unscheduledTemplates.length === 0 ? (
+          {templates?.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
               <PlusCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400 mb-2">
@@ -645,7 +644,7 @@ export default function TemplatesPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {unscheduledTemplates.map((template, index) => (
+              {templates?.map((template, index) => (
                 <motion.div
                   key={template.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -653,12 +652,12 @@ export default function TemplatesPage() {
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
                 >
-                  <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                  <div className="h-2 bg-gradient-to-r from-blue-500 to-slate-500"></div>
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1">
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
-                          <QuestionMarkCircleIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <BoltIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1">
                           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
@@ -667,12 +666,12 @@ export default function TemplatesPage() {
                           <div className="flex flex-wrap items-center gap-3 text-sm">
                             <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg">
                               <span className="text-gray-600 dark:text-gray-400">
-                                {countUniqueExercises(template)} exercises
+                                {countUniqueExercises(template)} {"exercises"}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg">
                               <span className="text-gray-600 dark:text-gray-400">
-                                {getTotalSetsCount(template)} sets
+                                {getTotalSetsCount(template)} {"sets"}
                               </span>
                             </div>
                             {template.totalVolume > 0 && (

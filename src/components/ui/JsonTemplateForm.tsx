@@ -346,11 +346,11 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Template Basic Info */}
         <motion.div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
-          <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+          <div className="h-2 bg-gradient-to-r from-slate-500 to-slate-500"></div>
           <div className="p-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <PlusCircleIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-3 bg-slate-100 dark:bg-slate-900/30 rounded-xl">
+                <PlusCircleIcon className="h-6 w-6 text-slate-600 dark:text-slate-400" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Template Information</h3>
             </div>
@@ -406,7 +406,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 <button
                   type="button"
                   onClick={() => setFavorite(!favorite)}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 transition-all duration-200 text-gray-700 dark:text-gray-300 ${
                     favorite
                       ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
                       : 'border-gray-300 dark:border-gray-600 hover:border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20'
@@ -415,16 +415,16 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                   {favorite ? (
                     <StarSolid className="w-5 h-5 text-amber-500" />
                   ) : (
-                    <StarOutline className="w-5 h-5" />
+                    <StarOutline className="w-5 h-5 text-gray-400 hover:text-amber-400" />
                   )}
-                  <span className="font-medium">Mark as Favorite</span>
+                  <span className="font-medium">{"Mark as Favorite"}</span>
                 </button>
               </div>
             </div>
 
             <div className="mt-6">
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Description
+                {"Description"}
               </label>
               <textarea
                 value={description}
@@ -446,8 +446,8 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 <PlusCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Exercise Library</h3>
-                <p className="text-gray-600 dark:text-gray-400">Choose exercises to build your workout</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{"Exercise Library"}</h3>
+                <p className="text-gray-600 dark:text-gray-400">{"Choose exercises to build your workout"}</p>
               </div>
             </div>
 
@@ -725,7 +725,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  Ready to Create Your Template?
+                  {"Ready to Create Your Template?"}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
                   {templateExercises.length === 0
@@ -741,22 +741,22 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                   onClick={() => router.back()}
                   className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-all duration-200"
                 >
-                  Cancel
+                  {"Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={createTemplateMutation.isPending || templateExercises.length === 0}
-                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-500 text-white rounded-xl hover:from-green-600 hover:to-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {createTemplateMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      Creating Template...
+                      {"Creating Template..."}
                     </>
                   ) : (
                     <>
                       <CheckCircleIcon className="w-5 h-5" />
-                      Create Template
+                      {"Create Template"}
                     </>
                   )}
                 </button>

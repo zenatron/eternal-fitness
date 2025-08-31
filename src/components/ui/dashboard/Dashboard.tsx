@@ -94,11 +94,11 @@ export default function Dashboard() {
         {/* Enhanced Dashboard Header */}
         <div className="mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-8 text-white">
+            <div className="bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-8 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold mb-2">Welcome back! 👋</h1>
-                  <p className="text-blue-100">
+                  <p className="text-slate-100">
                     Ready to crush your fitness goals today?
                   </p>
                 </div>
@@ -112,7 +112,7 @@ export default function Dashboard() {
                   </button>
                   <div className="hidden md:block">
                     <div className="text-right">
-                      <p className="text-blue-100 text-sm">Today</p>
+                      <p className="text-slate-100 text-sm">Today</p>
                       <p className="text-xl font-semibold">
                         {new Date().toLocaleDateString('en-US', {
                           weekday: 'long',

@@ -38,7 +38,7 @@ export function Header() {
             href="/"
             className="
               bg-clip-text text-transparent 
-              bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500
+              bg-gradient-to-r from-slate-300 via-slate-500 to-slate-700
               hover:animate-gradient-x
               bg-[size:200%]
             "
