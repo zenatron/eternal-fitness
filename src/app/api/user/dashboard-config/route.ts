@@ -24,12 +24,16 @@ export const GET = createApiHandler(async (userId) => {
 const dashboardConfigSchema = z.object({
   tiles: z.array(z.object({
     id: z.string(),
-    type: z.string(),
+    name: z.string(),
+    description: z.string(),
+    component: z.string(),
     enabled: z.boolean(),
     order: z.number(),
     size: z.string().optional(),
     settings: z.record(z.any()).optional(),
   })),
+  layout: z.enum(['grid', 'list']),
+  theme: z.enum(['default', 'compact']),
 });
 
 export const PUT = createValidatedApiHandler(
