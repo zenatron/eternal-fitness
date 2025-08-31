@@ -1,19 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { FlagIcon } from '@heroicons/react/24/outline';
-import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
-import {
-  WorkoutTemplate,
-  Exercise,
-  WorkoutSet,
-} from '@/types/workout';
+import JsonTemplateForm from '@/components/ui/JsonTemplateForm';
+import { WorkoutTemplate, SetType, WorkoutType, Difficulty } from '@/types/workout';
 import { useTemplate } from '@/lib/hooks/useTemplate';
-
-// Define a local type for the structure used in the map
-interface FormExerciseWithSets extends Exercise {
-  sets: WorkoutSet[]; // Use WorkoutSet for the sets array
-}
+import { TemplateInputData } from '@/lib/hooks/useMutations';
+import { toast } from 'react-hot-toast';
 
 export default function EditTemplatePage({
   params,
@@ -21,96 +15,86 @@ export default function EditTemplatePage({
   params: Promise<{ templateId: string }>;
 }) {
   const { templateId } = use(params);
+  const router = useRouter();
   const { data: template, isLoading, error } = useTemplate(templateId);
-  const [initialTemplateName, setInitialTemplateName] = useState('');
-  const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
-  const [initialFavorite, setInitialFavorite] = useState(false);
+  const [initialData, setInitialData] = useState<Partial<TemplateInputData> | undefined>(undefined);
 
-  // Convert JSON-based WorkoutTemplate format to FormExercise[] format for the editor
-  const convertTemplateToFormExercises = useCallback(
-    (templateData: WorkoutTemplate): FormExerciseWithSets[] => {
+  // Convert JSON-based WorkoutTemplate format to JsonTemplateForm format
+  const convertTemplateToJsonFormat = useCallback(
+    (templateData: WorkoutTemplate): TemplateInputData => {
       // Check if template has workoutData and exercises
       if (!templateData?.workoutData?.exercises) {
-        console.warn('convertTemplateToFormExercises: No exercises found in template data');
-        return [];
+        console.warn('convertTemplateToJsonFormat: No exercises found in template data');
+        return {
+          name: templateData.name,
+          favorite: templateData.favorite,
+          workoutType: templateData.workoutType as WorkoutType,
+          difficulty: templateData.difficulty as Difficulty,
+          exercises: [],
+        };
       }
 
-      const formExercises: FormExerciseWithSets[] = [];
+      const exercises: TemplateInputData['exercises'] = [];
 
       templateData.workoutData.exercises.forEach((workoutExercise) => {
         // Check if the exercise exists
         if (!workoutExercise?.exerciseKey) {
           console.warn(
-            'convertTemplateToFormExercises: Skipping exercise due to missing exerciseKey:',
+            'convertTemplateToJsonFormat: Skipping exercise due to missing exerciseKey:',
             workoutExercise,
           );
           return; // Skip this exercise if exerciseKey is missing
         }
 
-        // Convert WorkoutSet[] to FormSet[]
-        const formSets = workoutExercise.sets.map((set) => ({
-          id: set.id,
-          reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0,
+        // Convert WorkoutSet[] to JsonTemplateForm set format
+        const sets = workoutExercise.sets.map((set) => ({
+          id: set.id || `set-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+          reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 10,
           weight: set.targetWeight || 0,
           duration: set.targetDuration,
-          workoutTemplateId: templateData.id,
-          exerciseId: workoutExercise.exerciseKey,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          type: set.type || SetType.WORKING,
+          restTime: set.restTime || 60,
+          notes: set.notes,
         }));
 
-        // Create FormExerciseWithSets
-        const formExercise: FormExerciseWithSets = {
-          id: workoutExercise.exerciseKey,
-          name: workoutExercise.exerciseKey, // Will be resolved by exercise data
-          muscles: [], // Will be resolved by exercise data
-          equipment: [], // Will be resolved by exercise data
-          category: 'strength', // Default category
-          difficulty: 'intermediate', // Default difficulty
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          sets: formSets,
+        // Create exercise object
+        const exercise = {
+          exerciseKey: workoutExercise.exerciseKey,
+          sets,
+          instructions: workoutExercise.instructions,
+          restBetweenSets: workoutExercise.restBetweenSets,
         };
 
-        formExercises.push(formExercise);
+        exercises.push(exercise);
       });
 
-      return formExercises;
+      return {
+        name: templateData.name,
+        description: templateData.workoutData.metadata?.description,
+        favorite: templateData.favorite,
+        workoutType: templateData.workoutType as WorkoutType,
+        difficulty: templateData.difficulty as Difficulty,
+        tags: templateData.workoutData.metadata?.tags || [],
+        exercises,
+      };
     },
-    [templateId],
+    [],
   );
 
   // Process template data when it loads
   useEffect(() => {
     if (template && template.workoutData) {
-      // Set template name
-      setInitialTemplateName(template.name);
-
-      // Set favorite status
-      setInitialFavorite(template.favorite || false);
-
-      // Convert JSON-based template data to form format
-      const formattedExercises = convertTemplateToFormExercises(template);
-      setInitialExercises(formattedExercises as Exercise[]);
+      console.log('Original template data:', template);
+      const formattedData = convertTemplateToJsonFormat(template);
+      console.log('Converted initialData:', formattedData);
+      setInitialData(formattedData);
     }
-  }, [template, convertTemplateToFormExercises]);
+  }, [template, convertTemplateToJsonFormat]);
 
-  const headerElement = (
-    <div className="app-card rounded-2xl shadow-xl overflow-hidden mb-6">
-      <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-12 text-white">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative flex items-center gap-6">
-          <FlagIcon className="w-20 h-20" />
-          <div>
-            <h1 className="text-3xl font-bold">Edit Workout Template</h1>
-            <p className="text-blue-100 mt-1">
-              Update your workout template details
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const handleSuccess = useCallback(() => {
+    toast.success('Template updated successfully!');
+    router.push('/templates');
+  }, [router]);
 
   if (isLoading) {
     return (
@@ -137,13 +121,35 @@ export default function EditTemplatePage({
   }
 
   return (
-    <TemplateFormEditor
-      mode="edit"
-      templateId={templateId}
-      initialTemplateName={initialTemplateName}
-      initialExercises={initialExercises as FormExerciseWithSets[]}
-      initialFavorite={initialFavorite}
-      headerElement={headerElement}
-    />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Enhanced Header */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-8 text-white">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                    <FlagIcon className="h-8 w-8" />
+                    Edit Workout Template
+                  </h1>
+                  <p className="text-slate-200">
+                    Update your workout template details
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Form Container */}
+        <JsonTemplateForm
+          mode="edit"
+          templateId={templateId}
+          initialData={initialData}
+          onSuccess={handleSuccess}
+        />
+      </div>
+    </div>
   );
 }

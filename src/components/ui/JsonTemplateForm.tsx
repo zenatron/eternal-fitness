@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PlusCircleIcon,
@@ -11,11 +11,12 @@ import {
   Bars3Icon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { exercises } from '@/lib/exercises';
-import { useCreateTemplate } from '@/lib/hooks/useMutations';
-import { TemplateInputData } from '@/lib/hooks/useMutations';
+import { useCreateTemplate, useUpdateTemplate, TemplateInputData } from '@/lib/hooks/useMutations';
+import { WorkoutType, Difficulty } from '@/types/workout';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -45,35 +46,54 @@ interface TemplateExercise {
 
 interface JsonTemplateFormProps {
   mode: 'create' | 'edit';
+  templateId?: string;
   initialData?: Partial<TemplateInputData>;
   onSuccess?: () => void;
 }
 
 
 
-export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonTemplateFormProps) {
+export default function JsonTemplateForm({ mode, templateId, initialData, onSuccess }: JsonTemplateFormProps) {
   const router = useRouter();
   const createTemplateMutation = useCreateTemplate();
+  const updateTemplateMutation = useUpdateTemplate(templateId || '');
 
   // Form state
-  const [name, setName] = useState(initialData?.name || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [favorite, setFavorite] = useState(initialData?.favorite || false);
-  const [workoutType, setWorkoutType] = useState(initialData?.workoutType || 'strength');
-  const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'intermediate');
-  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [favorite, setFavorite] = useState(false);
+  const [workoutType, setWorkoutType] = useState('strength');
+  const [difficulty, setDifficulty] = useState('intermediate');
+  const [tags, setTags] = useState<string[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState('');
-  const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>(() => {
-    const exercises = (initialData?.exercises as TemplateExercise[]) || [];
-    // Ensure all sets have unique IDs
-    return exercises.map(exercise => ({
-      ...exercise,
-      sets: exercise.sets.map(set => ({
-        ...set,
-        id: set.id || `set-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-      }))
-    }));
-  });
+  const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>([]);
+
+  // Track last drag time to prevent rapid consecutive drags
+  const lastDragTimeRef = useRef<number>(0);
+
+  // Sync form state with initialData when it changes
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || '');
+      setDescription(initialData.description || '');
+      setFavorite(initialData.favorite || false);
+      setWorkoutType(initialData.workoutType || 'strength');
+      setDifficulty(initialData.difficulty || 'intermediate');
+      setTags(initialData.tags || []);
+
+      // Handle exercises with proper ID generation
+      const exercises = (initialData.exercises as TemplateExercise[]) || [];
+      const processedExercises = exercises.map(exercise => ({
+        ...exercise,
+        sets: exercise.sets.map(set => ({
+          ...set,
+          id: set.id || `set-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+        }))
+      }));
+
+      setTemplateExercises(processedExercises);
+    }
+  }, [initialData]);
 
   // Fuzzy search function with scoring
   const fuzzySearch = (text: string, searchTerms: string[]): number => {
@@ -173,15 +193,33 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
 
     if (sourceIndex === destinationIndex) return;
 
+    // Prevent rapid consecutive drags
+    const now = Date.now();
+    if (lastDragTimeRef.current && now - lastDragTimeRef.current < 100) {
+      return;
+    }
+    lastDragTimeRef.current = now;
+
     setTemplateExercises((prev) => {
       const updated = [...prev];
-      const sets = [...updated[exerciseIndex].sets];
+      const currentSets = updated[exerciseIndex].sets;
 
-      // Remove the item from source position and insert at destination
-      const [reorderedItem] = sets.splice(sourceIndex, 1);
-      sets.splice(destinationIndex, 0, reorderedItem);
+      // Create a new array with reordered items
+      const reorderedSets = [...currentSets];
 
-      updated[exerciseIndex].sets = sets;
+      // Remove the item from source position
+      const [removedItem] = reorderedSets.splice(sourceIndex, 1);
+
+      // Insert the item at destination position
+      reorderedSets.splice(destinationIndex, 0, removedItem);
+
+      // Update the exercise with reordered sets
+      updated[exerciseIndex] = {
+        ...updated[exerciseIndex],
+        sets: reorderedSets
+      };
+
+
       return updated;
     });
   };
@@ -250,7 +288,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
 
 
   // Update set data
-  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof ExerciseSet, value: any) => {
+  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof ExerciseSet, value: string | number | boolean | undefined) => {
     const updated = [...templateExercises];
     updated[exerciseIndex].sets[setIndex] = {
       ...updated[exerciseIndex].sets[setIndex],
@@ -259,19 +297,28 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
     setTemplateExercises(updated);
   };
 
-  // Update exercise data
-  const updateExercise = (exerciseIndex: number, field: keyof TemplateExercise, value: any) => {
-    const updated = [...templateExercises];
-    updated[exerciseIndex] = {
-      ...updated[exerciseIndex],
-      [field]: value,
-    };
-    setTemplateExercises(updated);
-  };
+
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent submission if mutations are pending
+    if (createTemplateMutation.isPending || updateTemplateMutation.isPending) {
+      return;
+    }
+
+    // For edit mode, ensure we have the initial data loaded
+    if (mode === 'edit' && !initialData) {
+      toast.error('Template data is still loading. Please wait.');
+      return;
+    }
+
+    // Additional validation for edit mode - ensure basic data is present
+    if (mode === 'edit' && (!name || name.trim() === '')) {
+      toast.error('Template name is required. Please wait for data to load.');
+      return;
+    }
 
     if (!name.trim()) {
       toast.error('Template name is required');
@@ -324,22 +371,37 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
       name: name.trim(),
       description: description.trim() || undefined,
       favorite,
-      workoutType: workoutType as any,
-      difficulty: difficulty as any,
+      workoutType: workoutType as WorkoutType,
+      difficulty: difficulty as Difficulty,
       tags,
       exercises: templateExercises,
     };
 
     try {
-      await createTemplateMutation.mutateAsync(templateData);
-      toast.success('Template created successfully!');
+      if (mode === 'edit' && templateId) {
+        await updateTemplateMutation.mutateAsync(templateData);
+        toast.success('Template updated successfully!');
+      } else {
+        await createTemplateMutation.mutateAsync(templateData);
+        toast.success('Template created successfully!');
+      }
       onSuccess?.();
       router.push('/templates');
     } catch (error) {
-      toast.error('Failed to create template');
-      console.error('Template creation error:', error);
+      toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} template`);
+      console.error(`Template ${mode === 'edit' ? 'update' : 'creation'} error:`, error);
     }
   };
+
+  // Show loading state when initialData is not available for edit mode
+  if (mode === 'edit' && !initialData) {
+    return (
+      <div className="flex justify-center items-center p-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading template data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -516,10 +578,10 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                     <MagnifyingGlassIcon className="w-8 h-8 text-gray-400 mx-auto" />
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    No exercises found
+                    {"No exercises found"}
                   </h4>
                   <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    Try adjusting your search terms or browse all exercises
+                    {"Try adjusting your search terms or browse all exercises"}
                   </p>
                   <button
                     type="button"
@@ -562,13 +624,13 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
               <PlusCircleIcon className="w-12 h-12 text-gray-400 mx-auto" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              No Exercises Added Yet
+              {"No Exercises Added Yet"}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Choose exercises from the library above to start building your workout template
+              {"Choose exercises from the library above to start building your workout template"}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500">
-              💡 Tip: Start with compound movements like squats, deadlifts, or bench press
+              {"💡 Tip: Start with compound movements like squats, deadlifts, or bench press"}
             </p>
           </div>
         ) : (
@@ -585,7 +647,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                      <div className="w-6 h-6 bg-purple-600 dark:bg-purple-400 rounded"></div>
+                      <BoltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
                       <h4 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -628,14 +690,17 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                           <div
                             {...provided.droppableProps}
                             ref={provided.innerRef}
-                            className="space-y-2"
+                            className="space-y-2 min-h-[40px]"
                           >
-                            {exercise.sets.map((set, setIndex) => (
-                              <Draggable
-                                key={set.id || `set-${exerciseIndex}-${setIndex}`}
-                                draggableId={set.id || `set-${exerciseIndex}-${setIndex}`}
-                                index={setIndex}
-                              >
+                            {exercise.sets.map((set, setIndex) => {
+                              // Generate a stable ID for this set that doesn't change with position
+                              const stableId = set.id || `exercise-${exerciseIndex}-set-${setIndex}`;
+                              return (
+                                <Draggable
+                                  key={stableId}
+                                  draggableId={stableId}
+                                  index={setIndex}
+                                >
                                 {(provided, snapshot) => (
                                   <div
                                     ref={provided.innerRef}
@@ -645,7 +710,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                                     <div className="grid grid-cols-7 gap-4 items-center">
                                       <div
                                         {...provided.dragHandleProps}
-                                        className="cursor-grab p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                        className="cursor-grab active:cursor-grabbing p-1 rounded"
                                       >
                                         <Bars3Icon className="w-4 h-4 text-gray-400" />
                                       </div>
@@ -695,7 +760,8 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                                   </div>
                                 )}
                               </Draggable>
-                            ))}
+                              );
+                            })}
                             {provided.placeholder}
                           </div>
                         )}
@@ -725,11 +791,11 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  {"Ready to Create Your Template?"}
+                  {mode === 'edit' ? "Ready to Update Your Template?" : "Ready to Create Your Template?"}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
                   {templateExercises.length === 0
-                    ? "Add at least one exercise to create your template"
+                    ? (mode === 'edit' ? "Add at least one exercise to update your template" : "Add at least one exercise to create your template")
                     : `Your template has ${templateExercises.length} exercise${templateExercises.length === 1 ? '' : 's'} with ${templateExercises.reduce((total, ex) => total + ex.sets.length, 0)} total sets`
                   }
                 </p>
@@ -745,18 +811,18 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 </button>
                 <button
                   type="submit"
-                  disabled={createTemplateMutation.isPending || templateExercises.length === 0}
+                  disabled={(createTemplateMutation.isPending || updateTemplateMutation.isPending) || templateExercises.length === 0}
                   className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-500 text-white rounded-xl hover:from-green-600 hover:to-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  {createTemplateMutation.isPending ? (
+                  {(createTemplateMutation.isPending || updateTemplateMutation.isPending) ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      {"Creating Template..."}
+                      {mode === 'edit' ? "Updating Template..." : "Creating Template..."}
                     </>
                   ) : (
                     <>
                       <CheckCircleIcon className="w-5 h-5" />
-                      {"Create Template"}
+                      {mode === 'edit' ? "Update Template" : "Create Template"}
                     </>
                   )}
                 </button>
