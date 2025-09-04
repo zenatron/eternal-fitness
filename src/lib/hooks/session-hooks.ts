@@ -1,7 +1,6 @@
-// 🚀 SESSION-SPECIFIC HOOKS
 // Specialized hooks for workout session CRUD operations
 
-import { useApiQuery, useApiMutation, useApiUpdateMutation, useApiPatchMutation } from './api-hooks';
+import { useApiQuery, useApiMutation, useApiUpdateMutation, useApiPatchMutation, useApiDeleteMutation } from './api-hooks';
 import { WorkoutSession, ActiveWorkoutSessionData } from '@/types/workout';
 
 // ============================================================================
@@ -85,7 +84,7 @@ export function useUpdateActiveSession() {
 export function useCompleteSession() {
   return useApiMutation<WorkoutSession>('/session/active/complete', {
     successMessage: 'Workout completed successfully!',
-    invalidateQueries: ['session', ['session', 'scheduled'], ['user', 'stats']],
+    invalidateQueries: ['session', 'user'],
   });
 }
 
@@ -102,7 +101,7 @@ export function usePauseResumeSession() {
  * Hook to cancel/abandon an active workout session
  */
 export function useCancelSession() {
-  return useApiMutation<void>('/session/active', {
+  return useApiDeleteMutation<void>('/session/active', {
     successMessage: 'Workout session cancelled',
     invalidateQueries: ['session'],
   });
@@ -118,7 +117,7 @@ export function useCancelSession() {
 export function useCreateSession() {
   return useApiMutation<WorkoutSession>('/session', {
     successMessage: 'Workout session created!',
-    invalidateQueries: ['session', ['session', 'scheduled'], ['user', 'stats']],
+    invalidateQueries: ['session', 'user'],
   });
 }
 
@@ -136,7 +135,7 @@ export function useUpdateSession(sessionId: string) {
  * Hook to delete a workout session
  */
 export function useDeleteSession(sessionId: string) {
-  return useApiMutation<void>(`/session/${sessionId}`, {
+  return useApiDeleteMutation<void>(`/session/${sessionId}`, {
     successMessage: 'Session deleted successfully!',
     invalidateQueries: ['session'],
   });

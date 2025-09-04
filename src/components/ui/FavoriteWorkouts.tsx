@@ -1,3 +1,5 @@
+"use client";
+
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
@@ -5,7 +7,7 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { TemplateCard } from './TemplateCard';
 
 export default function FavoriteWorkouts() {
-  const { profile } = useProfile();
+  const { data: profile } = useProfile();
   const { data: allTemplates, isLoading, error } = useTemplates();
   const toggleFavoriteMutation = useToggleFavorite();
 

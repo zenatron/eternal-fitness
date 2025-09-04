@@ -1,7 +1,9 @@
-// 🚀 TEMPLATE-SPECIFIC HOOKS
 // Specialized hooks for workout template CRUD operations
 
 import { useResourceList, useResource, useCreateResource, useUpdateResource, useDeleteResource } from './api-hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiPost, ApiClientError } from '@/lib/api-client';
+import { toast } from 'sonner';
 import { WorkoutTemplate } from '@/types/workout';
 
 // ============================================================================
@@ -70,9 +72,27 @@ export function useDeleteTemplate(templateId: string) {
 /**
  * Hook to toggle template favorite status
  */
-export function useToggleTemplateFavorite(templateId: string) {
-  return useUpdateResource<WorkoutTemplate>('template', templateId, {
-    successMessage: 'Template favorite status updated!',
+export function useToggleTemplateFavorite(templateId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<WorkoutTemplate, ApiClientError, string | { favorite?: boolean } | void>({
+    mutationFn: async (variable) => {
+      const idFromVar = typeof variable === 'string' ? variable : undefined;
+      const id = templateId || idFromVar;
+      if (!id) {
+        throw new ApiClientError('Template ID is required to toggle favorite', 400);
+      }
+      return apiPost<WorkoutTemplate>(`/template/${id}/favorite`);
+    },
+    onSuccess: () => {
+      toast.success('Template favorite status updated!');
+      // Invalidate template-related queries (lists and details)
+      queryClient.invalidateQueries({ queryKey: ['template'] });
+    },
+    onError: (error) => {
+      const message = error?.message || 'Failed to update favorite status';
+      toast.error(message);
+    },
   });
 }
 

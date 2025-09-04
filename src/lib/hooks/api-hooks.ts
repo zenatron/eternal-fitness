@@ -1,4 +1,3 @@
-// 🚀 UNIFIED API HOOKS
 // Generic CRUD hooks using React Query for consistent data fetching
 
 import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
@@ -27,35 +26,52 @@ export function useApiQuery<T>(
   });
 }
 
-/**
- * Generic POST mutation hook
- */
-export function useApiMutation<TData, TVariables = any>(
+// ----------------------------------------------------------------------------
+// Internal helper to unify mutation logic for POST/PUT/PATCH
+// ----------------------------------------------------------------------------
+type ApiMethod = <TResponse>(endpoint: string, data: any) => Promise<TResponse>;
+
+type InvalidateKey = string | string[];
+type InvalidateKeysOption = InvalidateKey | InvalidateKey[];
+
+function normalizeInvalidateKeys(option?: InvalidateKeysOption): InvalidateKey[] {
+  if (!option) return [];
+  if (Array.isArray(option)) {
+    // If any element is an array, treat as a list of keys including nested arrays
+    if (option.some((entry) => Array.isArray(entry))) {
+      return option as InvalidateKey[];
+    }
+    // Otherwise it's a list of top-level string prefixes
+    return option as string[];
+  }
+  return [option];
+}
+
+function useApiMutationWithMethod<TData, TVariables = any>(
+  apiMethod: ApiMethod,
   endpoint: string,
   options?: {
     onSuccess?: (data: TData, variables: TVariables) => void;
     onError?: (error: ApiClientError, variables: TVariables) => void;
-    invalidateQueries?: string | string[];
+    invalidateQueries?: InvalidateKeysOption;
     successMessage?: string;
     errorMessage?: string;
   } & Omit<UseMutationOptions<TData, ApiClientError, TVariables>, 'mutationFn'>
 ) {
   const queryClient = useQueryClient();
-  
+
   return useMutation<TData, ApiClientError, TVariables>({
-    mutationFn: (data: TVariables) => apiPost<TData>(endpoint, data),
+    mutationFn: (data: TVariables) => apiMethod<TData>(endpoint, data),
     onSuccess: (data, variables) => {
       if (options?.successMessage) {
         toast.success(options.successMessage);
       }
-      
-      if (options?.invalidateQueries) {
-        const keys = Array.isArray(options.invalidateQueries) 
-          ? options.invalidateQueries 
-          : [options.invalidateQueries];
-        keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-      }
-      
+
+      normalizeInvalidateKeys(options?.invalidateQueries).forEach((key) => {
+        const queryKey = Array.isArray(key) ? key : [key];
+        queryClient.invalidateQueries({ queryKey });
+      });
+
       options?.onSuccess?.(data, variables);
     },
     onError: (error, variables) => {
@@ -65,6 +81,22 @@ export function useApiMutation<TData, TVariables = any>(
     },
     ...options,
   });
+}
+
+/**
+ * Generic POST mutation hook
+ */
+export function useApiMutation<TData, TVariables = any>(
+  endpoint: string,
+  options?: {
+    onSuccess?: (data: TData, variables: TVariables) => void;
+    onError?: (error: ApiClientError, variables: TVariables) => void;
+    invalidateQueries?: InvalidateKeysOption;
+    successMessage?: string;
+    errorMessage?: string;
+  } & Omit<UseMutationOptions<TData, ApiClientError, TVariables>, 'mutationFn'>
+) {
+  return useApiMutationWithMethod<TData, TVariables>(apiPost, endpoint, options);
 }
 
 /**
@@ -75,36 +107,12 @@ export function useApiUpdateMutation<TData, TVariables = any>(
   options?: {
     onSuccess?: (data: TData, variables: TVariables) => void;
     onError?: (error: ApiClientError, variables: TVariables) => void;
-    invalidateQueries?: string | string[];
+    invalidateQueries?: InvalidateKeysOption;
     successMessage?: string;
     errorMessage?: string;
   } & Omit<UseMutationOptions<TData, ApiClientError, TVariables>, 'mutationFn'>
 ) {
-  const queryClient = useQueryClient();
-  
-  return useMutation<TData, ApiClientError, TVariables>({
-    mutationFn: (data: TVariables) => apiPut<TData>(endpoint, data),
-    onSuccess: (data, variables) => {
-      if (options?.successMessage) {
-        toast.success(options.successMessage);
-      }
-      
-      if (options?.invalidateQueries) {
-        const keys = Array.isArray(options.invalidateQueries) 
-          ? options.invalidateQueries 
-          : [options.invalidateQueries];
-        keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-      }
-      
-      options?.onSuccess?.(data, variables);
-    },
-    onError: (error, variables) => {
-      const message = options?.errorMessage || error.message || 'An error occurred';
-      toast.error(message);
-      options?.onError?.(error, variables);
-    },
-    ...options,
-  });
+  return useApiMutationWithMethod<TData, TVariables>(apiPut, endpoint, options);
 }
 
 /**
@@ -115,36 +123,12 @@ export function useApiPatchMutation<TData, TVariables = any>(
   options?: {
     onSuccess?: (data: TData, variables: TVariables) => void;
     onError?: (error: ApiClientError, variables: TVariables) => void;
-    invalidateQueries?: string | string[];
+    invalidateQueries?: InvalidateKeysOption;
     successMessage?: string;
     errorMessage?: string;
   } & Omit<UseMutationOptions<TData, ApiClientError, TVariables>, 'mutationFn'>
 ) {
-  const queryClient = useQueryClient();
-
-  return useMutation<TData, ApiClientError, TVariables>({
-    mutationFn: (data: TVariables) => apiPatch<TData>(endpoint, data),
-    onSuccess: (data, variables) => {
-      if (options?.successMessage) {
-        toast.success(options.successMessage);
-      }
-
-      if (options?.invalidateQueries) {
-        const keys = Array.isArray(options.invalidateQueries)
-          ? options.invalidateQueries
-          : [options.invalidateQueries];
-        keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-      }
-
-      options?.onSuccess?.(data, variables);
-    },
-    onError: (error, variables) => {
-      const message = options?.errorMessage || error.message || 'An error occurred';
-      toast.error(message);
-      options?.onError?.(error, variables);
-    },
-    ...options,
-  });
+  return useApiMutationWithMethod<TData, TVariables>(apiPatch, endpoint, options);
 }
 
 /**
@@ -155,7 +139,7 @@ export function useApiDeleteMutation<TData = any>(
   options?: {
     onSuccess?: (data: TData) => void;
     onError?: (error: ApiClientError) => void;
-    invalidateQueries?: string | string[];
+    invalidateQueries?: InvalidateKeysOption;
     successMessage?: string;
     errorMessage?: string;
   } & Omit<UseMutationOptions<TData, ApiClientError, void>, 'mutationFn'>
@@ -168,14 +152,12 @@ export function useApiDeleteMutation<TData = any>(
       if (options?.successMessage) {
         toast.success(options.successMessage);
       }
-      
-      if (options?.invalidateQueries) {
-        const keys = Array.isArray(options.invalidateQueries) 
-          ? options.invalidateQueries 
-          : [options.invalidateQueries];
-        keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-      }
-      
+
+      normalizeInvalidateKeys(options?.invalidateQueries).forEach((key) => {
+        const queryKey = Array.isArray(key) ? key : [key];
+        queryClient.invalidateQueries({ queryKey });
+      });
+
       options?.onSuccess?.(data);
     },
     onError: (error) => {

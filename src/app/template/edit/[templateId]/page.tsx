@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { FlagIcon } from '@heroicons/react/24/outline';
 import JsonTemplateForm from '@/components/ui/JsonTemplateForm';
@@ -12,9 +12,9 @@ import { toast } from 'react-hot-toast';
 export default function EditTemplatePage({
   params,
 }: {
-  params: Promise<{ templateId: string }>;
+  params: { templateId: string };
 }) {
-  const { templateId } = use(params);
+  const { templateId } = params;
   const router = useRouter();
   const { data: template, isLoading, error } = useTemplate(templateId);
   const [initialData, setInitialData] = useState<Partial<TemplateInputData> | undefined>(undefined);

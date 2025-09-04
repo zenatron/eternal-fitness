@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from 'framer-motion';
 import {
   ArrowRightIcon,
@@ -42,16 +44,8 @@ export function TemplateCard({
   const router = useRouter();
 
   const getBorderColor = () => {
-    switch (variant) {
-      case 'favorite':
-        return 'from-amber-500 to-orange-500';
-      case 'all':
-        return 'from-blue-500 to-slate-500';
-      case 'templates':
-        return 'from-blue-500 to-slate-500';
-      default:
-        return 'from-blue-500 to-blue-600';
-    }
+    if (template.favorite) return 'from-amber-500 to-orange-500';
+    return 'from-blue-500 to-blue-600';
   };
 
   return (
