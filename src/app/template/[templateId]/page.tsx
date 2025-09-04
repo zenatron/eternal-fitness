@@ -20,16 +20,14 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-import { WorkoutExercise, WorkoutSet } from '@/types/workout';
+import { WorkoutExercise } from '@/types/workout';
 import {
   getTemplateExercises,
   formatSetDisplay,
-  getDifficultyColor,
-  getWorkoutTypeColor,
   getTotalSetsCount
 } from '@/utils/workoutDisplayUtils';
 
-// 🚀 JSON-BASED EXERCISE DISPLAY COMPONENT
+// JSON-BASED EXERCISE DISPLAY COMPONENT
 interface ExerciseDisplayProps {
   exercise: WorkoutExercise;
   profile: any;
@@ -157,9 +155,9 @@ export default function TemplateDetailPage({
   } = useTemplate(templateId);
   const { data: profile, isLoading: profileLoading } = useProfile();
   const toggleFavoriteMutation = useToggleFavorite(templateId);
-  const deleteTemplateMutation = useDeleteTemplate();
+  const deleteTemplateMutation = useDeleteTemplate(templateId);
 
-  // 🚀 Get JSON-based exercises
+  // Get JSON-based exercises
   const exercises = template ? getTemplateExercises(template) : [];
 
   console.log('✅ JSON-based template loaded:', {
@@ -188,7 +186,7 @@ export default function TemplateDetailPage({
     )
       return;
     try {
-      await deleteTemplateMutation.mutateAsync(templateId);
+      await deleteTemplateMutation.mutateAsync();
       toast.success('Template deleted successfully!');
       router.push('/'); // Redirect after delete
     } catch (error) {

@@ -183,7 +183,7 @@ function ProfileContent() {
                   <div>
                     <h1 className="text-4xl font-bold mb-2">{profile?.name}</h1>
                     <p className="text-slate-100 mb-1">
-                      Member since{' '}
+                      Eternal Member since{' '}
                       {new Date(profile?.joinDate || '').toLocaleDateString('en-US', {
                         month: 'long',
                         day: 'numeric',

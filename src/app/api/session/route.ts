@@ -3,16 +3,10 @@ import { z } from 'zod';
 import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 import {
   createWorkoutSession,
-  calculateSessionMetrics,
-  calculateExerciseVolume,
-  detectPersonalRecords,
   validateWorkoutSession,
   convertExerciseProgressToPerformance
 } from '@/utils/workoutJsonUtils';
 import {
-  WorkoutSessionData,
-  ExercisePerformance,
-  PerformedSet,
   WorkoutTemplateData
 } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
@@ -94,7 +88,7 @@ export const POST = createValidatedApiHandler(
   }
 );
 
-// 🎯 CREATE NEW SESSION (immediate or scheduled)
+//  CREATE NEW SESSION (immediate or scheduled)
 async function createNewSession(userId: string, data: z.infer<typeof createSessionSchema>) {
   const { templateId, scheduledAt, duration, notes, performance, environment } = data;
   const isScheduling = !!scheduledAt;
@@ -192,7 +186,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         const prResults = await processWorkoutSessionPRs(
           userId,
           session.id,
-          performance,
+          convertedPerformance,
           templateData
         );
         console.log(`✅ Processed ${prResults.newPRs.length} new PRs for session ${session.id}`);
@@ -233,7 +227,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
   }
 }
 
-// 🎯 COMPLETE SCHEDULED SESSION
+//  COMPLETE SCHEDULED SESSION
 async function completeScheduledSession(userId: string, data: z.infer<typeof completeScheduledSessionSchema>) {
   const { scheduledSessionId, duration, notes, performance, environment } = data;
 
@@ -292,7 +286,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       const prResults = await processWorkoutSessionPRs(
         userId,
         session.id,
-        performance,
+        convertedPerformance,
         templateData
       );
       console.log(`✅ Processed ${prResults.newPRs.length} new PRs for scheduled session ${session.id}`);

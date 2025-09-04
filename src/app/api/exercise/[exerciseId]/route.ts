@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { exercises } from '@/lib/exercises';
-import { createApiHandler } from '@/lib/api-utils';
 
 // Note: This route doesn't require authentication since it's just static exercise data
 export async function GET(

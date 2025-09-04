@@ -222,7 +222,7 @@ export async function getUserAchievements(userId: string) {
 /**
  * Update unique exercises count when a workout is completed
  */
-export async function updateUniqueExercisesCount(userId: string, exerciseKeys: string[]) {
+export async function updateUniqueExercisesCount(userId: string) {
   try {
     // Get all completed sessions to calculate unique exercises
     const sessions = await prisma.workoutSession.findMany({

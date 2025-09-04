@@ -9,6 +9,21 @@ import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
+// Runtime type guard for WorkoutTemplateData
+function isWorkoutTemplateData(data: any): data is WorkoutTemplateData {
+  if (!data || typeof data !== 'object') return false;
+  const md = (data as any).metadata;
+  const exercises = (data as any).exercises;
+  if (!md || typeof md !== 'object' || typeof md.name !== 'string') return false;
+  if (!Array.isArray(exercises)) return false;
+  for (const ex of exercises) {
+    if (!ex || typeof ex !== 'object') return false;
+    if (typeof (ex as any).exerciseKey !== 'string') return false;
+    if (!Array.isArray((ex as any).sets)) return false;
+  }
+  return true;
+}
+
 // --- Zod Schema for POST Request ---
 const completeTemplateSchema = z.object({
   duration: z.number().int().positive().optional(),
@@ -59,7 +74,9 @@ export const POST = createValidatedApiHandler(
 
       // 2. Create the WorkoutSession record with required performanceData
       const templateData = template.workoutData;
-      const totalSets = getTotalSetsCount(template as any);
+      const totalSets = isWorkoutTemplateData(templateData)
+        ? getTotalSetsCount({ workoutData: templateData })
+        : (template.exerciseCount || 0);
 
       // Create performance data structure for the completed session
       let actualTotalVolume = sessionTotalVolume;
@@ -113,7 +130,11 @@ export const POST = createValidatedApiHandler(
       // 3. Process Personal Records if performance data is available
       if (performance && Object.keys(performance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData as unknown as WorkoutTemplateData);
+          if (!isWorkoutTemplateData(templateData)) {
+            throw new Error('Invalid workout template data structure');
+          }
+
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
           // Don't fail the entire transaction for PR processing errors
@@ -209,11 +230,8 @@ export const POST = createValidatedApiHandler(
 
     // Update achievements after successful workout completion
     try {
-      // Extract exercise keys from performance data
-      const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
-
       // Update unique exercises count
-      await updateUniqueExercisesCount(userId, exerciseKeys);
+      await updateUniqueExercisesCount(userId);
 
       // Update achievements
       const achievementResult = await updateUserAchievements(userId);

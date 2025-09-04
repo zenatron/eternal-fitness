@@ -7,17 +7,14 @@ import {
   validateWorkoutTemplate,
   calculateTemplateVolume,
   calculateEstimatedDuration,
-  extractMuscleGroups,
-  extractEquipment
 } from '@/utils/workoutJsonUtils';
 import {
-  WorkoutTemplateData,
   WorkoutType,
   Difficulty,
   SetType
 } from '@/types/workout';
 
-// 🚀 VALIDATION SCHEMAS FOR TEMPLATE CREATION
+// VALIDATION SCHEMAS FOR TEMPLATE CREATION
 const createSetSchema = z.object({
   // Strength training fields
   reps: z.number().int().positive().optional(),
@@ -63,7 +60,7 @@ const createTemplateSchema = z.object({
 
 type CreateTemplateData = z.infer<typeof createTemplateSchema>;
 
-// 🚀 HELPER: GET EXERCISE DATA FROM STATIC DATA (for enrichment)
+// HELPER: GET EXERCISE DATA FROM STATIC DATA (for enrichment)
 function getExerciseData(exerciseKey: string) {
   const staticData = staticExercisesData[exerciseKey as keyof typeof staticExercisesData];
   if (staticData) {
@@ -82,7 +79,7 @@ function getExerciseData(exerciseKey: string) {
   };
 }
 
-// 🚀 GET function to fetch all JSON-based templates for the user
+// GET function to fetch all JSON-based templates for the user
 export const GET = createApiHandler(async (userId) => {
   const templates = await prisma.workoutTemplate.findMany({
     where: { userId },
@@ -109,12 +106,12 @@ export const GET = createApiHandler(async (userId) => {
   return templates;
 });
 
-// 🚀 POST function to create a new JSON-based template
+// POST function to create a new JSON-based template
 export const POST = createValidatedApiHandler(
   createTemplateSchema,
   async (userId, validatedData) => {
 
-    // 🎯 BUILD JSON WORKOUT DATA
+    //  BUILD JSON WORKOUT DATA
     const exercisesWithData = validatedData.exercises.map((ex, index) => {
       const exerciseData = getExerciseData(ex.exerciseKey);
       return {
@@ -163,7 +160,7 @@ export const POST = createValidatedApiHandler(
     const estimatedDuration = calculateEstimatedDuration(workoutData.exercises);
     const exerciseCount = workoutData.exercises.length;
 
-    // 🎯 CREATE TEMPLATE WITH JSON DATA
+    // CREATE TEMPLATE WITH JSON DATA
     const createdTemplate = await prisma.workoutTemplate.create({
       data: {
         name: validatedData.name,

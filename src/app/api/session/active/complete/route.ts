@@ -1,11 +1,9 @@
-import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createValidatedApiHandler } from '@/lib/api-utils';
 import {
   ActiveWorkoutSessionData,
+  ExercisePerformance,
   WorkoutSessionData,
-  SessionMetrics,
-  ExercisePerformance
 } from '@/types/workout';
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -28,7 +26,7 @@ const completeSessionSchema = z.object({
 export const POST = createValidatedApiHandler(
   completeSessionSchema,
   async (userId, { duration, notes, completedAt }) => {
-    let finalPerformanceData: any = {};
+    let finalPerformanceData: Record<string, ExercisePerformance> = {};
 
     const session = await prisma.$transaction(async (tx) => {
       // Get current active session
@@ -188,7 +186,7 @@ export const POST = createValidatedApiHandler(
           month: currentMonth,
           workoutsCount: 1,
           volume: metrics.totalVolume,
-          trainingHours: sessionDuration ? sessionDuration / 3600 : 0,
+          trainingHours: sessionDuration ? sessionDuration / 60 : 0,
         },
       });
 
@@ -228,10 +226,9 @@ export const POST = createValidatedApiHandler(
 
     // Update achievements and unique exercises count (outside transaction for better performance)
     try {
-      const exerciseKeys = Object.keys(finalPerformanceData || {});
       await Promise.all([
         updateUserAchievements(userId),
-        updateUniqueExercisesCount(userId, exerciseKeys),
+        updateUniqueExercisesCount(userId),
       ]);
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);

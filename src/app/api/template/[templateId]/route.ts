@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
@@ -8,11 +7,8 @@ import {
   validateWorkoutTemplate,
   calculateTemplateVolume,
   calculateEstimatedDuration,
-  extractMuscleGroups,
-  extractEquipment
 } from '@/utils/workoutJsonUtils';
 import {
-  WorkoutTemplateData,
   WorkoutType,
   Difficulty,
   SetType
@@ -66,7 +62,7 @@ function getExerciseData(exerciseKey: string) {
   };
 }
 
-// 🚀 GET a single JSON-based template
+// GET a single JSON-based template
 export const GET = createApiHandler(async (userId, request, params) => {
   const { templateId } = params;
 
@@ -75,7 +71,7 @@ export const GET = createApiHandler(async (userId, request, params) => {
     throw new Error('Invalid template ID provided');
   }
 
-    // 🎯 FETCH JSON-BASED TEMPLATE
+    //  FETCH JSON-BASED TEMPLATE
     const template = await prisma.workoutTemplate.findUnique({
       where: {
         id: templateId,

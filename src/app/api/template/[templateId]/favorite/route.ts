@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client'; // Import Prisma types
 import { createApiHandler } from '@/lib/api-utils';
 
 // POST handler to toggle favorite status
@@ -32,7 +29,7 @@ export const POST = createApiHandler(async (userId, request, params) => {
         data: {
           favorite: newFavoriteStatus,
         },
-        // 🚀 Return JSON-based template data
+        // Return JSON-based template data
         select: {
           id: true,
           name: true,

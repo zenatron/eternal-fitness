@@ -1,4 +1,3 @@
-import { currentUser } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
@@ -54,8 +53,6 @@ export const GET = createApiHandler(async (userId) => {
 export const POST = createValidatedApiHandler(
   profileSchema,
   async (userId, validatedData) => {
-    const user = await currentUser();
-
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -66,7 +63,8 @@ export const POST = createValidatedApiHandler(
       throw new ApiError('Profile already exists. Use PUT to update.', 409);
     }
 
-    const email = user?.emailAddresses?.[0]?.emailAddress || '';
+    // Email can be provided later via PUT if needed; avoid extra auth fetch
+    const email = '';
 
     const createdUser = await prisma.user.create({
       data: {
@@ -133,9 +131,8 @@ export const PUT = createValidatedApiHandler(
         },
       });
     } else {
-      // User doesn't exist, create new user
-      const user = await currentUser();
-      const email = user?.emailAddresses?.[0]?.emailAddress || '';
+      // User doesn't exist, create new user (email optional to avoid extra auth call)
+      const email = '';
 
       updatedUser = await prisma.user.create({
         data: {

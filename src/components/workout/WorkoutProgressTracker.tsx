@@ -176,8 +176,8 @@ export default function WorkoutProgressTracker({
 
   // Update parent component when progress changes
   useEffect(() => {
-    console.log('🎯 WorkoutProgressTracker: Performance calculation effect running');
-    console.log('🎯 exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
+    console.log(' WorkoutProgressTracker: Performance calculation effect running');
+    console.log(' exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
 
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
 
@@ -219,8 +219,8 @@ export default function WorkoutProgressTracker({
 
     // Only update if performance has actually changed
     const performanceString = JSON.stringify(performance);
-    console.log('🎯 Calculated performance:', JSON.stringify(performance, null, 2));
-    console.log('🎯 Performance string comparison:', {
+    console.log(' Calculated performance:', JSON.stringify(performance, null, 2));
+    console.log(' Performance string comparison:', {
       current: performanceString,
       last: lastPerformanceRef.current,
       different: performanceString !== lastPerformanceRef.current
@@ -228,7 +228,7 @@ export default function WorkoutProgressTracker({
 
     if (performanceString !== lastPerformanceRef.current) {
       lastPerformanceRef.current = performanceString;
-      console.log('🎯 Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
+      console.log(' Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
       onPerformanceUpdateRef.current(performance);
     }
   }, [exerciseProgress, modifiedTemplate.exercises]); // Removed onPerformanceUpdate from dependencies

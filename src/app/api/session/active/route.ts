@@ -1,9 +1,7 @@
-import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 import { 
-  ActiveWorkoutSessionData, 
-  ActiveSessionUpdatePayload,
+  ActiveWorkoutSessionData,
   WorkoutTemplateData 
 } from '@/types/workout';
 import { z } from 'zod';

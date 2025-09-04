@@ -1,5 +1,3 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { getUserAchievements, updateUserAchievements } from '@/lib/achievements';
 import { createApiHandler } from '@/lib/api-utils';
 

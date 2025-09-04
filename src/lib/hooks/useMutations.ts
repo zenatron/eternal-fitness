@@ -1,6 +1,3 @@
-// 🚀 STREAMLINED MUTATIONS
-// Re-export from the new unified hooks
-
 export {
   useCreateTemplate,
   useUpdateTemplate,
@@ -25,9 +22,9 @@ export {
   useDeleteProfile
 } from './profile-hooks';
 
-import { WorkoutTemplate, WorkoutType, Difficulty } from '@/types/workout';
+import { WorkoutType, Difficulty } from '@/types/workout';
 
-// 🚀 TEMPLATE INPUT DATA TYPES
+// TEMPLATE INPUT DATA TYPES
 export interface TemplateInputData {
   name: string;
   description?: string;

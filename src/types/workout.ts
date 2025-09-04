@@ -47,7 +47,7 @@ export enum SetType {
 // JSON WORKOUT DATA STRUCTURES
 // ============================================================================
 
-// 🎯 WORKOUT TEMPLATE JSON STRUCTURE
+//  WORKOUT TEMPLATE JSON STRUCTURE
 export interface WorkoutTemplateData {
   metadata: {
     name: string;
@@ -158,7 +158,7 @@ export interface ProgressionRule {
 // WORKOUT SESSION PERFORMANCE DATA
 // ============================================================================
 
-// 🎯 WORKOUT SESSION PERFORMANCE JSON STRUCTURE
+//  WORKOUT SESSION PERFORMANCE JSON STRUCTURE
 export interface WorkoutSessionData {
   // Snapshot of template at time of workout (for historical accuracy)
   templateSnapshot: WorkoutTemplateData;

@@ -51,7 +51,7 @@ export function countUniqueExercises(template: WorkoutTemplate): number {
 /**
  * Gets total sets count for a template
  */
-export function getTotalSetsCount(template: WorkoutTemplate): number {
+export function getTotalSetsCount(template: Pick<WorkoutTemplate, 'workoutData'>): number {
   if (!template.workoutData?.exercises) return 0;
   
   return template.workoutData.exercises.reduce((total, exercise) => {

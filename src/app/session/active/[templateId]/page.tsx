@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
-import { ExercisePerformance } from '@/types/workout';
+import { ExercisePerformance, WorkoutTemplateData } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
 import {
   useActiveWorkout,
@@ -36,26 +36,7 @@ export default function ActiveSessionPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const scheduledSessionId = searchParams.get('scheduledSessionId');
-
-  // Handle case where templateId is undefined or invalid
-  if (!templateId || templateId === 'undefined') {
-    return (
-      <div className="min-h-screen app-bg py-12 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
-            <h2 className="font-semibold mb-2">Invalid Session</h2>
-            <p>This workout session appears to be corrupted or invalid.</p>
-            <button
-              onClick={() => router.push('/templates')}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Go to Templates
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isInvalidTemplateId = !templateId || templateId === 'undefined';
 
   const {
     data: template,
@@ -119,28 +100,22 @@ export default function ActiveSessionPage({
   // Function to manually start a workout
   const handleStartWorkout = useCallback(async () => {
     if (!template) return;
-
-    try {
-      await startWorkoutMutation.mutateAsync({
-        templateId: template.id,
-        templateName: template.name,
-        template: template.workoutData
-      });
-    } catch (error) {
-      console.error('Failed to start workout:', error);
-      // Handle error - maybe show a toast notification
-    }
+    await startWorkoutMutation.mutateAsync({
+      templateId: template.id,
+      templateName: template.name,
+      template: template.workoutData
+    });
   }, [template, startWorkoutMutation]);
 
   // No more state synchronization needed - everything comes from activeWorkout directly
 
-  const handleTemplateModification = useCallback((newTemplate: any) => {
+  const handleTemplateModification = useCallback((newTemplate: WorkoutTemplateData) => {
     updateWorkoutMutation.mutate({ modifiedTemplate: newTemplate });
     setShowSaveTemplatePrompt(true);
   }, [updateWorkoutMutation]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
+    console.log(' Performance update received:', JSON.stringify(performance, null, 2));
     updateWorkoutMutation.mutate({ performance });
   }, [updateWorkoutMutation]);
 
@@ -349,6 +324,25 @@ export default function ActiveSessionPage({
   };
 
   const isLoading = templateLoading || profileLoading || isActiveWorkoutLoading;
+
+  if (isInvalidTemplateId) {
+    return (
+      <div className="min-h-screen app-bg py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
+            <h2 className="font-semibold mb-2">Invalid Session</h2>
+            <p>This workout session appears to be corrupted or invalid.</p>
+            <button
+              onClick={() => router.push('/templates')}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Go to Templates
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
