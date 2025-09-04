@@ -48,6 +48,8 @@ export default function ActiveSessionPage({
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [draftNotes, setDraftNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
   // Active workout state management with timer functionality
@@ -119,9 +121,26 @@ export default function ActiveSessionPage({
     updateWorkoutMutation.mutate({ performance });
   }, [updateWorkoutMutation]);
 
-  const handleNotesUpdate = useCallback((notes: string) => {
-    updateWorkoutMutation.mutate({ sessionNotes: notes });
-  }, [updateWorkoutMutation]);
+  useEffect(() => {
+    setDraftNotes(activeWorkout?.sessionNotes || '');
+  }, [activeWorkout?.sessionNotes]);
+
+  const isNotesDirty = (draftNotes || '') !== (activeWorkout?.sessionNotes || '');
+
+  const handleSaveNotes = async () => {
+    if (!isNotesDirty) return;
+    try {
+      setIsSavingNotes(true);
+      await updateWorkoutMutation.mutateAsync({ sessionNotes: draftNotes });
+      setSaveMessage('Notes saved');
+      setTimeout(() => setSaveMessage(''), 1500);
+    } catch (e) {
+      console.error('Failed to save notes', e);
+      setSaveMessage('Error: Failed to save notes');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   const toggleTimer = useCallback(() => {
     if (activeWorkout) {
@@ -671,12 +690,25 @@ export default function ActiveSessionPage({
               <textarea
                 id="sessionNotes"
                 rows={4}
-                value={activeWorkout?.sessionNotes || ''}
-                onChange={(e) => handleNotesUpdate(e.target.value)}
+                value={draftNotes}
+                onChange={(e) => setDraftNotes(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none transition-all duration-200"
                 placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
-                disabled={isSaving}
+                disabled={isSaving || isSavingNotes}
               />
+              <div className="mt-3 flex items-center justify-end gap-3">
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={!isNotesDirty || isSavingNotes}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    !isNotesDirty || isSavingNotes
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
+                >
+                  {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>

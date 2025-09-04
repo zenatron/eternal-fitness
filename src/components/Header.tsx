@@ -4,13 +4,11 @@ import Link from 'next/link';
 import ThemeSwitch from './theme/ThemeSwitch';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SignedIn, UserButton } from '@clerk/nextjs';
-import { useTheme } from 'next-themes';
-import { dark } from '@clerk/themes';
+import { SignedIn } from '@clerk/nextjs';
+import { UserCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { resolvedTheme } = useTheme();
 
   const menuVariants = {
     closed: {
@@ -49,15 +47,24 @@ export function Header() {
       </div>
 
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex items-center space-x-6">
+      <nav className="hidden md:flex items-center space-x-4">
         <SignedIn>
-          <UserButton
-            userProfileMode="navigation"
-            userProfileUrl="/profile"
-            appearance={{
-              baseTheme: resolvedTheme === 'dark' ? dark : undefined,
-            }}
-          />
+          <Link
+            href="/profile"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Go to Profile"
+          >
+            <UserCircleIcon className="w-5 h-5" />
+            <span className="hidden lg:inline">Profile</span>
+          </Link>
+          <Link
+            href="/account"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Go to Account"
+          >
+            <Cog6ToothIcon className="w-5 h-5" />
+            <span className="hidden lg:inline">Account</span>
+          </Link>
         </SignedIn>
         <ThemeSwitch />
       </nav>
@@ -108,13 +115,22 @@ export function Header() {
             >
               <div className="flex flex-col space-y-6">
                 <SignedIn>
-                  <UserButton
-                    userProfileMode="navigation"
-                    userProfileUrl="/profile"
-                    appearance={{
-                      baseTheme: resolvedTheme === 'dark' ? dark : undefined,
-                    }}
-                  />
+                  <Link
+                    href="/profile"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    aria-label="Go to Profile"
+                  >
+                    <UserCircleIcon className="w-5 h-5" />
+                    <span>Profile</span>
+                  </Link>
+                  <Link
+                    href="/account"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    aria-label="Go to Account"
+                  >
+                    <Cog6ToothIcon className="w-5 h-5" />
+                    <span>Account</span>
+                  </Link>
                 </SignedIn>
                 <div className="pt-4 border-t border-gray-700">
                   <ThemeSwitch />

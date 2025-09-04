@@ -171,9 +171,20 @@ function ProfileContent() {
 
         {/* Enhanced Profile Header */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8">
-          <div className="relative bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-12 text-white">
+          <div className="relative bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-6 py-6 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative">
+              {/* Edit profile control (flow layout) */}
+              <div className="mb-4">
+                <Link
+                  href="/profile/edit"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  aria-label="Edit Profile"
+                >
+                  <Cog6ToothIcon className="w-4 h-4" />
+                  <span className="text-sm">Edit Profile</span>
+                </Link>
+              </div>
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-center gap-6">
                   <div className="relative">
@@ -203,13 +214,6 @@ function ProfileContent() {
                     <p className="text-sm text-slate-100">Points</p>
                     <p className="text-2xl font-bold">{profile?.points || 0}</p>
                   </div>
-                  <Link
-                    href="/profile/edit"
-                    className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm"
-                    aria-label="Edit Profile"
-                  >
-                    <Cog6ToothIcon className="w-6 h-6" />
-                  </Link>
                 </div>
               </div>
 
@@ -244,6 +248,7 @@ function ProfileContent() {
                   </div>
                 )}
               </div>
+              
             </div>
           </div>
 
