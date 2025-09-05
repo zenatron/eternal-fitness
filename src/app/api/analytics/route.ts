@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { createApiHandler, ApiError } from '@/lib/api-utils';
+import { Prisma } from '@prisma/client';
 
 // ADVANCED JSON ANALYTICS QUERIES
 export const GET = createApiHandler(async (userId, request) => {
@@ -28,9 +29,26 @@ export const GET = createApiHandler(async (userId, request) => {
       case 'template-performance':
         return await getTemplatePerformanceAnalytics(userId);
       default:
-        throw new Error('Invalid analytics type');
+        throw new ApiError('Invalid analytics type', 400);
     }
 });
+
+function buildDateFilter(startDate?: string | null, endDate?: string | null, defaultDays: number = 90) {
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      // Parameterized BETWEEN clause using Date bindings
+      return Prisma.sql`AND completed_at BETWEEN ${start} AND ${end}`;
+    }
+  }
+  // Safe default interval using bound integer multiplied by 1 day interval
+  return Prisma.sql`AND completed_at >= NOW() - (${defaultDays} * INTERVAL '1 day')`;
+}
+
+function buildMuscleFilter(muscleGroup?: string | null) {
+  return muscleGroup ? Prisma.sql`AND muscle_group = ${muscleGroup}` : Prisma.sql``;
+}
 
 // OVERVIEW ANALYTICS
 async function getOverviewAnalytics(userId: string) {
@@ -123,9 +141,7 @@ async function getOverviewAnalytics(userId: string) {
 
 //  EXERCISE PROGRESSION ANALYTICS
 async function getExerciseProgression(userId: string, exerciseKey: string, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'90 days\'';
+  const dateFilter = buildDateFilter(startDate, endDate, 90);
 
   //  COMPLEX JSONB QUERY - Exercise progression over time
   const progression = await prisma.$queryRaw`
@@ -182,13 +198,8 @@ async function getExerciseProgression(userId: string, exerciseKey: string, start
 
 // MUSCLE GROUP VOLUME ANALYTICS
 async function getMuscleGroupVolumeAnalytics(userId: string, muscleGroup?: string | null, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'30 days\'';
-
-  const muscleFilter = muscleGroup 
-    ? `AND muscle_group = '${muscleGroup}'`
-    : '';
+  const dateFilter = buildDateFilter(startDate, endDate, 30);
+  const muscleFilter = buildMuscleFilter(muscleGroup);
 
   //  MUSCLE GROUP VOLUME TRENDS
   const volumeTrends = await prisma.$queryRaw`
@@ -226,9 +237,7 @@ async function getMuscleGroupVolumeAnalytics(userId: string, muscleGroup?: strin
 
 // WORKOUT FREQUENCY ANALYTICS
 async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'90 days\'';
+  const dateFilter = buildDateFilter(startDate, endDate, 90);
 
   //  WORKOUT FREQUENCY BY DAY OF WEEK
   const frequencyByDay = await prisma.$queryRaw`

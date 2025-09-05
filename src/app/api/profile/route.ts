@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
+import { currentUser } from '@clerk/nextjs/server';
 
 // Zod schema for profile (POST)
 const profileSchema = z.object({
@@ -63,8 +64,12 @@ export const POST = createValidatedApiHandler(
       throw new ApiError('Profile already exists. Use PUT to update.', 409);
     }
 
-    // Email can be provided later via PUT if needed; avoid extra auth fetch
-    const email = '';
+    // Fetch email from authenticated user; required to satisfy schema
+    const clerkUser = await currentUser();
+    const email = clerkUser?.emailAddresses?.[0]?.emailAddress || null;
+    if (!email) {
+      throw new ApiError('Email is required to create a profile', 400);
+    }
 
     const createdUser = await prisma.user.create({
       data: {
@@ -75,6 +80,7 @@ export const POST = createValidatedApiHandler(
         gender: validatedData.gender ?? null,
         height: validatedData.height ?? null,
         weight: validatedData.weight ?? null,
+        useMetric: validatedData.useMetric ?? true,
         points: 0,
       },
     });
@@ -131,8 +137,12 @@ export const PUT = createValidatedApiHandler(
         },
       });
     } else {
-      // User doesn't exist, create new user (email optional to avoid extra auth call)
-      const email = '';
+      // User doesn't exist, create new user; require email from auth
+      const clerkUser = await currentUser();
+      const email = clerkUser?.emailAddresses?.[0]?.emailAddress || null;
+      if (!email) {
+        throw new ApiError('Email is required to create a profile', 400);
+      }
 
       updatedUser = await prisma.user.create({
         data: {
@@ -176,16 +186,8 @@ export const PUT = createValidatedApiHandler(
   }
 );
 
-export const DELETE = createApiHandler(async (userId, request) => {
-  const url = new URL(request.url);
-  const userIdParam = url.searchParams.get('userId');
-
-  // Allow internal calls with userId param, otherwise use authenticated user
-  const userIdToDelete = userIdParam || userId;
-
-  console.log(userIdParam ? '[Internal]' : '[User]', 'DELETE profile requested for:', userIdToDelete);
-
-  return await deleteUserById(userIdToDelete);
+export const DELETE = createApiHandler(async (userId) => {
+  return await deleteUserById(userId);
 });
 
 // --- Reusable User Deletion Logic ---

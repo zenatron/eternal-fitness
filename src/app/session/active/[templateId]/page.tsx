@@ -17,13 +17,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance, WorkoutTemplateData } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
+import type { ExerciseProgress as TrackerExerciseProgress } from '@/components/workout/WorkoutProgressTracker';
+import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 import {
-  useActiveWorkout,
   useStartSession,
   useUpdateActiveSession,
   useCompleteSession,
   useCancelSession,
-} from '@/lib/hooks/useActiveWorkout';
+} from '@/lib/hooks/session-hooks';
 
 
 
@@ -71,7 +72,7 @@ export default function ActiveSessionPage({
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
 
   // Recovery function for session management
-  const recoverSession = useCallback(async (templateId: string, forceRecover = false) => {
+  const recoverSession = useCallback(async (templateId: string) => {
     try {
       // For now, just cancel any existing session and let user start fresh
       if (activeWorkout && activeWorkout.templateId !== templateId) {
@@ -89,7 +90,7 @@ export default function ActiveSessionPage({
       if (hasActiveWorkout && activeWorkout?.templateId !== template.id) {
         // Active workout is for a different template, try to recover
         console.warn('Active workout is for a different template. Current:', activeWorkout?.templateId, 'Expected:', template.id);
-        recoverSession(template.id, true).catch((error) => {
+        recoverSession(template.id).catch((error) => {
           console.error('Failed to recover session:', error);
           // If recovery fails, we'll let the user manually start a new workout
         });
@@ -151,7 +152,8 @@ export default function ActiveSessionPage({
     }
   }, [activeWorkout, updateWorkoutMutation]);
 
-  const updateExerciseProgress = useCallback((fullExerciseProgress: any) => {
+  type ExerciseProgressMap = Record<string, TrackerExerciseProgress>;
+  const updateExerciseProgress = useCallback((fullExerciseProgress: ExerciseProgressMap) => {
     updateWorkoutMutation.mutate({
       exerciseProgress: fullExerciseProgress,
     });

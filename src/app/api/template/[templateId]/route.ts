@@ -1,6 +1,6 @@
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
-import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
+import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import {
   createWorkoutTemplate,
@@ -68,7 +68,7 @@ export const GET = createApiHandler(async (userId, request, params) => {
 
   // Validate templateId
   if (!templateId || templateId === 'undefined') {
-    throw new Error('Invalid template ID provided');
+    throw new ApiError('Invalid template ID provided', 400);
   }
 
     //  FETCH JSON-BASED TEMPLATE
@@ -96,7 +96,7 @@ export const GET = createApiHandler(async (userId, request, params) => {
     });
 
   if (!template) {
-    throw new Error('Template not found or access denied');
+    throw new ApiError('Template not found or access denied', 404);
   }
 
   console.log(`✅ Fetched JSON-based template: ${template.name} (${template.id})`);
@@ -111,7 +111,7 @@ export const PUT = createValidatedApiHandler(
 
     // Validate templateId
     if (!templateId || templateId === 'undefined') {
-      throw new Error('Invalid template ID provided');
+      throw new ApiError('Invalid template ID provided', 400);
     }
 
     // Debug: Log the incoming request body
@@ -148,7 +148,7 @@ export const PUT = createValidatedApiHandler(
     // Validate the created workout data
     const isValid = validateWorkoutTemplate(workoutData);
     if (!isValid) {
-      throw new Error('Invalid workout template structure');
+      throw new ApiError('Invalid workout template structure', 400);
     }
 
     // Calculate computed fields
@@ -200,7 +200,7 @@ export const DELETE = createApiHandler(async (userId, request, params) => {
 
   // Validate templateId
   if (!templateId || templateId === 'undefined') {
-    throw new Error('Invalid template ID provided');
+    throw new ApiError('Invalid template ID provided', 400);
   }
 
     // Use a transaction for atomicity, although deleting dependencies first is key
@@ -212,7 +212,7 @@ export const DELETE = createApiHandler(async (userId, request, params) => {
       });
 
       if (!existingTemplate) {
-        throw new Error('TemplateNotFound'); // Abort transaction
+        throw new ApiError('Template not found', 404); // Abort transaction
       }
 
       // 🚀 JSON-BASED DELETION - Much simpler!

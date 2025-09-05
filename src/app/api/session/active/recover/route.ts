@@ -1,25 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { createValidatedApiHandler } from '@/lib/api-utils';
+import { createValidatedApiHandler, ApiError } from '@/lib/api-utils';
 import { 
   ActiveWorkoutSessionData, 
   WorkoutTemplateData 
 } from '@/types/workout';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
-// Strongly-typed error for session recovery issues
-class SessionRecoveryError extends Error {
-  details: {
-    issues: string[];
-    canRecover: boolean;
-    suggestion: string;
-  };
-
-  constructor(message: string, details: { issues: string[]; canRecover: boolean; suggestion: string }) {
-    super(message);
+// Strongly-typed error for session recovery issues (propagates as 4xx ApiError)
+class SessionRecoveryError extends ApiError {
+  constructor(
+    message: string,
+    details: { issues: string[]; canRecover: boolean; suggestion: string },
+    status: number = 422
+  ) {
+    super(message, status, details);
     this.name = 'SessionRecoveryError';
-    this.details = details;
   }
 }
 
@@ -51,7 +47,7 @@ export const POST = createValidatedApiHandler(
     });
 
     if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-      throw new Error('No active workout session found to recover');
+      throw new ApiError('No active workout session found to recover', 404);
     }
 
     // Local type for JSON shape where date-like fields may be strings
@@ -62,25 +58,37 @@ export const POST = createValidatedApiHandler(
     };
 
     // Type guard to validate active workout session JSON data (accepts string or Date for date fields)
-    const isActiveWorkoutSessionDataInput = (data: any): data is ActiveWorkoutSessionDataInput => {
+    const isActiveWorkoutSessionDataInput = (data: unknown): data is ActiveWorkoutSessionDataInput => {
       if (!data || typeof data !== 'object') return false;
-      if (typeof (data as any).templateId !== 'string') return false;
-      if (typeof (data as any).templateName !== 'string') return false;
-      const originalTemplate = (data as any).originalTemplate;
+      const d = data as Record<string, unknown>;
+
+      if (typeof d.templateId !== 'string') return false;
+      if (typeof d.templateName !== 'string') return false;
+
+      const originalTemplate = (d as Record<string, unknown>).originalTemplate as unknown;
       if (!originalTemplate || typeof originalTemplate !== 'object') return false;
-      const exercises = (originalTemplate as any).exercises;
-      if (!Array.isArray(exercises)) return false;
-      if (typeof (data as any).isTimerActive !== 'boolean') return false;
-      if (typeof (data as any).performance !== 'object' || (data as any).performance == null) return false;
-      if (typeof (data as any).exerciseProgress !== 'object' || (data as any).exerciseProgress == null) return false;
-      if (typeof (data as any).version !== 'number') return false;
-      if (!(typeof (data as any).startedAt === 'string' || (data as any).startedAt instanceof Date)) return false;
+      const ot = originalTemplate as Record<string, unknown>;
+      if (!Array.isArray(ot.exercises)) return false;
+
+      if (typeof d.isTimerActive !== 'boolean') return false;
+
+      const performance = d.performance as unknown;
+      if (typeof performance !== 'object' || performance === null) return false;
+
+      const exerciseProgress = d.exerciseProgress as unknown;
+      if (typeof exerciseProgress !== 'object' || exerciseProgress === null) return false;
+
+      if (typeof d.version !== 'number') return false;
+
+      const startedAt = d.startedAt as unknown;
+      if (!(typeof startedAt === 'string' || startedAt instanceof Date)) return false;
+
       return true;
     };
 
     const rawSessionData = userStats.activeWorkoutData;
     if (!isActiveWorkoutSessionDataInput(rawSessionData)) {
-      throw new Error('Invalid active workout session data structure');
+      throw new ApiError('Invalid active workout session data structure', 400);
     }
 
     // Use the data as-is to avoid JSON date normalization issues
@@ -116,11 +124,15 @@ export const POST = createValidatedApiHandler(
 
     // If there are issues and force recover is not enabled, throw error with details
     if (issues.length > 0 && !forceRecover) {
-      throw new SessionRecoveryError('Session data integrity issues found', {
-        issues,
-        canRecover: !!template,
-        suggestion: 'Use forceRecover=true to attempt recovery or clear the session',
-      });
+      throw new SessionRecoveryError(
+        'Session data integrity issues found',
+        {
+          issues,
+          canRecover: !!template,
+          suggestion: 'Use forceRecover=true to attempt recovery or clear the session',
+        },
+        422
+      );
     }
 
     // Attempt recovery if template exists
@@ -154,7 +166,7 @@ export const POST = createValidatedApiHandler(
         where: { userId },
         data: {
           activeWorkoutId: template.id,
-          activeWorkoutData: recoveredSessionData as any,
+          activeWorkoutData: recoveredSessionData as unknown as Prisma.InputJsonValue,
           activeWorkoutStartedAt: recoveredSessionData.startedAt,
         },
       });
@@ -172,7 +184,7 @@ export const POST = createValidatedApiHandler(
       where: { userId },
       data: {
         activeWorkoutId: null,
-        activeWorkoutData: null as any,
+        activeWorkoutData: null as unknown as Prisma.InputJsonValue,
         activeWorkoutStartedAt: null,
       },
     });

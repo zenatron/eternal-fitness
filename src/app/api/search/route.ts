@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { createApiHandler } from '@/lib/api-utils';
+import { createApiHandler, ApiError } from '@/lib/api-utils';
 import { WorkoutTemplate, WorkoutSession, Exercise, UserAnalyticsData } from '@/types/workout';
 
 export const GET = createApiHandler(async (userId, request) => {
@@ -11,10 +11,11 @@ export const GET = createApiHandler(async (userId, request) => {
     const equipment = searchParams.get('equipment');
     const difficulty = searchParams.get('difficulty');
     const workoutType = searchParams.get('workoutType');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const parsedLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 20));
 
     if (!query && !muscleGroup && !equipment && !difficulty && !workoutType) {
-      throw new Error('At least one search parameter is required');
+      throw new ApiError('At least one search parameter is required', 400);
     }
 
     const results: {

@@ -53,7 +53,7 @@ interface SetProgress {
   restTime?: number;
 }
 
-interface ExerciseProgress {
+export interface ExerciseProgress {
   exerciseId: string;
   sets: SetProgress[];
   exerciseNotes?: string;

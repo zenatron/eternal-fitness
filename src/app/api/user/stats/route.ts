@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { UserPersonalRecords } from '@/types/personalRecords';
 import { createApiHandler } from '@/lib/api-utils';
+import { Prisma } from '@prisma/client';
 
 // Helper function to convert stored PR data to display format
 function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
@@ -81,7 +82,7 @@ export const GET = createApiHandler(async (userId) => {
       where: {
         userId,
         completedAt: { not: null },
-        performanceData: { not: null as any }
+        performanceData: { not: Prisma.DbNull }
       },
       select: {
         id: true,

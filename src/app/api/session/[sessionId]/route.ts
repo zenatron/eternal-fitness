@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
+import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
 
 // --- Zod Schema for PUT ---
 const updateSessionSchema = z.object({
@@ -42,7 +42,7 @@ export const GET = createApiHandler(async (userId, request, params) => {
   });
 
   if (!session) {
-    throw new Error('Session not found or access denied');
+    throw new ApiError('Session not found', 404);
   }
 
   return session;
@@ -64,7 +64,7 @@ export const PUT = createValidatedApiHandler(
     });
 
     if (!existingSession) {
-      throw new Error('Session not found or access denied');
+      throw new ApiError('Session not found', 404);
     }
 
     // Construct the update data carefully
@@ -122,7 +122,7 @@ export const DELETE = createApiHandler(async (userId, request, params) => {
   // Check if any record was actually deleted
   if (deleteResult.count === 0) {
     // This means the session either didn't exist or didn't belong to the user
-    throw new Error('Session not found or access denied');
+    throw new ApiError('Session not found', 404);
   }
 
   // Successfully deleted - return empty object for consistency

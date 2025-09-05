@@ -63,7 +63,7 @@ const createSessionSchema = z.object({
 });
 
 const completeScheduledSessionSchema = z.object({
-  scheduledSessionId: z.string().cuid(),
+  scheduledSessionId: z.string().uuid(),
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
   performance: z.record(z.string(), exercisePerformanceSchema),
@@ -153,7 +153,13 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
     }
 
     // Convert performance data to the expected format
-    const convertedPerformance = convertExerciseProgressToPerformance(performance, templateData);
+    const performanceWithIds = Object.fromEntries(
+      Object.entries(performance).map(([exerciseId, perf]) => [
+        exerciseId,
+        { ...perf, exerciseId },
+      ])
+    );
+    const convertedPerformance = convertExerciseProgressToPerformance(performanceWithIds as any, templateData);
     const sessionData = createWorkoutSession(templateData, convertedPerformance);
     
     if (!validateWorkoutSession(sessionData)) {
@@ -250,7 +256,13 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
   }
 
   const templateData = scheduledSession.workoutTemplate.workoutData as unknown as WorkoutTemplateData;
-  const convertedPerformance = convertExerciseProgressToPerformance(performance, templateData);
+  const performanceWithIds = Object.fromEntries(
+    Object.entries(performance).map(([exerciseId, perf]) => [
+      exerciseId,
+      { ...perf, exerciseId },
+    ])
+  );
+  const convertedPerformance = convertExerciseProgressToPerformance(performanceWithIds as any, templateData);
   const sessionData = createWorkoutSession(templateData, convertedPerformance);
 
   if (!validateWorkoutSession(sessionData)) {

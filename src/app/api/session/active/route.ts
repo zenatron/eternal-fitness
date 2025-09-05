@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
-import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
+import { Prisma } from '@prisma/client';
+import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
 import { 
   ActiveWorkoutSessionData,
   WorkoutTemplateData 
@@ -80,7 +81,7 @@ export const POST = createValidatedApiHandler(
     });
 
     if (existingUserStats?.activeWorkoutId) {
-      throw new Error('User already has an active workout session');
+      throw new ApiError('User already has an active workout session', 409);
     }
 
     // Verify the template exists and belongs to the user
@@ -89,7 +90,7 @@ export const POST = createValidatedApiHandler(
     });
 
     if (!workoutTemplate) {
-      throw new Error('Template not found or not owned by user');
+      throw new ApiError('Template not found or not owned by user', 404);
     }
 
     const now = new Date();
@@ -112,13 +113,13 @@ export const POST = createValidatedApiHandler(
       where: { userId },
       update: {
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData as any,
+        activeWorkoutData: activeSessionData as unknown as Prisma.InputJsonValue,
         activeWorkoutStartedAt: now,
       },
       create: {
         userId,
         activeWorkoutId: templateId,
-        activeWorkoutData: activeSessionData as any,
+        activeWorkoutData: activeSessionData as unknown as Prisma.InputJsonValue,
         activeWorkoutStartedAt: now,
         totalWorkouts: 0,
         totalSets: 0,
@@ -157,20 +158,20 @@ export const PATCH = createValidatedApiHandler(
     });
 
     if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
-      throw new Error('No active workout session found');
+      throw new ApiError('No active workout session found', 404);
     }
 
     const currentSessionData = userStats.activeWorkoutData as unknown as ActiveWorkoutSessionData;
     const now = new Date();
 
     // Check for version conflicts (optimistic locking)
-    if (updateData.version && updateData.version !== currentSessionData.version) {
-      throw new Error('Session data has been modified by another client');
+    if (typeof updateData.version !== 'undefined' && updateData.version !== currentSessionData.version) {
+      throw new ApiError('Session data has been modified by another client', 409);
     }
 
     // Validate session data integrity
     if (!currentSessionData.templateId || !currentSessionData.originalTemplate) {
-      throw new Error('Invalid session data structure');
+      throw new ApiError('Invalid session data structure', 400);
     }
 
     // Merge updates with current session data
@@ -186,7 +187,7 @@ export const PATCH = createValidatedApiHandler(
     await prisma.userStats.update({
       where: { userId },
       data: {
-        activeWorkoutData: updatedSessionData as any,
+        activeWorkoutData: updatedSessionData as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -207,7 +208,7 @@ export const DELETE = createApiHandler(async (userId) => {
     where: { userId },
     data: {
       activeWorkoutId: null,
-      activeWorkoutData: null as any,
+      activeWorkoutData: Prisma.DbNull,
       activeWorkoutStartedAt: null,
     },
   });

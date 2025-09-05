@@ -9,17 +9,21 @@ import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
-// Runtime type guard for WorkoutTemplateData
-function isWorkoutTemplateData(data: any): data is WorkoutTemplateData {
+// Runtime type guard for WorkoutTemplateData (unknown-safe)
+function isWorkoutTemplateData(data: unknown): data is WorkoutTemplateData {
   if (!data || typeof data !== 'object') return false;
-  const md = (data as any).metadata;
-  const exercises = (data as any).exercises;
-  if (!md || typeof md !== 'object' || typeof md.name !== 'string') return false;
-  if (!Array.isArray(exercises)) return false;
-  for (const ex of exercises) {
+  const d = data as Record<string, unknown>;
+  const md = d.metadata as unknown;
+  if (!md || typeof md !== 'object') return false;
+  const mdObj = md as Record<string, unknown>;
+  if (typeof mdObj.name !== 'string') return false;
+  const exercisesUnknown = d.exercises as unknown;
+  if (!Array.isArray(exercisesUnknown)) return false;
+  for (const ex of exercisesUnknown) {
     if (!ex || typeof ex !== 'object') return false;
-    if (typeof (ex as any).exerciseKey !== 'string') return false;
-    if (!Array.isArray((ex as any).sets)) return false;
+    const exObj = ex as Record<string, unknown>;
+    if (typeof exObj.exerciseKey !== 'string') return false;
+    if (!Array.isArray(exObj.sets as unknown)) return false;
   }
   return true;
 }
@@ -186,7 +190,7 @@ export const POST = createValidatedApiHandler(
         where: { userId: userId },
         update: {
           totalWorkouts: { increment: 1 },
-          totalVolume: { increment: sessionTotalVolume },
+          totalVolume: { increment: actualTotalVolume },
           totalTrainingHours: { increment: duration ? duration / 60 : 0 },
           lastWorkoutAt: completionTime,
           currentStreak: newStreak,
@@ -195,7 +199,7 @@ export const POST = createValidatedApiHandler(
         create: {
           userId: userId,
           totalWorkouts: 1,
-          totalVolume: sessionTotalVolume,
+          totalVolume: actualTotalVolume,
           totalTrainingHours: duration ? duration / 60 : 0,
           lastWorkoutAt: completionTime,
           currentStreak: 1,
@@ -212,7 +216,7 @@ export const POST = createValidatedApiHandler(
         },
         update: {
           workoutsCount: { increment: 1 },
-          volume: { increment: sessionTotalVolume },
+          volume: { increment: actualTotalVolume },
           trainingHours: { increment: duration ? duration / 60 : 0 },
         },
         create: {
@@ -220,7 +224,7 @@ export const POST = createValidatedApiHandler(
           year: currentYear,
           month: currentMonth,
           workoutsCount: 1,
-          volume: sessionTotalVolume,
+          volume: actualTotalVolume,
           trainingHours: duration ? duration / 60 : 0,
         },
       });
