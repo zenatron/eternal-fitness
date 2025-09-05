@@ -14,16 +14,18 @@ export const useDashboardConfig = () => {
     queryKey: ['dashboardConfig'],
     queryFn: async () => {
       const response = await fetch('/api/user/dashboard-config');
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           // No config found, return default
           return DEFAULT_DASHBOARD_CONFIG;
         }
-        throw new Error('Failed to fetch dashboard configuration');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || 'Failed to fetch dashboard configuration');
       }
-      
-      return response.json();
+
+      const result = await response.json();
+      return result.data; // Extract data from the new API response format
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -40,10 +42,12 @@ export const useDashboardConfig = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save dashboard configuration');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || 'Failed to save dashboard configuration');
       }
 
-      return response.json();
+      const result = await response.json();
+      return result.data; // Extract data from the new API response format
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboardConfig'] });

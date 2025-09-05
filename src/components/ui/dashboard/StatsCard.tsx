@@ -94,11 +94,11 @@ export function StatsCard({ data }: StatsCardProps) {
         <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 mb-4">
           <div className="flex justify-between items-center mb-2">
             <div>
-              <p className="font-medium text-gray-900 dark:text-white">Volume Progress</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">vs last month</p>
+              <p className="font-medium text-gray-900 dark:text-white">{"Volume Progress"}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">{"vs last month"}</p>
             </div>
             <p className="text-sm font-bold text-purple-600 dark:text-purple-400">
-              +{data.totalVolume.percentIncrease}%
+              {data.totalVolume.percentIncrease}%
             </p>
           </div>
           <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">

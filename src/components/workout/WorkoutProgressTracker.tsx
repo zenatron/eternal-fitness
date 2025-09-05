@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircleIcon,
@@ -53,7 +53,7 @@ interface SetProgress {
   restTime?: number;
 }
 
-interface ExerciseProgress {
+export interface ExerciseProgress {
   exerciseId: string;
   sets: SetProgress[];
   exerciseNotes?: string;
@@ -76,6 +76,7 @@ export default function WorkoutProgressTracker({
   const [hasModifications, setHasModifications] = useState(false);
   const isInitialized = useRef(false);
   const lastPerformanceRef = useRef<string>('');
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onPerformanceUpdateRef = useRef(onPerformanceUpdate);
   const onExerciseProgressUpdateRef = useRef(onExerciseProgressUpdate);
 
@@ -175,8 +176,8 @@ export default function WorkoutProgressTracker({
 
   // Update parent component when progress changes
   useEffect(() => {
-    console.log('🎯 WorkoutProgressTracker: Performance calculation effect running');
-    console.log('🎯 exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
+    console.log(' WorkoutProgressTracker: Performance calculation effect running');
+    console.log(' exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
 
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
 
@@ -218,8 +219,8 @@ export default function WorkoutProgressTracker({
 
     // Only update if performance has actually changed
     const performanceString = JSON.stringify(performance);
-    console.log('🎯 Calculated performance:', JSON.stringify(performance, null, 2));
-    console.log('🎯 Performance string comparison:', {
+    console.log(' Calculated performance:', JSON.stringify(performance, null, 2));
+    console.log(' Performance string comparison:', {
       current: performanceString,
       last: lastPerformanceRef.current,
       different: performanceString !== lastPerformanceRef.current
@@ -227,17 +228,48 @@ export default function WorkoutProgressTracker({
 
     if (performanceString !== lastPerformanceRef.current) {
       lastPerformanceRef.current = performanceString;
-      console.log('🎯 Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
+      console.log(' Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
       onPerformanceUpdateRef.current(performance);
     }
   }, [exerciseProgress, modifiedTemplate.exercises]); // Removed onPerformanceUpdate from dependencies
 
-  // Notify parent of exercise progress changes for persistence
-  useEffect(() => {
-    if (onExerciseProgressUpdateRef.current && Object.keys(exerciseProgress).length > 0) {
-      onExerciseProgressUpdateRef.current(exerciseProgress);
+  // Debounced function to update exercise progress
+  const debouncedUpdateExerciseProgress = useCallback((progress: { [exerciseId: string]: ExerciseProgress }) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
-  }, [exerciseProgress]); // Removed onExerciseProgressUpdate from dependencies
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (onExerciseProgressUpdateRef.current && Object.keys(progress).length > 0) {
+        onExerciseProgressUpdateRef.current(progress);
+      }
+    }, 1000); // 1 second debounce
+  }, []);
+
+  // Immediate update function for critical actions (set completion, etc.)
+  const immediateUpdateExerciseProgress = useCallback((progress: { [exerciseId: string]: ExerciseProgress }) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    if (onExerciseProgressUpdateRef.current && Object.keys(progress).length > 0) {
+      onExerciseProgressUpdateRef.current(progress);
+    }
+  }, []);
+
+  // Notify parent of exercise progress changes for persistence (debounced)
+  useEffect(() => {
+    if (Object.keys(exerciseProgress).length > 0) {
+      debouncedUpdateExerciseProgress(exerciseProgress);
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [exerciseProgress, debouncedUpdateExerciseProgress]);
 
   const updateSetProgress = (exerciseId: string, setId: string, updates: Partial<SetProgress>) => {
     setExerciseProgress(prev => ({
@@ -267,7 +299,7 @@ export default function WorkoutProgressTracker({
 
       const allSetsCompleted = updatedSets.every(set => set.completed || set.skipped);
 
-      return {
+      const newProgress = {
         ...prev,
         [exerciseId]: {
           ...prev[exerciseId],
@@ -275,6 +307,11 @@ export default function WorkoutProgressTracker({
           completed: allSetsCompleted,
         },
       };
+
+      // Immediately update for set completion changes (critical action)
+      immediateUpdateExerciseProgress(newProgress);
+
+      return newProgress;
     });
   };
 

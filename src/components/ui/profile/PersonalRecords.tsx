@@ -47,7 +47,7 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
         Personal Records
       </h3>
       <div className="space-y-3">
-        {stats.personalRecords.slice(0, 4).map((record, index) => (
+        {stats.personalRecords.slice(0, 4).map((record) => (
           <div
             key={`${record.exerciseKey}_${record.type}`}
             className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800"

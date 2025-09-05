@@ -55,14 +55,6 @@ export async function POST(req: Request) {
   console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
   console.log('Webhook payload:', body);
 
-  // TODO: remove this after testing
-  if (eventType === 'user.updated') {
-    const { email_addresses, first_name, last_name } = evt.data;
-    console.log(
-      `User updated: ${email_addresses}, ${first_name}, ${last_name}`,
-    );
-  }
-
   if (eventType === 'user.deleted') {
     // Extract the userId from the event data
     const userId = id as string;

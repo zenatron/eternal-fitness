@@ -4,27 +4,29 @@ import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutTemplateData } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { createApiHandler, createValidatedApiHandler } from '@/lib/api-utils';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
-  // 201 for creating session
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}/complete]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
+// Runtime type guard for WorkoutTemplateData (unknown-safe)
+function isWorkoutTemplateData(data: unknown): data is WorkoutTemplateData {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  const md = d.metadata as unknown;
+  if (!md || typeof md !== 'object') return false;
+  const mdObj = md as Record<string, unknown>;
+  if (typeof mdObj.name !== 'string') return false;
+  const exercisesUnknown = d.exercises as unknown;
+  if (!Array.isArray(exercisesUnknown)) return false;
+  for (const ex of exercisesUnknown) {
+    if (!ex || typeof ex !== 'object') return false;
+    const exObj = ex as Record<string, unknown>;
+    if (typeof exObj.exerciseKey !== 'string') return false;
+    if (!Array.isArray(exObj.sets as unknown)) return false;
+  }
+  return true;
+}
 
 // --- Zod Schema for POST Request ---
 const completeTemplateSchema = z.object({
@@ -49,35 +51,10 @@ const completeTemplateSchema = z.object({
   })).optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ templateId: string }> },
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
-
-    const { templateId } = await params;
-    let body = {}; // Default to empty object if no body is expected/sent
-    try {
-      // Try to parse body, but allow empty body
-      const text = await request.text();
-      if (text) {
-        body = JSON.parse(text);
-      }
-    } catch (e) {
-      // Ignore JSON parse error if body is empty or malformed, Zod will catch it
-    }
-
-    // Validate request body (even if empty)
-    const validationResult = completeTemplateSchema.safeParse(body);
-    if (!validationResult.success) {
-      return errorResponse('Invalid input', 400, validationResult.error.errors);
-    }
-
-    const { duration, notes, performance } = validationResult.data;
+export const POST = createValidatedApiHandler(
+  completeTemplateSchema,
+  async (userId, { duration, notes, performance }, request, params) => {
+    const { templateId } = params;
 
     // --- Transaction ---
     const newSession = await prisma.$transaction(async (tx) => {
@@ -101,7 +78,9 @@ export async function POST(
 
       // 2. Create the WorkoutSession record with required performanceData
       const templateData = template.workoutData;
-      const totalSets = getTotalSetsCount(template as WorkoutTemplate);
+      const totalSets = isWorkoutTemplateData(templateData)
+        ? getTotalSetsCount({ workoutData: templateData })
+        : (template.exerciseCount || 0);
 
       // Create performance data structure for the completed session
       let actualTotalVolume = sessionTotalVolume;
@@ -155,6 +134,10 @@ export async function POST(
       // 3. Process Personal Records if performance data is available
       if (performance && Object.keys(performance).length > 0) {
         try {
+          if (!isWorkoutTemplateData(templateData)) {
+            throw new Error('Invalid workout template data structure');
+          }
+
           await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
@@ -162,19 +145,61 @@ export async function POST(
         }
       }
 
-      // 4. Update UserStats
+      // 4. Calculate current streak
+      const currentUserStats = await tx.userStats.findUnique({
+        where: { userId },
+        select: { lastWorkoutAt: true, currentStreak: true, longestStreak: true }
+      });
+
+      let newStreak = 1;
+      let newLongestStreak = 1;
+
+      if (currentUserStats) {
+        newLongestStreak = currentUserStats.longestStreak || 1;
+
+        if (currentUserStats.lastWorkoutAt) {
+          const lastWorkoutDate = new Date(currentUserStats.lastWorkoutAt);
+          const completionDate = new Date(completionTime);
+
+          // Set both dates to start of day for comparison
+          lastWorkoutDate.setHours(0, 0, 0, 0);
+          completionDate.setHours(0, 0, 0, 0);
+
+          const daysDifference = Math.floor((completionDate.getTime() - lastWorkoutDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDifference === 0) {
+            // Same day - maintain current streak
+            newStreak = currentUserStats.currentStreak || 1;
+          } else if (daysDifference === 1) {
+            // Consecutive day - increment streak
+            newStreak = (currentUserStats.currentStreak || 0) + 1;
+          } else {
+            // Gap in workouts - reset streak
+            newStreak = 1;
+          }
+        }
+
+        // Update longest streak if current streak is higher
+        if (newStreak > newLongestStreak) {
+          newLongestStreak = newStreak;
+        }
+      }
+
+      // 5. Update UserStats
       await tx.userStats.upsert({
         where: { userId: userId },
         update: {
           totalWorkouts: { increment: 1 },
-          totalVolume: { increment: sessionTotalVolume },
+          totalVolume: { increment: actualTotalVolume },
           totalTrainingHours: { increment: duration ? duration / 60 : 0 },
           lastWorkoutAt: completionTime,
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
         },
         create: {
           userId: userId,
           totalWorkouts: 1,
-          totalVolume: sessionTotalVolume,
+          totalVolume: actualTotalVolume,
           totalTrainingHours: duration ? duration / 60 : 0,
           lastWorkoutAt: completionTime,
           currentStreak: 1,
@@ -182,7 +207,7 @@ export async function POST(
         },
       });
 
-      // 5. Update MonthlyStats
+      // 6. Update MonthlyStats
       const currentYear = completionTime.getFullYear();
       const currentMonth = completionTime.getMonth() + 1;
       await tx.monthlyStats.upsert({
@@ -191,7 +216,7 @@ export async function POST(
         },
         update: {
           workoutsCount: { increment: 1 },
-          volume: { increment: sessionTotalVolume },
+          volume: { increment: actualTotalVolume },
           trainingHours: { increment: duration ? duration / 60 : 0 },
         },
         create: {
@@ -199,7 +224,7 @@ export async function POST(
           year: currentYear,
           month: currentMonth,
           workoutsCount: 1,
-          volume: sessionTotalVolume,
+          volume: actualTotalVolume,
           trainingHours: duration ? duration / 60 : 0,
         },
       });
@@ -209,11 +234,8 @@ export async function POST(
 
     // Update achievements after successful workout completion
     try {
-      // Extract exercise keys from performance data
-      const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
-
       // Update unique exercises count
-      await updateUniqueExercisesCount(userId, exerciseKeys);
+      await updateUniqueExercisesCount(userId);
 
       // Update achievements
       const achievementResult = await updateUserAchievements(userId);
@@ -226,22 +248,6 @@ export async function POST(
       // Don't fail the workout completion for achievement errors
     }
 
-    return successResponse(newSession);
-  } catch (error: any) {
-    const { templateId } = await params;
-    if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error completing template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error completing template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return newSession;
   }
-}
+);

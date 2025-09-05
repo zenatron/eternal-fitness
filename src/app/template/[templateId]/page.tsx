@@ -10,6 +10,7 @@ import {
   StarIcon as StarOutline,
   ClockIcon,
   PlayCircleIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { toast } from 'react-hot-toast';
@@ -19,16 +20,14 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
 import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
-import { WorkoutExercise, WorkoutSet } from '@/types/workout';
+import { WorkoutExercise } from '@/types/workout';
 import {
   getTemplateExercises,
   formatSetDisplay,
-  getDifficultyColor,
-  getWorkoutTypeColor,
   getTotalSetsCount
 } from '@/utils/workoutDisplayUtils';
 
-// 🚀 JSON-BASED EXERCISE DISPLAY COMPONENT
+// JSON-BASED EXERCISE DISPLAY COMPONENT
 interface ExerciseDisplayProps {
   exercise: WorkoutExercise;
   profile: any;
@@ -46,7 +45,7 @@ function ExerciseDisplay({ exercise, profile }: ExerciseDisplayProps) {
       <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-6">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-            <div className="w-6 h-6 bg-purple-600 dark:bg-purple-400 rounded"></div>
+            <BoltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div className="flex-1">
             <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
@@ -150,15 +149,15 @@ export default function TemplateDetailPage({
   const router = useRouter();
 
   const {
-    template,
+    data: template,
     isLoading: templateLoading,
     error: templateError,
   } = useTemplate(templateId);
-  const { profile, isLoading: profileLoading } = useProfile();
-  const toggleFavoriteMutation = useToggleFavorite();
-  const deleteTemplateMutation = useDeleteTemplate();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const toggleFavoriteMutation = useToggleFavorite(templateId);
+  const deleteTemplateMutation = useDeleteTemplate(templateId);
 
-  // 🚀 Get JSON-based exercises
+  // Get JSON-based exercises
   const exercises = template ? getTemplateExercises(template) : [];
 
   console.log('✅ JSON-based template loaded:', {
@@ -175,7 +174,7 @@ export default function TemplateDetailPage({
 
   const handleToggleFavorite = () => {
     if (!template) return;
-    toggleFavoriteMutation.mutate(templateId);
+    toggleFavoriteMutation.mutate({ favorite: !template.favorite });
   };
 
   const handleDeleteTemplate = async () => {
@@ -187,7 +186,7 @@ export default function TemplateDetailPage({
     )
       return;
     try {
-      await deleteTemplateMutation.mutateAsync(templateId);
+      await deleteTemplateMutation.mutateAsync();
       toast.success('Template deleted successfully!');
       router.push('/'); // Redirect after delete
     } catch (error) {
@@ -232,7 +231,7 @@ export default function TemplateDetailPage({
         {/* Enhanced Header */}
         <div className="mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-purple-600 via-blue-600 to-purple-800 px-8 py-8 text-white">
+            <div className="bg-gradient-to-br from-slate-600 via-slate-600 to-slate-800 px-8 py-8 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <button
@@ -246,7 +245,7 @@ export default function TemplateDetailPage({
                     <h1 className="text-3xl font-bold mb-2">
                       {template.name}
                     </h1>
-                    <div className="flex items-center gap-2 text-purple-100">
+                    <div className="flex items-center gap-2 text-slate-100">
                       <ClockIcon className="h-5 w-5" />
                       <span>
                         Created {formatUTCDateToLocalDateFriendly(template.createdAt, {
@@ -303,27 +302,27 @@ export default function TemplateDetailPage({
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold">{exercises.length}</div>
-                  <div className="text-sm text-purple-100">Exercises</div>
+                  <div className="text-sm text-slate-100">Exercises</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold">{getTotalSetsCount(template)}</div>
-                  <div className="text-sm text-purple-100">Total Sets</div>
+                  <div className="text-sm text-slate-100">Total Sets</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold">{formatVolume(template.totalVolume, profile?.useMetric)}</div>
-                  <div className="text-sm text-purple-100">Volume</div>
+                  <div className="text-sm text-slate-100">Volume</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold">~{template.estimatedDuration}</div>
-                  <div className="text-sm text-purple-100">Minutes</div>
+                  <div className="text-sm text-slate-100">Minutes</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-lg font-bold capitalize">{template.difficulty}</div>
-                  <div className="text-sm text-purple-100">Difficulty</div>
+                  <div className="text-sm text-slate-100">Difficulty</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
                   <div className="text-lg font-bold capitalize">{template.workoutType}</div>
-                  <div className="text-sm text-purple-100">Type</div>
+                  <div className="text-sm text-slate-100">Type</div>
                 </div>
               </div>
             </div>
@@ -334,14 +333,14 @@ export default function TemplateDetailPage({
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-              <div className="w-6 h-6 bg-purple-600 dark:bg-purple-400 rounded"></div>
+              <BoltIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Workout Exercises
+                {"Workout Exercises"}
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                {exercises.length} exercise{exercises.length === 1 ? '' : 's'} configured for this template
+                {exercises.length} exercise{exercises.length === 1 ? '' : 's'} {"configured for this template"}
               </p>
             </div>
           </div>
@@ -364,19 +363,19 @@ export default function TemplateDetailPage({
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
                 <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full w-20 h-20 mx-auto mb-6">
-                  <div className="w-12 h-12 bg-gray-400 rounded mx-auto"></div>
+                  <BoltIcon className="w-12 h-12 text-gray-400 mx-auto" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  No Exercises Found
+                  {"No Exercises Found"}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  This template currently has no exercises configured.
+                  {"This template currently has no exercises configured."}
                 </p>
                 <button
                   onClick={() => router.push(`/template/edit/${templateId}`)}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+                  className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
                 >
-                  Add Exercises
+                  {"Add Exercises"}
                 </button>
               </div>
             )}
@@ -392,10 +391,10 @@ export default function TemplateDetailPage({
             whileTap={{ scale: 0.98 }}
           >
             <PlayCircleIcon className="w-7 h-7" />
-            Start Workout Session
+            {"Start Workout Session"}
           </motion.button>
           <p className="text-gray-600 dark:text-gray-400 mt-3 text-sm">
-            Begin a new workout session using this template
+            {"Begin a new workout session using this template"}
           </p>
         </div>
       </div>

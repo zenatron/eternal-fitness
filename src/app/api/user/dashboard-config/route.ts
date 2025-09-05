@@ -1,55 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG } from '@/types/dashboard-config';
+import { createApiHandler, createValidatedApiHandler, ApiError } from '@/lib/api-utils';
+import { z } from 'zod';
 
-export async function GET() {
-  try {
-    const { userId } = await auth();
+export const GET = createApiHandler(async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dashboardConfig: true },
+  });
 
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { dashboardConfig: true },
-    });
-
-    if (!user) {
-      return new NextResponse('User not found', { status: 404 });
-    }
-
-    // If no config exists, return default
-    const config = user.dashboardConfig as DashboardConfig || DEFAULT_DASHBOARD_CONFIG;
-
-    return NextResponse.json(config);
-  } catch (error) {
-    console.error('Dashboard config GET error:', error);
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal Server Error',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+  if (!user) {
+    throw new ApiError('User not found', 404);
   }
-}
 
-export async function PUT(request: NextRequest) {
-  try {
-    const { userId } = await auth();
+  // If no config exists, return default
+  const config = (user.dashboardConfig as unknown as DashboardConfig) || DEFAULT_DASHBOARD_CONFIG;
 
-    if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+  return config;
+});
 
-    const config: DashboardConfig = await request.json();
+const dashboardConfigSchema = z.object({
+  tiles: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string(),
+    component: z.string(),
+    enabled: z.boolean(),
+    order: z.number(),
+    size: z.string().optional(),
+    settings: z.record(z.any()).optional(),
+  })),
+  layout: z.enum(['grid', 'list']),
+  theme: z.enum(['default', 'compact']),
+});
 
-    // Validate the config structure
-    if (!config.tiles || !Array.isArray(config.tiles)) {
-      return new NextResponse('Invalid configuration format', { status: 400 });
-    }
-
+export const PUT = createValidatedApiHandler(
+  dashboardConfigSchema,
+  async (userId, config) => {
     // Update user's dashboard configuration
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -59,14 +46,6 @@ export async function PUT(request: NextRequest) {
       select: { dashboardConfig: true },
     });
 
-    return NextResponse.json(updatedUser.dashboardConfig);
-  } catch (error) {
-    console.error('Dashboard config PUT error:', error);
-    return new NextResponse(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal Server Error',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return updatedUser.dashboardConfig;
   }
-}
+);

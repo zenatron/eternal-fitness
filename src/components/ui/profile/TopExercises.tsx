@@ -41,7 +41,7 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
         Top Exercises
       </h3>
       <div className="space-y-4">
-        {stats.topExercises.slice(0, 4).map((exercise, index) => {
+        {stats.topExercises.slice(0, 5).map((exercise, index) => {
           const volumePercentage = (exercise.totalVolume / maxVolume) * 100;
           
           return (

@@ -1,32 +1,8 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { z } from 'zod';
+import { createApiHandler, ApiError } from '@/lib/api-utils';
+import { WorkoutTemplate, WorkoutSession, Exercise, UserAnalyticsData } from '@/types/workout';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [search/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
-
-// 🔍 ADVANCED JSON SEARCH CAPABILITIES
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+export const GET = createApiHandler(async (userId, request) => {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -35,13 +11,19 @@ export async function GET(request: Request) {
     const equipment = searchParams.get('equipment');
     const difficulty = searchParams.get('difficulty');
     const workoutType = searchParams.get('workoutType');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const parsedLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(100, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 20));
 
     if (!query && !muscleGroup && !equipment && !difficulty && !workoutType) {
-      return errorResponse('At least one search parameter is required', 400);
+      throw new ApiError('At least one search parameter is required', 400);
     }
 
-    const results = {
+    const results: {
+      templates: WorkoutTemplate[];
+      sessions: WorkoutSession[];
+      exercises: Exercise[];
+      analytics: Partial<UserAnalyticsData>;
+    } = {
       templates: [],
       sessions: [],
       exercises: [],
@@ -56,7 +38,7 @@ export async function GET(request: Request) {
         difficulty,
         workoutType,
         limit,
-      });
+      }) as unknown as WorkoutTemplate[];
     }
 
     if (type === 'all' || type === 'sessions') {
@@ -65,7 +47,7 @@ export async function GET(request: Request) {
         muscleGroup,
         equipment,
         limit,
-      });
+      }) as unknown as WorkoutSession[];
     }
 
     if (type === 'all' || type === 'exercises') {
@@ -74,7 +56,7 @@ export async function GET(request: Request) {
         muscleGroup,
         equipment,
         limit,
-      });
+      }) as unknown as Exercise[];
     }
 
     if (type === 'analytics') {
@@ -82,19 +64,12 @@ export async function GET(request: Request) {
         query,
         muscleGroup,
         equipment,
-      });
+      }) as Partial<UserAnalyticsData>;
     }
 
-    return successResponse(results);
-  } catch (error) {
-    console.error('Error in GET /api/search:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
+    return results;
+});
 
-// 🎯 SEARCH WORKOUT TEMPLATES WITH JSONB
 async function searchTemplates(userId: string, filters: any) {
   const { query, muscleGroup, equipment, difficulty, workoutType, limit } = filters;
 
@@ -184,7 +159,7 @@ async function searchTemplates(userId: string, filters: any) {
   return templates;
 }
 
-// 🎯 SEARCH WORKOUT SESSIONS WITH JSONB
+//  SEARCH WORKOUT SESSIONS WITH JSONB
 async function searchSessions(userId: string, filters: any) {
   const { query, muscleGroup, equipment, limit } = filters;
 
@@ -257,7 +232,7 @@ async function searchSessions(userId: string, filters: any) {
   return sessions;
 }
 
-// 🎯 SEARCH EXERCISES WITH PERFORMANCE DATA
+//  SEARCH EXERCISES WITH PERFORMANCE DATA
 async function searchExercises(userId: string, filters: any) {
   const { query, muscleGroup, equipment, limit } = filters;
 
@@ -326,8 +301,8 @@ async function searchExercises(userId: string, filters: any) {
 async function getSearchAnalytics(userId: string, filters: any) {
   const { query, muscleGroup, equipment } = filters;
 
-  // 🎯 ANALYZE SEARCH PATTERNS AND TRENDS
-  const analytics = await prisma.$queryRaw`
+  //  ANALYZE SEARCH PATTERNS AND TRENDS
+  const analyticsData = await prisma.$queryRaw`
     SELECT 
       'search_insights' as type,
       COUNT(DISTINCT ws.id) as total_sessions,
@@ -362,7 +337,7 @@ async function getSearchAnalytics(userId: string, filters: any) {
       )` : ''}
   `;
 
-  return analytics[0] || {};
+  return (analyticsData as any[])[0] || {};
 }
 
 console.log('🔍 Advanced JSON Search API loaded with JSONB search superpowers!');

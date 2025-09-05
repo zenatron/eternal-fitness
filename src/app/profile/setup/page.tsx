@@ -7,7 +7,7 @@ import { UserCircleIcon } from '@heroicons/react/24/outline';
 import { SignedIn, SignOutButton } from '@clerk/nextjs';
 import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { Switch } from '@headlessui/react';
-import { useUpdateProfile } from '@/lib/hooks/useMutations';
+import { useCreateProfile } from '@/lib/hooks/useMutations';
 
 interface ProfileFormData {
   name: string;
@@ -20,7 +20,7 @@ interface ProfileFormData {
 
 export default function ProfileSetup() {
   const router = useRouter();
-  const updateProfileMutation = useUpdateProfile();
+  const createProfileMutation = useCreateProfile();
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
     age: 0,
@@ -77,8 +77,8 @@ export default function ProfileSetup() {
         useMetric: formData.useMetric,
       };
 
-      // Use the mutation to update profile
-      await updateProfileMutation.mutateAsync(dataToSend);
+      // Use the mutation to create profile
+      await createProfileMutation.mutateAsync(dataToSend);
 
       // Use replace instead of push to prevent back button issues
       // The mutation's onSuccess already invalidates the cache
@@ -273,11 +273,11 @@ export default function ProfileSetup() {
               <motion.button
                 type="submit"
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={updateProfileMutation.isPending}
-                whileHover={{ scale: updateProfileMutation.isPending ? 1 : 1.02 }}
-                whileTap={{ scale: updateProfileMutation.isPending ? 1 : 0.98 }}
+                disabled={createProfileMutation.isPending}
+                whileHover={{ scale: createProfileMutation.isPending ? 1 : 1.02 }}
+                whileTap={{ scale: createProfileMutation.isPending ? 1 : 0.98 }}
               >
-                {updateProfileMutation.isPending ? (
+                {createProfileMutation.isPending ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Saving Profile...

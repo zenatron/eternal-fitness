@@ -15,9 +15,16 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
-import { ExercisePerformance } from '@/types/workout';
+import { ExercisePerformance, WorkoutTemplateData } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
+import type { ExerciseProgress as TrackerExerciseProgress } from '@/components/workout/WorkoutProgressTracker';
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
+import {
+  useStartSession,
+  useUpdateActiveSession,
+  useCompleteSession,
+  useCancelSession,
+} from '@/lib/hooks/session-hooks';
 
 
 
@@ -30,39 +37,52 @@ export default function ActiveSessionPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const scheduledSessionId = searchParams.get('scheduledSessionId');
+  const isInvalidTemplateId = !templateId || templateId === 'undefined';
 
   const {
-    template,
+    data: template,
     isLoading: templateLoading,
     error: templateError,
   } = useTemplate(templateId);
-  const { profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [draftNotes, setDraftNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
 
-  // Active workout state management
+  // Active workout state management with timer functionality
   const {
     activeWorkout,
-    isLoading: isActiveWorkoutLoading,
-    startWorkout,
-    updatePerformance,
-    updateSessionNotes,
-    updateModifiedTemplate,
-    updateExerciseProgress,
-    endWorkout,
-    completeWorkout,
-    recoverSession,
+    formatWorkoutDuration,
     hasActiveWorkout,
     getWorkoutDuration,
-    formatWorkoutDuration,
-    toggleTimer,
     isTimerActive,
+    isLoading: isActiveWorkoutLoading,
+    endWorkout,
   } = useActiveWorkout();
 
+  const startWorkoutMutation = useStartSession();
+  const updateWorkoutMutation = useUpdateActiveSession();
+  const completeWorkoutMutation = useCompleteSession();
+  const cancelWorkoutMutation = useCancelSession();
+
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+
+  // Recovery function for session management
+  const recoverSession = useCallback(async (templateId: string) => {
+    try {
+      // For now, just cancel any existing session and let user start fresh
+      if (activeWorkout && activeWorkout.templateId !== templateId) {
+        await cancelWorkoutMutation.mutateAsync();
+      }
+    } catch (error) {
+      console.error('Error in session recovery:', error);
+      throw error;
+    }
+  }, [activeWorkout, cancelWorkoutMutation]);
 
   // Check for existing active workout on page load
   useEffect(() => {
@@ -70,7 +90,7 @@ export default function ActiveSessionPage({
       if (hasActiveWorkout && activeWorkout?.templateId !== template.id) {
         // Active workout is for a different template, try to recover
         console.warn('Active workout is for a different template. Current:', activeWorkout?.templateId, 'Expected:', template.id);
-        recoverSession(template.id, true).catch((error) => {
+        recoverSession(template.id).catch((error) => {
           console.error('Failed to recover session:', error);
           // If recovery fails, we'll let the user manually start a new workout
         });
@@ -83,30 +103,69 @@ export default function ActiveSessionPage({
   // Function to manually start a workout
   const handleStartWorkout = useCallback(async () => {
     if (!template) return;
-
-    try {
-      await startWorkout(template.id, template.name, template.workoutData);
-    } catch (error) {
-      console.error('Failed to start workout:', error);
-      // Handle error - maybe show a toast notification
-    }
-  }, [template, startWorkout]);
+    await startWorkoutMutation.mutateAsync({
+      templateId: template.id,
+      templateName: template.name,
+      template: template.workoutData
+    });
+  }, [template, startWorkoutMutation]);
 
   // No more state synchronization needed - everything comes from activeWorkout directly
 
-  const handleTemplateModification = useCallback((newTemplate: any) => {
-    updateModifiedTemplate(newTemplate);
+  const handleTemplateModification = useCallback((newTemplate: WorkoutTemplateData) => {
+    updateWorkoutMutation.mutate({ modifiedTemplate: newTemplate });
     setShowSaveTemplatePrompt(true);
-  }, [updateModifiedTemplate]);
+  }, [updateWorkoutMutation]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
-    updatePerformance(performance);
-  }, [updatePerformance]);
+    console.log(' Performance update received:', JSON.stringify(performance, null, 2));
+    updateWorkoutMutation.mutate({ performance });
+  }, [updateWorkoutMutation]);
 
-  const handleNotesUpdate = useCallback((notes: string) => {
-    updateSessionNotes(notes);
-  }, [updateSessionNotes]);
+  useEffect(() => {
+    setDraftNotes(activeWorkout?.sessionNotes || '');
+  }, [activeWorkout?.sessionNotes]);
+
+  const isNotesDirty = (draftNotes || '') !== (activeWorkout?.sessionNotes || '');
+
+  const handleSaveNotes = async () => {
+    if (!isNotesDirty) return;
+    try {
+      setIsSavingNotes(true);
+      await updateWorkoutMutation.mutateAsync({ sessionNotes: draftNotes });
+      setSaveMessage('Notes saved');
+      setTimeout(() => setSaveMessage(''), 1500);
+    } catch (e) {
+      console.error('Failed to save notes', e);
+      setSaveMessage('Error: Failed to save notes');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const toggleTimer = useCallback(() => {
+    if (activeWorkout) {
+      updateWorkoutMutation.mutate({
+        isTimerActive: !activeWorkout.isTimerActive,
+        lastPauseTime: !activeWorkout.isTimerActive ? undefined : new Date().toISOString(),
+      });
+    }
+  }, [activeWorkout, updateWorkoutMutation]);
+
+  type ExerciseProgressMap = Record<string, TrackerExerciseProgress>;
+  const updateExerciseProgress = useCallback((fullExerciseProgress: ExerciseProgressMap) => {
+    updateWorkoutMutation.mutate({
+      exerciseProgress: fullExerciseProgress,
+    });
+  }, [updateWorkoutMutation]);
+
+  const completeWorkout = useCallback(async (duration: number, notes: string) => {
+    await completeWorkoutMutation.mutateAsync({
+      duration,
+      notes,
+      completedAt: new Date().toISOString(),
+    });
+  }, [completeWorkoutMutation]);
 
   const saveAsNewTemplate = async () => {
     if (!activeWorkout?.modifiedTemplate || !template) return;
@@ -166,7 +225,17 @@ export default function ActiveSessionPage({
   };
 
   const stopTimerAndSave = async () => {
-    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60)); // Duration in minutes, ensure at least 1
+    const workoutDurationSeconds = getWorkoutDuration();
+
+    // Validate duration
+    if (isNaN(workoutDurationSeconds) || workoutDurationSeconds < 0) {
+      console.error('Invalid workout duration:', workoutDurationSeconds);
+      setSaveMessage('Error: Invalid workout duration. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    const finalDurationMinutes = Math.max(1, Math.round(workoutDurationSeconds / 60)); // Duration in minutes, ensure at least 1
 
     // --- Call API to save session ---
     setIsSaving(true);
@@ -175,6 +244,13 @@ export default function ActiveSessionPage({
     // Basic validation: Check if templateId exists
     if (!template?.id) {
       setSaveMessage('Error: Template ID is missing. Cannot save session.');
+      setIsSaving(false);
+      return;
+    }
+
+    // Check if there's an active workout
+    if (!hasActiveWorkout || !activeWorkout) {
+      setSaveMessage('Error: No active workout found. Cannot save session.');
       setIsSaving(false);
       return;
     }
@@ -193,11 +269,10 @@ export default function ActiveSessionPage({
     } else {
       // Creating a new immediate session - use the new active session completion API
       try {
-        console.log('🚀 Completing workout with active session data:', {
-          performance: activeWorkout?.performance,
-          duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || ''
-        });
+        // Validate the data before sending
+        if (typeof finalDurationMinutes !== 'number' || isNaN(finalDurationMinutes)) {
+          throw new Error(`Invalid duration: ${finalDurationMinutes}`);
+        }
 
         await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
 
@@ -228,7 +303,7 @@ export default function ActiveSessionPage({
     }
 
     try {
-      const response = await fetch('/api/session-json', {
+      const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData),
@@ -270,6 +345,25 @@ export default function ActiveSessionPage({
   };
 
   const isLoading = templateLoading || profileLoading || isActiveWorkoutLoading;
+
+  if (isInvalidTemplateId) {
+    return (
+      <div className="min-h-screen app-bg py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="p-4 bg-red-100 text-red-700 rounded-lg text-center">
+            <h2 className="font-semibold mb-2">Invalid Session</h2>
+            <p>This workout session appears to be corrupted or invalid.</p>
+            <button
+              onClick={() => router.push('/templates')}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Go to Templates
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -598,12 +692,25 @@ export default function ActiveSessionPage({
               <textarea
                 id="sessionNotes"
                 rows={4}
-                value={activeWorkout?.sessionNotes || ''}
-                onChange={(e) => handleNotesUpdate(e.target.value)}
+                value={draftNotes}
+                onChange={(e) => setDraftNotes(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none transition-all duration-200"
                 placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
-                disabled={isSaving}
+                disabled={isSaving || isSavingNotes}
               />
+              <div className="mt-3 flex items-center justify-end gap-3">
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={!isNotesDirty || isSavingNotes}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    !isNotesDirty || isSavingNotes
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
+                >
+                  {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>

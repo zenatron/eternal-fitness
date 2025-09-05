@@ -1,32 +1,9 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { z } from 'zod';
+import { createApiHandler, ApiError } from '@/lib/api-utils';
+import { Prisma } from '@prisma/client';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [analytics/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
-};
-
-// 🚀 ADVANCED JSON ANALYTICS QUERIES
-export async function GET(request: Request) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+// ADVANCED JSON ANALYTICS QUERIES
+export const GET = createApiHandler(async (userId, request) => {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'overview';
@@ -40,7 +17,7 @@ export async function GET(request: Request) {
         return await getOverviewAnalytics(userId);
       case 'exercise-progression':
         if (!exerciseKey) {
-          return errorResponse('exerciseKey required for exercise progression', 400);
+          throw new ApiError('exerciseKey required for exercise progression', 400);
         }
         return await getExerciseProgression(userId, exerciseKey, startDate, endDate);
       case 'muscle-group-volume':
@@ -52,17 +29,28 @@ export async function GET(request: Request) {
       case 'template-performance':
         return await getTemplatePerformanceAnalytics(userId);
       default:
-        return errorResponse('Invalid analytics type', 400);
+        throw new ApiError('Invalid analytics type', 400);
     }
-  } catch (error) {
-    console.error('Error in GET /api/analytics:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+});
+
+function buildDateFilter(startDate?: string | null, endDate?: string | null, defaultDays: number = 90) {
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      // Parameterized BETWEEN clause using Date bindings
+      return Prisma.sql`AND completed_at BETWEEN ${start} AND ${end}`;
+    }
   }
+  // Safe default interval using bound integer multiplied by 1 day interval
+  return Prisma.sql`AND completed_at >= NOW() - (${defaultDays} * INTERVAL '1 day')`;
 }
 
-// 📊 OVERVIEW ANALYTICS
+function buildMuscleFilter(muscleGroup?: string | null) {
+  return muscleGroup ? Prisma.sql`AND muscle_group = ${muscleGroup}` : Prisma.sql``;
+}
+
+// OVERVIEW ANALYTICS
 async function getOverviewAnalytics(userId: string) {
   // Get basic stats
   const userStats = await prisma.userStats.findUnique({
@@ -86,7 +74,6 @@ async function getOverviewAnalytics(userId: string) {
     },
   });
 
-  // 🎯 ADVANCED JSONB QUERIES - Get exercise frequency
   const exerciseFrequency = await prisma.$queryRaw`
     SELECT 
       exercise_key,
@@ -119,7 +106,7 @@ async function getOverviewAnalytics(userId: string) {
     LIMIT 10
   `;
 
-  // 🎯 MUSCLE GROUP VOLUME ANALYSIS
+  //  MUSCLE GROUP VOLUME ANALYSIS
   const muscleGroupVolume = await prisma.$queryRaw`
     SELECT 
       muscle_group,
@@ -143,22 +130,20 @@ async function getOverviewAnalytics(userId: string) {
     ORDER BY total_volume DESC
   `;
 
-  return successResponse({
+  return {
     userStats,
     recentSessions,
     exerciseFrequency,
     muscleGroupVolume,
     period: '30 days',
-  });
+  };
 }
 
-// 📈 EXERCISE PROGRESSION ANALYTICS
+//  EXERCISE PROGRESSION ANALYTICS
 async function getExerciseProgression(userId: string, exerciseKey: string, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'90 days\'';
+  const dateFilter = buildDateFilter(startDate, endDate, 90);
 
-  // 🎯 COMPLEX JSONB QUERY - Exercise progression over time
+  //  COMPLEX JSONB QUERY - Exercise progression over time
   const progression = await prisma.$queryRaw`
     SELECT 
       DATE(completed_at) as workout_date,
@@ -204,24 +189,19 @@ async function getExerciseProgression(userId: string, exerciseKey: string, start
     ORDER BY workout_date ASC
   `;
 
-  return successResponse({
+  return {
     exerciseKey,
     progression,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '90 days',
-  });
+  };
 }
 
-// 💪 MUSCLE GROUP VOLUME ANALYTICS
+// MUSCLE GROUP VOLUME ANALYTICS
 async function getMuscleGroupVolumeAnalytics(userId: string, muscleGroup?: string | null, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'30 days\'';
+  const dateFilter = buildDateFilter(startDate, endDate, 30);
+  const muscleFilter = buildMuscleFilter(muscleGroup);
 
-  const muscleFilter = muscleGroup 
-    ? `AND muscle_group = '${muscleGroup}'`
-    : '';
-
-  // 🎯 MUSCLE GROUP VOLUME TRENDS
+  //  MUSCLE GROUP VOLUME TRENDS
   const volumeTrends = await prisma.$queryRaw`
     SELECT 
       DATE(completed_at) as workout_date,
@@ -248,20 +228,18 @@ async function getMuscleGroupVolumeAnalytics(userId: string, muscleGroup?: strin
     ORDER BY workout_date ASC, muscle_group
   `;
 
-  return successResponse({
+  return {
     muscleGroup: muscleGroup || 'all',
     volumeTrends,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '30 days',
-  });
+  };
 }
 
-// 📅 WORKOUT FREQUENCY ANALYTICS
+// WORKOUT FREQUENCY ANALYTICS
 async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string | null, endDate?: string | null) {
-  const dateFilter = startDate && endDate 
-    ? `AND completed_at BETWEEN '${startDate}' AND '${endDate}'`
-    : 'AND completed_at >= NOW() - INTERVAL \'90 days\'';
+  const dateFilter = buildDateFilter(startDate, endDate, 90);
 
-  // 🎯 WORKOUT FREQUENCY BY DAY OF WEEK
+  //  WORKOUT FREQUENCY BY DAY OF WEEK
   const frequencyByDay = await prisma.$queryRaw`
     SELECT 
       EXTRACT(DOW FROM completed_at) as day_of_week,
@@ -277,7 +255,7 @@ async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string |
     ORDER BY day_of_week
   `;
 
-  // 🎯 WEEKLY WORKOUT TRENDS
+  //  WEEKLY WORKOUT TRENDS
   const weeklyTrends = await prisma.$queryRaw`
     SELECT 
       DATE_TRUNC('week', completed_at) as week_start,
@@ -292,14 +270,14 @@ async function getWorkoutFrequencyAnalytics(userId: string, startDate?: string |
     ORDER BY week_start ASC
   `;
 
-  return successResponse({
+  return {
     frequencyByDay,
     weeklyTrends,
     period: startDate && endDate ? `${startDate} to ${endDate}` : '90 days',
-  });
+  };
 }
 
-// 🏆 PERSONAL RECORDS
+// PERSONAL RECORDS
 async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
   // Get user's stored personal records from UserStats
   const userStats = await prisma.userStats.findUnique({
@@ -308,11 +286,11 @@ async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
   });
 
   if (!userStats?.personalRecords) {
-    return successResponse({
+    return {
       exerciseKey: exerciseKey || 'all',
       personalRecords: [],
       period: '365 days',
-    });
+    };
   }
 
   const personalRecords = userStats.personalRecords as any;
@@ -354,16 +332,16 @@ async function getPersonalRecords(userId: string, exerciseKey?: string | null) {
   // Sort by best volume descending
   analyticsRecords.sort((a, b) => b.best_volume - a.best_volume);
 
-  return successResponse({
+  return {
     exerciseKey: exerciseKey || 'all',
     personalRecords: analyticsRecords,
     period: '365 days',
-  });
+  };
 }
 
-// 📋 TEMPLATE PERFORMANCE ANALYTICS
+// TEMPLATE PERFORMANCE ANALYTICS
 async function getTemplatePerformanceAnalytics(userId: string) {
-  // 🎯 TEMPLATE USAGE AND PERFORMANCE
+  //  TEMPLATE USAGE AND PERFORMANCE
   const templatePerformance = await prisma.$queryRaw`
     SELECT 
       wt.id as template_id,
@@ -382,9 +360,7 @@ async function getTemplatePerformanceAnalytics(userId: string) {
     ORDER BY usage_count DESC, avg_volume DESC
   `;
 
-  return successResponse({
+  return {
     templatePerformance,
-  });
+  };
 }
-
-console.log('✅ Advanced JSON Analytics API loaded with JSONB superpowers!');

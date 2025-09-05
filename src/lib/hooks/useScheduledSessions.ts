@@ -1,37 +1,4 @@
-import { useEffect, useState } from 'react';
-import { WorkoutSession } from '@/types/workout';
+// 🚀 STREAMLINED SCHEDULED SESSIONS HOOK
+// Re-export from the new unified session hooks
 
-export function useScheduledSessions() {
-  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    async function fetchScheduledSessions() {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/session/scheduled');
-
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
-        }
-
-        const result = await response.json();
-        setSessions(result.data || []);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err
-            : new Error('Failed to fetch scheduled sessions'),
-        );
-        console.error('Error fetching scheduled sessions:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchScheduledSessions();
-  }, []);
-
-  return { sessions, isLoading, error };
-}
+export { useScheduledSessions } from './session-hooks';
