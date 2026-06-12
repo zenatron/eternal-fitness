@@ -12,11 +12,13 @@ import {
   PauseIcon,
   DocumentTextIcon,
   CalendarIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
+import VictoryPopup from '@/components/modals/VictoryPopup';
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 
 const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
@@ -46,7 +48,7 @@ export default function ActiveSessionPage({
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
+  const [showCompletionPrompt, setShowCompletionPrompt] = useState(false);
 
   // Active workout state management
   const {
@@ -68,6 +70,20 @@ export default function ActiveSessionPage({
   } = useActiveWorkout();
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+
+  const [showVictory, setShowVictory] = useState(false);
+  const [victoryData, setVictoryData] = useState<{
+    workoutName: string;
+    durationMinutes: number;
+    totalVolume: number;
+    totalSets: number;
+    totalExercises: number;
+    totalDistance: number;
+    newAchievementIds: string[];
+    newPRs: Array<{ exerciseName: string; type: string; value: number }>;
+    pointsAwarded: number;
+    progress: Record<string, number>;
+  } | null>(null);
 
   // Check for existing active workout on page load
   useEffect(() => {
@@ -101,7 +117,6 @@ export default function ActiveSessionPage({
 
   const handleTemplateModification = useCallback((newTemplate: any) => {
     updateModifiedTemplate(newTemplate);
-    setShowSaveTemplatePrompt(true);
   }, [updateModifiedTemplate]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
@@ -112,159 +127,132 @@ export default function ActiveSessionPage({
     updateSessionNotes(notes);
   }, [updateSessionNotes]);
 
-  const saveAsNewTemplate = async () => {
-    if (!activeWorkout?.modifiedTemplate || !template) return;
-
-    try {
-      const response = await fetch('/api/template/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${template.name} (Modified)`,
-          description: `Modified version of ${template.name} from workout session`,
-          workoutData: activeWorkout.modifiedTemplate,
-          difficulty: template.difficulty,
-          workoutType: template.workoutType,
-          favorite: false,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save new template');
-      }
-
-      setSaveMessage('✅ Template saved as new workout!');
-      setShowSaveTemplatePrompt(false);
-    } catch (error) {
-      console.error('Error saving new template:', error);
-      setSaveMessage('❌ Failed to save template');
+  const handleCancelWorkout = async () => {
+    if (confirm('Are you sure you want to cancel this workout? All progress will be lost.')) {
+      await endWorkout();
+      router.push('/profile');
     }
   };
 
-  const updateExistingTemplate = async () => {
-    if (!activeWorkout?.modifiedTemplate || !template) return;
-
-    try {
-      const response = await fetch(`/api/template/${template.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: template.name,
-          workoutData: activeWorkout.modifiedTemplate,
-          difficulty: template.difficulty,
-          workoutType: template.workoutType,
-          favorite: template.favorite,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update template');
-      }
-
-      setSaveMessage('✅ Template updated successfully!');
-      setShowSaveTemplatePrompt(false);
-    } catch (error) {
-      console.error('Error updating template:', error);
-      setSaveMessage('❌ Failed to update template');
-    }
-  };
-
-  const stopTimerAndSave = async () => {
-    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60)); // Duration in minutes, ensure at least 1
-
-    // --- Call API to save session ---
+  const performCompletion = async (options: {
+    useModifiedTemplate: boolean;
+    saveTemplate: 'none' | 'update' | 'new';
+  }) => {
+    const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60));
     setIsSaving(true);
     setSaveMessage('');
 
-    // Basic validation: Check if templateId exists
     if (!template?.id) {
       setSaveMessage('Error: Template ID is missing. Cannot save session.');
       setIsSaving(false);
       return;
     }
 
-    // Prepare data for API
-    let sessionData: any;
-
-    if (scheduledSessionId) {
-      // Completing a scheduled session - need performance data
-      sessionData = {
-        scheduledSessionId: scheduledSessionId,
-        duration: finalDurationMinutes,
-        notes: activeWorkout?.sessionNotes || '',
-        performance: activeWorkout?.performance || {}, // Include actual workout performance
-      };
-    } else {
-      // Creating a new immediate session - use the new active session completion API
-      try {
-        await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
-
-        setSaveMessage('Session saved successfully!');
-        // Mark workout as completed to prevent re-initialization
-        setWorkoutCompleted(true);
-        // Redirect to profile page after save
-        setTimeout(() => {
-          router.push('/profile'); // Go back to profile page
-        }, 1000);
-        return;
-      } catch (error) {
-        console.error('Error saving session:', error);
-        console.error('Error details:', {
-          templateId: template.id,
-          duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || '',
-          errorMessage: error instanceof Error ? error.message : String(error),
-        });
-        setSaveMessage(
-          `Error: ${
-            error instanceof Error ? error.message : 'Failed to save session'
-          }`,
-        );
-        setIsSaving(false);
-        return;
-      }
-    }
-
     try {
-      const response = await fetch('/api/session-json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sessionData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(errorData.error?.message || errorData.error || 'Failed to save scheduled session');
+      // If user wants to save template changes
+      if (options.saveTemplate !== 'none' && activeWorkout?.modifiedTemplate) {
+        if (options.saveTemplate === 'update') {
+          await fetch(`/api/template/${template.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: template.name,
+              workoutData: activeWorkout.modifiedTemplate,
+              difficulty: template.difficulty,
+              workoutType: template.workoutType,
+              favorite: template.favorite,
+            }),
+          });
+        } else {
+          await fetch('/api/template/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: `${template.name} (Modified)`,
+              description: `Modified version of ${template.name} from workout session`,
+              workoutData: activeWorkout.modifiedTemplate,
+              difficulty: template.difficulty,
+              workoutType: template.workoutType,
+              favorite: false,
+            }),
+          });
+        }
       }
 
-      setSaveMessage('Scheduled session completed successfully!');
-      // Mark workout as completed to prevent re-initialization
+      // If user wants to revert to original template values
+      if (!options.useModifiedTemplate && activeWorkout?.modifiedTemplate) {
+        updateModifiedTemplate(activeWorkout.originalTemplate);
+        // Wait a tick for state to settle
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      const result = await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
+
       setWorkoutCompleted(true);
-      // End the active workout immediately
-      endWorkout();
-      // Redirect to profile page after save
-      setTimeout(() => {
-        router.push('/profile'); // Go back to profile page
-      }, 1000);
-    } catch (error) {
-      console.error('Error completing scheduled session:', error);
-      console.error('Scheduled session error details:', {
-        scheduledSessionId,
-        templateId: template.id,
-        duration: finalDurationMinutes,
-        notes: activeWorkout?.sessionNotes || '',
-        errorMessage: error instanceof Error ? error.message : String(error),
+
+      const perfData = result?.session?.performanceData?.performance;
+      const totalDistance = perfData
+        ? Object.values(perfData).reduce((t: number, ep: any) => {
+            return t + (ep.sets || []).reduce((st: number, s: any) => st + (s.actualDistance || 0), 0);
+          }, 0)
+        : 0;
+
+      setVictoryData({
+        workoutName: template?.name || 'Workout',
+        durationMinutes: finalDurationMinutes,
+        totalVolume: result?.session?.totalVolume || 0,
+        totalSets: result?.session?.totalSets || 0,
+        totalExercises: result?.session?.totalExercises || 0,
+        totalDistance,
+        newAchievementIds: result?.achievements?.newAchievements || [],
+        newPRs: result?.newPRs || [],
+        pointsAwarded: result?.achievements?.pointsAwarded || 0,
+        progress: result?.achievements?.progress || {},
       });
-      setSaveMessage(
-        `Error: ${
-          error instanceof Error ? error.message : 'Failed to complete scheduled session'
-        }`,
-      );
-      setIsSaving(false); // Allow retry on error
+      setShowVictory(true);
+      setShowCompletionPrompt(false);
+    } catch (error) {
+      console.error('Error saving session:', error);
+      setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to save session'}`);
+      setIsSaving(false);
     }
-    // No finally block for setIsSaving(false) here, handled in error case or success redirect
+  };
+
+  const stopTimerAndSave = async () => {
+    // For scheduled sessions, complete directly
+    if (scheduledSessionId) {
+      setIsSaving(true);
+      try {
+        const finalDurationMinutes = Math.max(1, Math.round(getWorkoutDuration() / 60));
+        const response = await fetch('/api/session-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scheduledSessionId,
+            duration: finalDurationMinutes,
+            notes: activeWorkout?.sessionNotes || '',
+            performance: activeWorkout?.performance || {},
+          }),
+        });
+        if (!response.ok) throw new Error('Failed to complete scheduled session');
+        setSaveMessage('Scheduled session completed successfully!');
+        setWorkoutCompleted(true);
+        endWorkout();
+        router.push('/profile');
+      } catch (error) {
+        setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to complete scheduled session'}`);
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Check if template was modified during the workout
+    if (activeWorkout?.modifiedTemplate) {
+      setShowCompletionPrompt(true);
+      return;
+    }
+
+    await performCompletion({ useModifiedTemplate: true, saveTemplate: 'none' });
   };
 
   const isLoading = templateLoading || profileLoading || isActiveWorkoutLoading;
@@ -423,6 +411,16 @@ export default function ActiveSessionPage({
                       <PlayIcon className="h-5 w-5" />
                     )}
                     {isTimerActive ? 'Pause Timer' : 'Start Timer'}
+                  </motion.button>
+                  <motion.button
+                    onClick={handleCancelWorkout}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={springSnappy}
+                    className="px-6 py-3 bg-surface-200 dark:bg-surface-300 hover:bg-surface-300 dark:hover:bg-surface-400 text-surface-700 dark:text-surface-900 rounded-xl flex items-center gap-2 font-semibold transition-colors"
+                  >
+                    <XCircleIcon className="h-5 w-5" />
+                    Cancel
                   </motion.button>
                   <motion.button
                     onClick={stopTimerAndSave}
@@ -623,21 +621,18 @@ export default function ActiveSessionPage({
         )}
       </div>
 
-      {/* Save Template Prompt Modal */}
+      {/* Template Modification Prompt — shown when finishing with modifications */}
       <AnimatePresence>
-        {showSaveTemplatePrompt && (
+        {showCompletionPrompt && (
           <>
-            {/* Backdrop overlay */}
             <motion.div
               initial={prefersReducedMotion ? {} : { opacity: 0 }}
               animate={prefersReducedMotion ? {} : { opacity: 1 }}
               exit={prefersReducedMotion ? {} : { opacity: 0 }}
               transition={springGentle}
               className="fixed inset-0 bg-black/50 z-40"
-              onClick={() => setShowSaveTemplatePrompt(false)}
+              onClick={() => setShowCompletionPrompt(false)}
             />
-
-            {/* Modal content */}
             <motion.div
               initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
               animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
@@ -652,40 +647,52 @@ export default function ActiveSessionPage({
                     <DocumentTextIcon className="w-8 h-8 text-orange-600 dark:text-orange-400" />
                   </div>
                   <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-2">
-                    Save Template Changes?
+                    Template Modified
                   </h3>
                   <p className="text-surface-500 dark:text-surface-600">
-                    You've modified this workout template. Would you like to save these changes?
+                    Your workout differs from the original template. How would you like to handle these changes?
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <motion.button
-                    onClick={saveAsNewTemplate}
+                    onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'update' })}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     transition={springSnappy}
-                    className="btn btn-primary w-full !py-3"
+                    className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors font-semibold text-left"
                   >
-                    Save as New Template
+                    <div className="text-sm font-bold">Save & Update Template</div>
+                    <div className="text-xs text-green-100 mt-0.5">Log with new values and update the current template</div>
                   </motion.button>
                   <motion.button
-                    onClick={updateExistingTemplate}
+                    onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'none' })}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     transition={springSnappy}
-                    className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors font-semibold"
+                    className="w-full px-6 py-3 bg-forge-500 hover:bg-forge-600 text-white rounded-xl transition-colors font-semibold text-left"
                   >
-                    Update Existing Template
+                    <div className="text-sm font-bold">Log New Values Only</div>
+                    <div className="text-xs text-forge-100 mt-0.5">Log this workout with the modified values, don't change the template</div>
                   </motion.button>
                   <motion.button
-                    onClick={() => setShowSaveTemplatePrompt(false)}
+                    onClick={() => performCompletion({ useModifiedTemplate: false, saveTemplate: 'none' })}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     transition={springSnappy}
-                    className="w-full px-6 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium"
+                    className="w-full px-6 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-semibold text-left"
                   >
-                    Continue Without Saving
+                    <div className="text-sm font-bold">Keep Original Template Values</div>
+                    <div className="text-xs text-surface-500 dark:text-surface-600 mt-0.5">Discard modifications and log the original template as-is</div>
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setShowCompletionPrompt(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={springSnappy}
+                    className="w-full px-6 py-3 text-surface-500 dark:text-surface-600 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium text-sm"
+                  >
+                    Cancel — go back to workout
                   </motion.button>
                 </div>
               </div>
@@ -693,6 +700,17 @@ export default function ActiveSessionPage({
           </>
         )}
       </AnimatePresence>
+
+      {victoryData && (
+        <VictoryPopup
+          data={{ ...victoryData, useMetric: profile?.useMetric ?? false }}
+          isOpen={showVictory}
+          onContinue={() => {
+            setShowVictory(false);
+            router.push('/profile');
+          }}
+        />
+      )}
     </motion.div>
   );
 }

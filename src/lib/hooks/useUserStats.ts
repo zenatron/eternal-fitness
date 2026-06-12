@@ -44,7 +44,7 @@ export interface UserStatsData {
   personalRecords: Array<{
     exerciseKey: string;
     exerciseName: string;
-    type: 'weight' | 'reps' | 'volume';
+    type: 'weight' | 'volume' | 'duration' | 'distance';
     value: number;
     achievedAt: string;
   }>;

@@ -17,7 +17,7 @@ function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
   const displayRecords: Array<{
     exerciseKey: string;
     exerciseName: string;
-    type: 'weight' | 'volume';
+    type: 'weight' | 'volume' | 'duration' | 'distance';
     value: number;
     achievedAt: string;
   }> = [];
@@ -39,6 +39,24 @@ function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
         type: 'volume',
         value: exercisePR.maxVolume.value,
         achievedAt: exercisePR.maxVolume.achievedAt,
+      });
+    }
+    if (exercisePR.maxDuration) {
+      displayRecords.push({
+        exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'),
+        exerciseName,
+        type: 'duration',
+        value: exercisePR.maxDuration.value,
+        achievedAt: exercisePR.maxDuration.achievedAt,
+      });
+    }
+    if (exercisePR.maxDistance) {
+      displayRecords.push({
+        exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'),
+        exerciseName,
+        type: 'distance',
+        value: exercisePR.maxDistance.value,
+        achievedAt: exercisePR.maxDistance.achievedAt,
       });
     }
   });

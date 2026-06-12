@@ -2,21 +2,31 @@
 // Based on exercises from src/lib/exercises.ts
 
 export interface ExercisePR {
-  // Max weight achieved for this exercise
   maxWeight?: {
-    value: number;        // Weight value (in user's preferred unit)
-    reps: number;         // Reps achieved at this weight
-    achievedAt: string;   // ISO date string
-    sessionId: string;    // Reference to workout session
+    value: number;
+    reps: number;
+    achievedAt: string;
+    sessionId: string;
   };
-  
-  // Max volume achieved for this exercise in a single session
+
   maxVolume?: {
-    value: number;        // Total volume (weight × reps × sets)
-    achievedAt: string;   // ISO date string
-    sessionId: string;    // Reference to workout session
-    sets: number;         // Number of sets
-    avgWeight: number;    // Average weight across sets
+    value: number;
+    achievedAt: string;
+    sessionId: string;
+    sets: number;
+    avgWeight: number;
+  };
+
+  maxDuration?: {
+    value: number;
+    achievedAt: string;
+    sessionId: string;
+  };
+
+  maxDistance?: {
+    value: number;
+    achievedAt: string;
+    sessionId: string;
   };
 }
 
@@ -55,7 +65,7 @@ export interface UserPersonalRecords {
 // Helper type for PR updates
 export interface PRUpdate {
   exerciseName: string;
-  type: 'maxWeight' | 'maxVolume';
+  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
   value: number;
   reps?: number;
   sets?: number;
@@ -66,7 +76,7 @@ export interface PRUpdate {
 // PR comparison result
 export interface PRComparison {
   isNewPR: boolean;
-  type: 'maxWeight' | 'maxVolume';
+  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
   improvement?: number;
   improvementPercent?: number;
   previousBest?: number;

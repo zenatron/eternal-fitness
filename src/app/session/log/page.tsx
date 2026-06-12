@@ -16,6 +16,7 @@ import {
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useLogPastWorkout } from '@/lib/hooks/useMutations';
+import VictoryPopup from '@/components/modals/VictoryPopup';
 import { exercises as exerciseLibrary } from '@/lib/exercises';
 import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
@@ -113,6 +114,21 @@ export default function LogPastWorkoutPage() {
   const [duration, setDuration] = useState(0);
   const [notes, setNotes] = useState('');
   const [adHocName, setAdHocName] = useState('');
+  const [adHocWorkoutType, setAdHocWorkoutType] = useState<string>('strength');
+
+  const [showVictory, setShowVictory] = useState(false);
+  const [victoryData, setVictoryData] = useState<{
+    workoutName: string;
+    durationMinutes: number;
+    totalVolume: number;
+    totalSets: number;
+    totalExercises: number;
+    totalDistance: number;
+    newAchievementIds: string[];
+    newPRs: Array<{ exerciseName: string; type: string; value: number }>;
+    pointsAwarded: number;
+    progress: Record<string, number>;
+  } | null>(null);
 
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
@@ -252,6 +268,10 @@ export default function LogPastWorkoutPage() {
 
   const handleSubmit = async () => {
     const completedDate = new Date(completedAt);
+    const workoutName = selectedTemplate?.name || adHocName || 'Quick Workout';
+    const totalCompletedSets = exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).length, 0);
+
+    let result: any;
 
     if (selectedTemplate) {
       const performance: Record<string, any> = {};
@@ -265,6 +285,7 @@ export default function LogPastWorkoutPage() {
             actualReps: isCardio ? 0 : s.reps,
             actualWeight: isCardio ? 0 : s.weight,
             actualDuration: s.duration,
+            actualDistance: s.distance,
             actualRpe: s.rpe,
             completed: s.completed,
             skipped: !s.completed,
@@ -273,7 +294,7 @@ export default function LogPastWorkoutPage() {
         };
       }
 
-      await logWorkout.mutateAsync({
+      result = await logWorkout.mutateAsync({
         templateId: selectedTemplate.id,
         completedAt: completedDate.toISOString(),
         duration,
@@ -281,11 +302,12 @@ export default function LogPastWorkoutPage() {
         performance,
       });
     } else {
-      await logWorkout.mutateAsync({
+      result = await logWorkout.mutateAsync({
         completedAt: completedDate.toISOString(),
         duration,
         notes: notes || undefined,
         adHocName: adHocName || 'Quick Workout',
+        adHocWorkoutType,
         adHocExercises: exercises.map(ex => ({
           exerciseKey: ex.exerciseKey,
           sets: ex.sets.filter(s => s.completed).map(s => ({
@@ -298,7 +320,25 @@ export default function LogPastWorkoutPage() {
       });
     }
 
-    router.push('/templates');
+    const totalDistance = exercises.reduce((t, ex) => {
+      return t + ex.sets
+        .filter(s => s.completed)
+        .reduce((st, s) => st + (s.distance || 0), 0);
+    }, 0);
+
+    setVictoryData({
+      workoutName,
+      durationMinutes: Math.round(duration / 60),
+      totalVolume,
+      totalSets: totalCompletedSets,
+      totalExercises: exercises.length,
+      totalDistance,
+      newAchievementIds: result?.achievements?.newAchievements || [],
+      newPRs: result?.newPRs || [],
+      pointsAwarded: result?.achievements?.pointsAwarded || 0,
+      progress: result?.achievements?.progress || {},
+    });
+    setShowVictory(true);
   };
 
   const stepIndex = ['choose', 'details', 'performance'].indexOf(step);
@@ -465,15 +505,31 @@ export default function LogPastWorkoutPage() {
               <div className="forge-card overflow-hidden">
                 <div className="p-6 sm:p-8 space-y-6">
                   {isAdHoc && (
-                    <div>
-                      <label className="form-label">Workout Name</label>
-                      <input
-                        type="text"
-                        value={adHocName}
-                        onChange={(e) => setAdHocName(e.target.value)}
-                        className="form-input"
-                        placeholder="e.g., Morning Run, Gym Session"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="form-label">Workout Name</label>
+                        <input
+                          type="text"
+                          value={adHocName}
+                          onChange={(e) => setAdHocName(e.target.value)}
+                          className="form-input"
+                          placeholder="e.g., Morning Run, Gym Session"
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Workout Type</label>
+                        <select
+                          value={adHocWorkoutType}
+                          onChange={(e) => setAdHocWorkoutType(e.target.value)}
+                          className="form-input"
+                        >
+                          <option value="strength">Strength</option>
+                          <option value="cardio">Cardio</option>
+                          <option value="hybrid">Hybrid</option>
+                          <option value="flexibility">Flexibility</option>
+                          <option value="sports">Sports</option>
+                        </select>
+                      </div>
                     </div>
                   )}
 
@@ -785,6 +841,17 @@ export default function LogPastWorkoutPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {victoryData && (
+        <VictoryPopup
+          data={{ ...victoryData, useMetric }}
+          isOpen={showVictory}
+          onContinue={() => {
+            setShowVictory(false);
+            router.push('/templates');
+          }}
+        />
+      )}
     </motion.div>
   );
 }

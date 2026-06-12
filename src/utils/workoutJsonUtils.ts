@@ -256,6 +256,7 @@ export function convertExerciseProgressToPerformance(
       actualReps: setProgress.actualReps,
       actualWeight: setProgress.actualWeight,
       actualDuration: setProgress.actualDuration,
+      actualDistance: setProgress.actualDistance,
       actualRpe: setProgress.actualRpe,
       completed: setProgress.completed,
       skipped: setProgress.skipped || false,

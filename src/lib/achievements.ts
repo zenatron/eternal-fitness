@@ -108,6 +108,8 @@ export function calculateAchievementProgress(
     let exerciseCount = 0;
     if (exercisePR.maxWeight) exerciseCount++;
     if (exercisePR.maxVolume) exerciseCount++;
+    if (exercisePR.maxDuration) exerciseCount++;
+    if (exercisePR.maxDistance) exerciseCount++;
     return count + exerciseCount;
   }, 0);
 
@@ -165,6 +167,7 @@ export async function updateUserAchievements(userId: string): Promise<{
   newAchievements: string[];
   totalAchievements: number;
   pointsAwarded: number;
+  progress: Record<AchievementCategory, number>;
 }> {
   try {
     const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
@@ -215,10 +218,11 @@ export async function updateUserAchievements(userId: string): Promise<{
       newAchievements: newlyUnlocked,
       totalAchievements: updatedAchievements.unlockedAchievements.length,
       pointsAwarded,
+      progress,
     };
   } catch (error) {
     console.error('Error updating user achievements:', error);
-    return { newAchievements: [], totalAchievements: 0, pointsAwarded: 0 };
+    return { newAchievements: [], totalAchievements: 0, pointsAwarded: 0, progress: {} as Record<AchievementCategory, number> };
   }
 }
 

@@ -362,6 +362,7 @@ export interface LogPastWorkoutData {
   notes?: string;
   performance?: UpdateSessionData['performance'];
   adHocName?: string;
+  adHocWorkoutType?: string;
   adHocExercises?: Array<{
     exerciseKey: string;
     sets: Array<{

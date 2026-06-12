@@ -151,6 +151,8 @@ export async function GET() {
         let exerciseCount = 0;
         if (exercisePR.maxWeight) exerciseCount++;
         if (exercisePR.maxVolume) exerciseCount++;
+        if (exercisePR.maxDuration) exerciseCount++;
+        if (exercisePR.maxDistance) exerciseCount++;
         return count + exerciseCount;
       }, 0);
     }

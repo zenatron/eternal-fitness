@@ -10,10 +10,6 @@ import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { WorkoutType, Difficulty, ExercisePerformance, SetType } from '@/types/workout';
 
-const successResponse = (data: unknown, status = 201) => {
-  return NextResponse.json({ data }, { status });
-};
-
 const errorResponse = (message: string, status = 500, details?: unknown) => {
   console.error(`API Error (${status}) [session/log]:`, message, details ? JSON.stringify(details) : '');
   return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
@@ -24,6 +20,7 @@ const performanceSetSchema = z.object({
   actualReps: z.number().optional(),
   actualWeight: z.number().optional(),
   actualDuration: z.number().optional(),
+  actualDistance: z.number().optional(),
   actualRpe: z.number().optional(),
   completed: z.boolean(),
   skipped: z.boolean().optional(),
@@ -59,6 +56,7 @@ const logSessionSchema = z.object({
   performance: performanceSchema.optional(),
   // For ad-hoc workouts (no templateId)
   adHocName: z.string().optional(),
+  adHocWorkoutType: z.string().optional().default('strength'),
   adHocExercises: z.array(adHocExerciseSchema).optional(),
 }).refine(
   (data) => data.templateId || (data.adHocExercises && data.adHocExercises.length > 0),
@@ -73,6 +71,25 @@ function getExerciseData(exerciseKey: string) {
   return { name: exerciseKey, muscles: [], equipment: [] };
 }
 
+function buildPerformanceFromTemplate(templateData: any): { [exerciseId: string]: ExercisePerformance } {
+  if (!templateData?.exercises) return {};
+  const perf: { [exerciseId: string]: ExercisePerformance } = {};
+  for (const ex of templateData.exercises) {
+    const sets = (ex.sets || []).map((s: any) => ({
+      setId: s.id,
+      actualReps: typeof s.targetReps === 'number' ? s.targetReps : (s.targetReps?.min || 0),
+      actualWeight: s.targetWeight || 0,
+      actualDuration: s.targetDuration,
+      actualDistance: s.targetDistance,
+      actualRpe: s.targetRpe,
+      completed: true,
+    }));
+    const totalVolume = sets.reduce((t: number, s: any) => t + (s.actualReps * s.actualWeight), 0);
+    perf[ex.id] = { exerciseKey: ex.exerciseKey, sets, totalVolume };
+  }
+  return perf;
+}
+
 export async function POST(request: Request) {
   try {
     const userId = await getUserId();
@@ -84,11 +101,11 @@ export async function POST(request: Request) {
       return errorResponse('Invalid input', 400, validationResult.error.errors);
     }
 
-    const { templateId, completedAt, duration, notes, performance, adHocName, adHocExercises } = validationResult.data;
+    const { templateId, completedAt, duration, notes, performance, adHocName, adHocWorkoutType, adHocExercises } = validationResult.data;
     const completionTime = new Date(completedAt);
+    let templateData: any = null;
 
     const newSession = await db.transaction(async (tx) => {
-      let templateData: any = null;
       let resolvedTemplateId: string | null = templateId || null;
 
       if (templateId) {
@@ -117,9 +134,16 @@ export async function POST(request: Request) {
         templateData = createWorkoutTemplate(
           adHocName || 'Quick Workout',
           exercisesWithData,
-          { workoutType: WorkoutType.STRENGTH, difficulty: Difficulty.INTERMEDIATE }
+          { workoutType: (adHocWorkoutType as WorkoutType) || WorkoutType.STRENGTH, difficulty: Difficulty.INTERMEDIATE }
         );
         resolvedTemplateId = null;
+      }
+
+      // When no explicit performance is provided (ad-hoc), synthesize it from template data
+      // so that achievement tracking and PR detection have actual values to work with
+      let effectivePerformance: { [exerciseId: string]: ExercisePerformance } = performance || {};
+      if (Object.keys(effectivePerformance).length === 0 && templateData?.exercises) {
+        effectivePerformance = buildPerformanceFromTemplate(templateData);
       }
 
       let totalVolume = 0;
@@ -128,14 +152,14 @@ export async function POST(request: Request) {
       let totalExercises = 0;
       let skippedSets = 0;
 
-      if (performance && Object.keys(performance).length > 0) {
-        totalVolume = Object.values(performance).reduce((t, ep) => t + ep.totalVolume, 0);
-        completedSets = Object.values(performance).reduce(
+      if (Object.keys(effectivePerformance).length > 0) {
+        totalVolume = Object.values(effectivePerformance).reduce((t, ep) => t + ep.totalVolume, 0);
+        completedSets = Object.values(effectivePerformance).reduce(
           (t, ep) => t + ep.sets.filter(s => s.completed).length, 0
         );
-        totalSets = Object.values(performance).reduce((t, ep) => t + ep.sets.length, 0);
-        totalExercises = Object.keys(performance).length;
-        skippedSets = Object.values(performance).reduce(
+        totalSets = Object.values(effectivePerformance).reduce((t, ep) => t + ep.sets.length, 0);
+        totalExercises = Object.keys(effectivePerformance).length;
+        skippedSets = Object.values(effectivePerformance).reduce(
           (t, ep) => t + ep.sets.filter(s => s.skipped).length, 0
         );
       } else if (templateData) {
@@ -151,7 +175,7 @@ export async function POST(request: Request) {
 
       const performanceData = {
         templateSnapshot: templateData,
-        performance: performance || {},
+        performance: effectivePerformance,
         metrics: {
           totalVolume,
           totalSets,
@@ -176,24 +200,10 @@ export async function POST(request: Request) {
           totalVolume,
           totalSets: completedSets,
           totalExercises,
-          personalRecords: [],
+          personalRecords: 0,
           performanceData,
         })
         .returning();
-
-      // Process PRs
-      if (performance && Object.keys(performance).length > 0 && templateData) {
-        try {
-          await processWorkoutSessionPRs(
-            userId,
-            createdSession.id,
-            performance as unknown as { [k: string]: ExercisePerformance },
-            templateData,
-          );
-        } catch (prError) {
-          console.error('Error processing PRs for logged session:', prError);
-        }
-      }
 
       // Streak calculation — must be date-aware for past workouts
       // Find the workout immediately before and after the logged date
@@ -335,16 +345,34 @@ export async function POST(request: Request) {
       return createdSession;
     });
 
+    // Process PRs outside transaction
+    let newPRs: any[] = [];
+    const sessionPerf = (newSession.performanceData as any)?.performance;
+    if (sessionPerf && Object.keys(sessionPerf).length > 0 && templateData) {
+      try {
+        const prResult = await processWorkoutSessionPRs(
+          userId,
+          newSession.id,
+          sessionPerf as { [k: string]: ExercisePerformance },
+          templateData,
+        );
+        newPRs = prResult.newPRs;
+      } catch (prError) {
+        console.error('Error processing PRs for logged session:', prError);
+      }
+    }
+
     // Update achievements outside transaction
+    let achievementResult = { newAchievements: [] as string[], totalAchievements: 0, pointsAwarded: 0, progress: {} as Record<string, number> };
     try {
-      const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
+      const exerciseKeys = sessionPerf ? Object.values(sessionPerf).map((p: any) => p.exerciseKey) : [];
       await updateUniqueExercisesCount(userId, exerciseKeys);
-      await updateUserAchievements(userId);
+      achievementResult = await updateUserAchievements(userId);
     } catch (achievementError) {
       console.error('Error updating achievements for logged session:', achievementError);
     }
 
-    return successResponse(newSession);
+    return NextResponse.json({ data: { session: newSession, achievements: achievementResult, newPRs } }, { status: 201 });
   } catch (error: any) {
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404);

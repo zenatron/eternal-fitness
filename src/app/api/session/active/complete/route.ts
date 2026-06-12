@@ -9,6 +9,7 @@ import {
 } from '@/types/workout';
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { z } from 'zod';
 
 const successResponse = (data: unknown, status = 200) => {
@@ -170,47 +171,34 @@ export async function POST(request: NextRequest) {
           },
         });
 
-      // Update PRs if any
-      if (metrics.personalRecords && metrics.personalRecords.length > 0) {
-        const [currentStats] = await tx
-          .select({ personalRecords: userStats.personalRecords })
-          .from(userStats)
-          .where(eq(userStats.userId, userId));
-
-        const currentPRs = (currentStats?.personalRecords as any) || {};
-
-        for (const pr of metrics.personalRecords) {
-          const exerciseKey = (pr as any).exercise || (pr as any).exerciseKey;
-          if (!currentPRs[exerciseKey]) currentPRs[exerciseKey] = {};
-
-          if ((pr as any).type === 'weight') {
-            currentPRs[exerciseKey].maxWeight = (pr as any).value;
-            currentPRs[exerciseKey].maxWeightDate = completionTime.toISOString();
-          } else if ((pr as any).type === 'volume') {
-            currentPRs[exerciseKey].maxVolume = (pr as any).value;
-            currentPRs[exerciseKey].maxVolumeDate = completionTime.toISOString();
-          }
-        }
-
-        await tx
-          .update(userStats)
-          .set({ personalRecords: currentPRs })
-          .where(eq(userStats.userId, userId));
-      }
-
       return createdSession;
     });
 
+    // Process PRs outside transaction using the proper detection system
+    let newPRs: any[] = [];
+    try {
+      const prResult = await processWorkoutSessionPRs(
+        userId,
+        session.id,
+        (session.performanceData as WorkoutSessionData).performance,
+        (session.performanceData as WorkoutSessionData).templateSnapshot,
+      );
+      newPRs = prResult.newPRs;
+    } catch (prError) {
+      console.error('Error processing PRs for completed session:', prError);
+    }
+
+    let achievementResult = { newAchievements: [] as string[], totalAchievements: 0, pointsAwarded: 0, progress: {} as Record<string, number> };
     try {
       // Update unique exercises count first, then check achievements
       // (achievements depend on the updated uniqueExercises count)
       await updateUniqueExercisesCount(userId);
-      await updateUserAchievements(userId);
+      achievementResult = await updateUserAchievements(userId);
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
     }
 
-    return successResponse({ session, message: 'Workout completed successfully' });
+    return successResponse({ session, message: 'Workout completed successfully', achievements: achievementResult, newPRs });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);

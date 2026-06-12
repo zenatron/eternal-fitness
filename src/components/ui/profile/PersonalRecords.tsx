@@ -1,9 +1,10 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import Link from 'next/link';
 import { TrophyIcon, ScaleIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
-import { formatVolume } from '@/utils/formatters';
+import { formatPRValue } from '@/utils/prFormatting';
 
 interface PersonalRecordsProps {
   stats: UserStatsData;
@@ -18,11 +19,6 @@ const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mas
 export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecordsProps) {
   const prefersReducedMotion = useReducedMotion();
   const noMotion = prefersReducedMotion ?? false;
-
-  const formatWeight = (weight: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    return `${weight.toFixed(1)} ${unit}`;
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -97,13 +93,15 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
                   {record.exerciseName}
                 </h4>
                 <p className="text-sm text-surface-500 dark:text-surface-600">
-                  {record.type === 'weight' ? 'Max Weight' : 'Max Volume'}
+                  {record.type === 'weight' ? 'Max Weight' : 
+                   record.type === 'volume' ? 'Max Volume' :
+                   record.type === 'duration' ? 'Max Duration' : 'Max Distance'}
                 </p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-lg font-display font-bold text-yellow-600 dark:text-yellow-400">
-                {record.type === 'weight' ? formatWeight(record.value) : formatVolume(record.value, useMetric)}
+                {formatPRValue(record.value, record.type === 'weight' ? 'maxWeight' : record.type === 'volume' ? 'maxVolume' : record.type === 'duration' ? 'maxDuration' : 'maxDistance', useMetric)}
               </p>
               <p className="text-xs text-surface-500 dark:text-surface-600">
                 {formatDate(record.achievedAt)}
@@ -119,15 +117,15 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
           whileTap={noMotion ? {} : { scale: 0.97 }}
           transition={springSnappy}
         >
-          <button
-            onClick={onViewAll}
+          <Link
+            href="/personal-records"
             className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
           >
             View All Records ({stats.personalRecords.length})
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </button>
+          </Link>
         </motion.div>
       )}
     </motion.div>

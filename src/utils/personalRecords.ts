@@ -3,6 +3,7 @@ import { PerformedSet, ExercisePerformance, WorkoutSessionData } from '@/types/w
 import { db } from '@/lib/db';
 import { userStats } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { formatPRValue } from '@/utils/prFormatting';
 
 export function detectPersonalRecords(
   exerciseName: string,
@@ -13,27 +14,48 @@ export function detectPersonalRecords(
   const newPRs: PRUpdate[] = [];
   const exercisePR = currentPRs[exerciseName];
 
-  const completedSets = performedSets.filter(set => set.completed && set.actualWeight && set.actualReps);
+  const completedSets = performedSets.filter(set => set.completed);
   if (completedSets.length === 0) return newPRs;
 
-  const maxWeightSet = completedSets.reduce((max, set) =>
-    (set.actualWeight || 0) > (max.actualWeight || 0) ? set : max,
-  );
+  const strengthSets = completedSets.filter(set => set.actualWeight && set.actualReps);
+  const cardioSets = completedSets.filter(set => set.actualDuration || set.actualDistance);
 
-  const maxWeight = maxWeightSet.actualWeight || 0;
-  const repsAtMaxWeight = maxWeightSet.actualReps || 0;
+  // Strength PRs
+  if (strengthSets.length > 0) {
+    const maxWeightSet = strengthSets.reduce((max, set) =>
+      (set.actualWeight || 0) > (max.actualWeight || 0) ? set : max,
+    );
 
-  const currentMaxWeight = exercisePR?.maxWeight?.value || 0;
-  if (maxWeight > currentMaxWeight) {
-    newPRs.push({ exerciseName, type: 'maxWeight', value: maxWeight, reps: repsAtMaxWeight, sessionId });
+    const maxWeight = maxWeightSet.actualWeight || 0;
+    const repsAtMaxWeight = maxWeightSet.actualReps || 0;
+
+    const currentMaxWeight = exercisePR?.maxWeight?.value || 0;
+    if (maxWeight > currentMaxWeight) {
+      newPRs.push({ exerciseName, type: 'maxWeight', value: maxWeight, reps: repsAtMaxWeight, sessionId });
+    }
+
+    const totalVolume = strengthSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
+    const avgWeight = totalVolume / strengthSets.reduce((total, set) => total + (set.actualReps || 0), 0);
+
+    const currentMaxVolume = exercisePR?.maxVolume?.value || 0;
+    if (totalVolume > currentMaxVolume) {
+      newPRs.push({ exerciseName, type: 'maxVolume', value: totalVolume, sets: strengthSets.length, avgWeight, sessionId });
+    }
   }
 
-  const totalVolume = completedSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
-  const avgWeight = totalVolume / completedSets.reduce((total, set) => total + (set.actualReps || 0), 0);
+  // Cardio PRs
+  if (cardioSets.length > 0) {
+    const totalDuration = cardioSets.reduce((total, set) => total + (set.actualDuration || 0), 0);
+    const currentMaxDuration = exercisePR?.maxDuration?.value || 0;
+    if (totalDuration > currentMaxDuration) {
+      newPRs.push({ exerciseName, type: 'maxDuration', value: totalDuration, sessionId });
+    }
 
-  const currentMaxVolume = exercisePR?.maxVolume?.value || 0;
-  if (totalVolume > currentMaxVolume) {
-    newPRs.push({ exerciseName, type: 'maxVolume', value: totalVolume, sets: completedSets.length, avgWeight, sessionId });
+    const totalDistance = cardioSets.reduce((total, set) => total + (set.actualDistance || 0), 0);
+    const currentMaxDistance = exercisePR?.maxDistance?.value || 0;
+    if (totalDistance > currentMaxDistance) {
+      newPRs.push({ exerciseName, type: 'maxDistance', value: totalDistance, sessionId });
+    }
   }
 
   return newPRs;
@@ -62,6 +84,18 @@ export function updatePersonalRecords(currentPRs: UserPersonalRecords, newPRs: P
         sets: pr.sets || 1,
         avgWeight: pr.avgWeight || pr.value,
       };
+    } else if (pr.type === 'maxDuration') {
+      updatedPRs[pr.exerciseName].maxDuration = {
+        value: pr.value,
+        achievedAt: now,
+        sessionId: pr.sessionId,
+      };
+    } else if (pr.type === 'maxDistance') {
+      updatedPRs[pr.exerciseName].maxDistance = {
+        value: pr.value,
+        achievedAt: now,
+        sessionId: pr.sessionId,
+      };
     }
   });
 
@@ -78,25 +112,50 @@ export function compareToPRs(
 
   if (!exercisePR) return [];
 
-  const completedSets = performedSets.filter(set => set.completed && set.actualWeight && set.actualReps);
+  const completedSets = performedSets.filter(set => set.completed);
   if (completedSets.length === 0) return comparisons;
 
-  const maxWeight = Math.max(...completedSets.map(set => set.actualWeight || 0));
-  const currentMaxWeight = exercisePR.maxWeight?.value || 0;
+  const strengthSets = completedSets.filter(set => set.actualWeight && set.actualReps);
+  const cardioSets = completedSets.filter(set => set.actualDuration || set.actualDistance);
 
-  if (maxWeight > currentMaxWeight) {
-    const improvement = maxWeight - currentMaxWeight;
-    const improvementPercent = currentMaxWeight > 0 ? (improvement / currentMaxWeight) * 100 : 100;
-    comparisons.push({ isNewPR: true, type: 'maxWeight', improvement, improvementPercent, previousBest: currentMaxWeight });
+  if (strengthSets.length > 0) {
+    const maxWeight = Math.max(...strengthSets.map(set => set.actualWeight || 0));
+    const currentMaxWeight = exercisePR.maxWeight?.value || 0;
+
+    if (maxWeight > currentMaxWeight) {
+      const improvement = maxWeight - currentMaxWeight;
+      const improvementPercent = currentMaxWeight > 0 ? (improvement / currentMaxWeight) * 100 : 100;
+      comparisons.push({ isNewPR: true, type: 'maxWeight', improvement, improvementPercent, previousBest: currentMaxWeight });
+    }
+
+    const totalVolume = strengthSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
+    const currentMaxVolume = exercisePR.maxVolume?.value || 0;
+
+    if (totalVolume > currentMaxVolume) {
+      const improvement = totalVolume - currentMaxVolume;
+      const improvementPercent = currentMaxVolume > 0 ? (improvement / currentMaxVolume) * 100 : 100;
+      comparisons.push({ isNewPR: true, type: 'maxVolume', improvement, improvementPercent, previousBest: currentMaxVolume });
+    }
   }
 
-  const totalVolume = completedSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
-  const currentMaxVolume = exercisePR.maxVolume?.value || 0;
+  if (cardioSets.length > 0) {
+    const totalDuration = cardioSets.reduce((total, set) => total + (set.actualDuration || 0), 0);
+    const currentMaxDuration = exercisePR.maxDuration?.value || 0;
 
-  if (totalVolume > currentMaxVolume) {
-    const improvement = totalVolume - currentMaxVolume;
-    const improvementPercent = currentMaxVolume > 0 ? (improvement / currentMaxVolume) * 100 : 100;
-    comparisons.push({ isNewPR: true, type: 'maxVolume', improvement, improvementPercent, previousBest: currentMaxVolume });
+    if (totalDuration > currentMaxDuration) {
+      const improvement = totalDuration - currentMaxDuration;
+      const improvementPercent = currentMaxDuration > 0 ? (improvement / currentMaxDuration) * 100 : 100;
+      comparisons.push({ isNewPR: true, type: 'maxDuration', improvement, improvementPercent, previousBest: currentMaxDuration });
+    }
+
+    const totalDistance = cardioSets.reduce((total, set) => total + (set.actualDistance || 0), 0);
+    const currentMaxDistance = exercisePR.maxDistance?.value || 0;
+
+    if (totalDistance > currentMaxDistance) {
+      const improvement = totalDistance - currentMaxDistance;
+      const improvementPercent = currentMaxDistance > 0 ? (improvement / currentMaxDistance) * 100 : 100;
+      comparisons.push({ isNewPR: true, type: 'maxDistance', improvement, improvementPercent, previousBest: currentMaxDistance });
+    }
   }
 
   return comparisons;
@@ -107,7 +166,7 @@ export function getTopPRs(
   limit: number = 10,
 ): Array<{
   exerciseName: string;
-  type: 'maxWeight' | 'maxVolume';
+  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
   value: number;
   achievedAt: string;
   reps?: number;
@@ -115,7 +174,7 @@ export function getTopPRs(
 }> {
   const allPRs: Array<{
     exerciseName: string;
-    type: 'maxWeight' | 'maxVolume';
+    type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
     value: number;
     achievedAt: string;
     reps?: number;
@@ -135,15 +194,24 @@ export function getTopPRs(
         achievedAt: exercisePR.maxVolume.achievedAt, sets: exercisePR.maxVolume.sets,
       });
     }
+    if (exercisePR.maxDuration) {
+      allPRs.push({
+        exerciseName, type: 'maxDuration', value: exercisePR.maxDuration.value,
+        achievedAt: exercisePR.maxDuration.achievedAt,
+      });
+    }
+    if (exercisePR.maxDistance) {
+      allPRs.push({
+        exerciseName, type: 'maxDistance', value: exercisePR.maxDistance.value,
+        achievedAt: exercisePR.maxDistance.achievedAt,
+      });
+    }
   });
 
   return allPRs.sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime()).slice(0, limit);
 }
 
-export function formatPRValue(value: number, type: 'maxWeight' | 'maxVolume', useMetric: boolean = false): string {
-  const unit = useMetric ? 'kg' : 'lbs';
-  return type === 'maxWeight' ? `${value.toFixed(1)} ${unit}` : `${value.toFixed(0)} ${unit}`;
-}
+export { formatPRValue };
 
 export async function processSessionPRs(
   userId: string,

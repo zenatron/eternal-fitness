@@ -15,6 +15,7 @@ import {
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
+import { formatPRValue } from '@/utils/prFormatting';
 
 const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
@@ -213,7 +214,8 @@ export function PersonalRecordsModal({ isOpen, onClose, stats, useMetric }: Pers
                                 </h4>
                                 <p className="text-sm text-surface-500 dark:text-surface-600 font-medium">
                                   {record.type === 'weight' ? 'Max Weight' : 
-                                   record.type === 'reps' ? 'Max Reps' : 'Max Volume'}
+                                   record.type === 'volume' ? 'Max Volume' :
+                                   record.type === 'duration' ? 'Max Duration' : 'Max Distance'}
                                 </p>
                                 <p className="text-xs text-surface-500 dark:text-surface-600">
                                   {formatDate(record.achievedAt)}
@@ -227,9 +229,7 @@ export function PersonalRecordsModal({ isOpen, onClose, stats, useMetric }: Pers
                               transition={{ ...springGentle, delay: index * 0.05 + 0.15 }}
                             >
                               <p className="text-lg font-display font-bold text-yellow-600 dark:text-yellow-400">
-                                {record.type === 'weight' ? formatWeight(record.value) : 
-                                 record.type === 'reps' ? `${record.value} reps` :
-                                 formatVolume(record.value, useMetric)}
+                                {formatPRValue(record.value, record.type === 'weight' ? 'maxWeight' : record.type === 'volume' ? 'maxVolume' : record.type === 'duration' ? 'maxDuration' : 'maxDistance', useMetric)}
                               </p>
                             </motion.div>
                           </motion.div>
