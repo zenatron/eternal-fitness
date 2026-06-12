@@ -4,7 +4,6 @@ import { Providers } from '@/components/Providers';
 import { ThemeHandler } from '@/components/theme/ThemeHandler';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { ClerkProvider } from '@clerk/nextjs';
 import ActiveWorkoutIndicator from '@/components/workout/ActiveWorkoutIndicator';
 
 export const metadata: Metadata = {
@@ -18,21 +17,19 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider afterSignOutUrl="/" signInUrl="/login" signUpUrl="/signup">
-      <html lang="en" suppressHydrationWarning>
-        <body suppressHydrationWarning className="app-bg">
-          <Providers>
-            <ThemeHandler>
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <ActiveWorkoutIndicator />
-                <main className="flex-1 pt-16">{children}</main>
-                <Footer />
-              </div>
-            </ThemeHandler>
-          </Providers>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning className="app-bg">
+        <Providers>
+          <ThemeHandler>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <ActiveWorkoutIndicator />
+              <main className="flex-1 pt-16">{children}</main>
+              <Footer />
+            </div>
+          </ThemeHandler>
+        </Providers>
+      </body>
+    </html>
   );
 }

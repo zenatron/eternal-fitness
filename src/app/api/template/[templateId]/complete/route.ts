@@ -1,32 +1,23 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { workoutTemplates, workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
-import { WorkoutTemplate } from '@/types/workout';
+import { WorkoutTemplate, WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
-  // 201 for creating session
+const successResponse = (data: unknown, status = 201) => {
   return NextResponse.json({ data }, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}/complete]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
+const errorResponse = (message: string, status = 500, details?: unknown) => {
+  console.error(`API Error (${status}) [template/{id}/complete]:`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
-// --- Zod Schema for POST Request ---
 const completeTemplateSchema = z.object({
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
@@ -54,24 +45,16 @@ export async function POST(
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const { templateId } = await params;
-    let body = {}; // Default to empty object if no body is expected/sent
+    let body = {};
     try {
-      // Try to parse body, but allow empty body
       const text = await request.text();
-      if (text) {
-        body = JSON.parse(text);
-      }
-    } catch (e) {
-      // Ignore JSON parse error if body is empty or malformed, Zod will catch it
-    }
+      if (text) body = JSON.parse(text);
+    } catch {}
 
-    // Validate request body (even if empty)
     const validationResult = completeTemplateSchema.safeParse(body);
     if (!validationResult.success) {
       return errorResponse('Invalid input', 400, validationResult.error.errors);
@@ -79,169 +62,140 @@ export async function POST(
 
     const { duration, notes, performance } = validationResult.data;
 
-    // --- Transaction ---
-    const newSession = await prisma.$transaction(async (tx) => {
-      // 1. Fetch the template, verify ownership, and get required data
-      const template = await tx.workoutTemplate.findUnique({
-        where: { id: templateId, userId },
-        select: {
-          id: true,
-          totalVolume: true,
-          workoutData: true,
-          exerciseCount: true
-        },
-      });
+    const newSession = await db.transaction(async (tx) => {
+      const [template] = await tx
+        .select({
+          id: workoutTemplates.id,
+          totalVolume: workoutTemplates.totalVolume,
+          workoutData: workoutTemplates.workoutData,
+          exerciseCount: workoutTemplates.exerciseCount,
+        })
+        .from(workoutTemplates)
+        .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
 
-      if (!template) {
-        throw new Error('TemplateNotFound');
-      }
+      if (!template) throw new Error('TemplateNotFound');
+      if (!template.workoutData) throw new Error('TemplateDataMissing');
 
       const completionTime = new Date();
       const sessionTotalVolume = template.totalVolume;
-
-      // 2. Create the WorkoutSession record with required performanceData
-      const templateData = template.workoutData;
       const totalSets = getTotalSetsCount(template as WorkoutTemplate);
 
-      // Create performance data structure for the completed session
       let actualTotalVolume = sessionTotalVolume;
       let completedSets = totalSets;
       let skippedSets = 0;
 
       if (performance) {
-        // Calculate actual metrics from performance data
-        actualTotalVolume = Object.values(performance).reduce((total, exercisePerf) => total + exercisePerf.totalVolume, 0);
-        completedSets = Object.values(performance).reduce((total, exercisePerf) =>
-          total + exercisePerf.sets.filter(set => set.completed).length, 0);
-        skippedSets = Object.values(performance).reduce((total, exercisePerf) =>
-          total + exercisePerf.sets.filter(set => set.skipped).length, 0);
+        actualTotalVolume = Object.values(performance).reduce((total, ep) => total + ep.totalVolume, 0);
+        completedSets = Object.values(performance).reduce((total, ep) => total + ep.sets.filter(s => s.completed).length, 0);
+        skippedSets = Object.values(performance).reduce((total, ep) => total + ep.sets.filter(s => s.skipped).length, 0);
       }
 
       const adherenceScore = totalSets > 0 ? Math.round(((completedSets + skippedSets) / totalSets) * 100) : 100;
 
       const performanceData = {
-        templateSnapshot: templateData,
-        performance: performance || {}, // Use provided performance data or empty object
+        templateSnapshot: template.workoutData,
+        performance: performance || {},
         metrics: {
           totalVolume: actualTotalVolume,
-          totalSets: totalSets,
+          totalSets,
           totalExercises: template.exerciseCount || 0,
-          completedSets: completedSets,
-          skippedSets: skippedSets,
-          personalRecords: [], // TODO: Calculate PRs from performance data
-          volumeRecords: [], // TODO: Calculate volume records
-          adherenceScore: adherenceScore,
+          completedSets,
+          skippedSets,
+          personalRecords: [],
+          volumeRecords: [],
+          adherenceScore,
         },
         environment: {},
       };
 
-      const createdSession = await tx.workoutSession.create({
-        data: {
-          userId: userId,
+      const [createdSession] = await tx
+        .insert(workoutSessions)
+        .values({
+          userId,
           workoutTemplateId: templateId,
           completedAt: completionTime,
-          duration: duration,
-          notes: notes,
+          duration,
+          notes,
           totalVolume: actualTotalVolume,
           totalSets: completedSets,
           totalExercises: template.exerciseCount || 0,
-          personalRecords: [], // Empty array for PRs
-          scheduledAt: null, // Not scheduled
-          performanceData: performanceData as any, // Prisma Json type
-        },
-        include: { workoutTemplate: { select: { name: true } } },
-      });
+          personalRecords: [],
+          performanceData,
+        })
+        .returning();
 
-      // 3. Process Personal Records if performance data is available
       if (performance && Object.keys(performance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, templateData);
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, template.workoutData);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
-          // Don't fail the entire transaction for PR processing errors
         }
       }
 
-      // 4. Update UserStats
-      await tx.userStats.upsert({
-        where: { userId: userId },
-        update: {
-          totalWorkouts: { increment: 1 },
-          totalVolume: { increment: sessionTotalVolume },
-          totalTrainingHours: { increment: duration ? duration / 60 : 0 },
-          lastWorkoutAt: completionTime,
-        },
-        create: {
-          userId: userId,
+      // Upsert user stats
+      await tx
+        .insert(userStats)
+        .values({
+          userId,
           totalWorkouts: 1,
           totalVolume: sessionTotalVolume,
           totalTrainingHours: duration ? duration / 60 : 0,
           lastWorkoutAt: completionTime,
           currentStreak: 1,
           longestStreak: 1,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: userStats.userId,
+          set: {
+            totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
+            totalVolume: sql`${userStats.totalVolume} + ${sessionTotalVolume}`,
+            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 60 : 0}`,
+            lastWorkoutAt: completionTime,
+          },
+        });
 
-      // 5. Update MonthlyStats
+      // Upsert monthly stats
       const currentYear = completionTime.getFullYear();
       const currentMonth = completionTime.getMonth() + 1;
-      await tx.monthlyStats.upsert({
-        where: {
-          userId_year_month: { userId, year: currentYear, month: currentMonth },
-        },
-        update: {
-          workoutsCount: { increment: 1 },
-          volume: { increment: sessionTotalVolume },
-          trainingHours: { increment: duration ? duration / 60 : 0 },
-        },
-        create: {
+      await tx
+        .insert(monthlyStats)
+        .values({
           userId,
           year: currentYear,
           month: currentMonth,
           workoutsCount: 1,
           volume: sessionTotalVolume,
           trainingHours: duration ? duration / 60 : 0,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
+          set: {
+            workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
+            volume: sql`${monthlyStats.volume} + ${sessionTotalVolume}`,
+            trainingHours: sql`${monthlyStats.trainingHours} + ${duration ? duration / 60 : 0}`,
+          },
+        });
 
       return createdSession;
-    }); // End Transaction
+    });
 
-    // Update achievements after successful workout completion
     try {
-      // Extract exercise keys from performance data
       const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
-
-      // Update unique exercises count
       await updateUniqueExercisesCount(userId, exerciseKeys);
-
-      // Update achievements
       const achievementResult = await updateUserAchievements(userId);
-
       if (achievementResult.newAchievements.length > 0) {
-        console.log(`🏆 User ${userId} unlocked ${achievementResult.newAchievements.length} new achievements:`, achievementResult.newAchievements);
+        console.log(`User ${userId} unlocked ${achievementResult.newAchievements.length} new achievements`);
       }
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
-      // Don't fail the workout completion for achievement errors
     }
 
     return successResponse(newSession);
   } catch (error: any) {
     const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
+      return errorResponse('Template not found or access denied', 404, { templateId });
     }
-
-    console.error(`Error completing template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error completing template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error completing template', 500, { templateId, error: error instanceof Error ? error.message : String(error) });
   }
 }

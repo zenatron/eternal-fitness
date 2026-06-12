@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import prisma from '@/lib/prisma';
+import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { workoutTemplates } from '@/lib/db/schema';
 import { z } from 'zod';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import {
@@ -8,38 +9,22 @@ import {
   validateWorkoutTemplate,
   calculateTemplateVolume,
   calculateEstimatedDuration,
-  extractMuscleGroups,
-  extractEquipment
 } from '@/utils/workoutJsonUtils';
-import {
-  WorkoutTemplateData,
-  WorkoutType,
-  Difficulty,
-  SetType
-} from '@/types/workout';
+import { WorkoutType, Difficulty } from '@/types/workout';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 201) => {
+const successResponse = (data: unknown, status = 201) => {
   return NextResponse.json({ data }, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/create]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
+const errorResponse = (message: string, status = 500, details?: unknown) => {
+  console.error(`API Error (${status}) [template/create]:`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
-// 🚀 NEW JSON-BASED SCHEMA FOR TEMPLATE CREATION
 const createSetSchema = z.object({
   reps: z.number().int().positive(),
   weight: z.number().nonnegative().optional(),
-  duration: z.number().positive().optional(), // for time-based exercises
+  duration: z.number().positive().optional(),
   type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest']).optional().default('standard'),
   restTime: z.number().positive().optional(),
   notes: z.string().optional(),
@@ -62,58 +47,35 @@ const createTemplateSchema = z.object({
   exercises: z.array(createExerciseSchema).min(1, { message: 'Template must have at least one exercise' }),
 });
 
-type CreateTemplateData = z.infer<typeof createTemplateSchema>;
-
-// 🚀 HELPER: GET EXERCISE DATA FROM STATIC DATA (for enrichment)
 function getExerciseData(exerciseKey: string) {
   const staticData = staticExercisesData[exerciseKey as keyof typeof staticExercisesData];
   if (staticData) {
-    return {
-      name: staticData.name,
-      muscles: staticData.muscles,
-      equipment: staticData.equipment,
-    };
+    return { name: staticData.name, muscles: staticData.muscles, equipment: staticData.equipment };
   }
-
-  // Fallback for unknown exercises
-  return {
-    name: exerciseKey, // Use the key as the name
-    muscles: [],
-    equipment: [],
-  };
+  return { name: exerciseKey, muscles: [], equipment: [] };
 }
 
-// 🚀 NEW JSON-BASED POST HANDLER
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const body = await request.json();
-
-    // Validate request body
     const validationResult = createTemplateSchema.safeParse(body);
     if (!validationResult.success) {
-      return errorResponse(
-        'Invalid template data',
-        400,
-        validationResult.error.errors,
-      );
+      return errorResponse('Invalid template data', 400, validationResult.error.errors);
     }
 
     const validatedData = validationResult.data;
 
-    // 🎯 BUILD JSON WORKOUT DATA
-    const exercisesWithData = validatedData.exercises.map((ex, index) => {
+    const exercisesWithData = validatedData.exercises.map((ex) => {
       const exerciseData = getExerciseData(ex.exerciseKey);
       return {
         exerciseKey: ex.exerciseKey,
         name: exerciseData.name,
         muscles: exerciseData.muscles,
         equipment: exerciseData.equipment,
-        sets: ex.sets.map((set, setIndex) => ({
+        sets: ex.sets.map((set) => ({
           reps: set.reps,
           weight: set.weight,
           type: set.type,
@@ -125,52 +87,40 @@ export async function POST(request: Request) {
       };
     });
 
-    // Create the JSON workout template data
-    const workoutData = createWorkoutTemplate(
-      validatedData.name,
-      exercisesWithData,
-      {
-        description: validatedData.description,
-        tags: validatedData.tags,
-        workoutType: validatedData.workoutType as WorkoutType,
-        difficulty: validatedData.difficulty as Difficulty,
-      }
-    );
+    const workoutData = createWorkoutTemplate(validatedData.name, exercisesWithData, {
+      description: validatedData.description,
+      tags: validatedData.tags,
+      workoutType: validatedData.workoutType as WorkoutType,
+      difficulty: validatedData.difficulty as Difficulty,
+    });
 
-    // Validate the created workout data
     if (!validateWorkoutTemplate(workoutData)) {
       return errorResponse('Invalid workout template structure', 500);
     }
 
-    // Calculate computed fields
     const totalVolume = calculateTemplateVolume(workoutData.exercises);
     const estimatedDuration = calculateEstimatedDuration(workoutData.exercises);
     const exerciseCount = workoutData.exercises.length;
 
-    // 🎯 CREATE TEMPLATE WITH JSON DATA
-    const createdTemplate = await prisma.workoutTemplate.create({
-      data: {
+    const [createdTemplate] = await db
+      .insert(workoutTemplates)
+      .values({
         name: validatedData.name,
         description: validatedData.description,
         favorite: validatedData.favorite,
-        userId: userId,
-        workoutData: workoutData as any, // Prisma Json type
+        userId,
+        workoutData,
         totalVolume,
         estimatedDuration,
         exerciseCount,
         difficulty: validatedData.difficulty,
         workoutType: validatedData.workoutType,
         tags: validatedData.tags || [],
-      },
-    });
-
-    console.log(`✅ Created JSON-based workout template: ${createdTemplate.name} (${createdTemplate.id})`);
+      })
+      .returning();
 
     return successResponse(createdTemplate);
-  } catch (error: any) {
-    console.error('Error creating JSON-based template:', error);
-    return errorResponse('Internal Server Error creating template', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+  } catch (error) {
+    return errorResponse('Internal Server Error creating template', 500, error instanceof Error ? error.message : String(error));
   }
 }

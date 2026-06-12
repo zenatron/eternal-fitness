@@ -1,11 +1,11 @@
 import { ACHIEVEMENT_DEFINITIONS, UserAchievements, AchievementCategory } from '@/types/achievements';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { userStats, workoutSessions } from '@/lib/db/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 
-/**
- * Calculate current progress for all achievement categories based on user stats
- */
-export function calculateAchievementProgress(userStats: any): Record<AchievementCategory, number> {
-  const personalRecords = userStats.personalRecords || {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function calculateAchievementProgress(stats: Record<string, any>): Record<AchievementCategory, number> {
+  const personalRecords = stats.personalRecords || {};
   const prCount = Object.keys(personalRecords).reduce((count, exerciseName) => {
     const exercisePR = personalRecords[exerciseName];
     let exerciseCount = 0;
@@ -15,174 +15,103 @@ export function calculateAchievementProgress(userStats: any): Record<Achievement
   }, 0);
 
   return {
-    volume_lifted: userStats.totalVolume || 0,
-    workouts_completed: userStats.totalWorkouts || 0,
-    unique_exercises: userStats.uniqueExercises || 0,
-    workout_hours: userStats.totalTrainingHours || 0,
-    consistency_streak: userStats.longestStreak || 0,
+    volume_lifted: stats.totalVolume || 0,
+    workouts_completed: stats.totalWorkouts || 0,
+    unique_exercises: stats.uniqueExercises || 0,
+    workout_hours: stats.totalTrainingHours || 0,
+    consistency_streak: stats.longestStreak || 0,
     personal_records: prCount,
-    heavy_lifter: 0, // TODO: Implement based on max single lift
-    endurance: 0, // TODO: Implement based on longest workout
-    dedication: userStats.activeWeeks || 0
+    heavy_lifter: 0,
+    endurance: 0,
+    dedication: stats.activeWeeks || 0,
   };
 }
 
-/**
- * Check which achievements should be unlocked based on current progress
- */
 export function checkUnlockedAchievements(
   progress: Record<AchievementCategory, number>,
-  currentAchievements: UserAchievements
+  currentAchievements: UserAchievements,
 ): string[] {
   const newlyUnlocked: string[] = [];
-  
+
   for (const achievement of ACHIEVEMENT_DEFINITIONS) {
     const isAlreadyUnlocked = currentAchievements.unlockedAchievements.includes(achievement.id);
     const currentProgress = progress[achievement.category] || 0;
-    
+
     if (!isAlreadyUnlocked && currentProgress >= achievement.requirement) {
       newlyUnlocked.push(achievement.id);
     }
   }
-  
+
   return newlyUnlocked;
 }
 
-/**
- * Update user achievements in the database
- */
 export async function updateUserAchievements(userId: string): Promise<{
   newAchievements: string[];
   totalAchievements: number;
 }> {
   try {
-    // Get current user stats
-    const userStats = await prisma.userStats.findUnique({
-      where: { userId }
-    });
+    const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
 
-    if (!userStats) {
-      throw new Error('User stats not found');
-    }
+    if (!stats) throw new Error('User stats not found');
 
-    // Get current achievements or initialize
-    const currentAchievements: UserAchievements = userStats.achievements as UserAchievements || {
+    const currentAchievements: UserAchievements = (stats.achievements as UserAchievements) || {
       unlockedAchievements: [],
       progress: {},
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
-    // Calculate current progress
-    const progress = calculateAchievementProgress(userStats);
-
-    // Check for newly unlocked achievements
+    const progress = calculateAchievementProgress(stats);
     const newlyUnlocked = checkUnlockedAchievements(progress, currentAchievements);
 
-    // Update achievements if there are new ones
-    if (newlyUnlocked.length > 0) {
-      const updatedAchievements: UserAchievements = {
-        unlockedAchievements: [...currentAchievements.unlockedAchievements, ...newlyUnlocked],
-        progress,
-        lastUpdated: new Date().toISOString()
-      };
-
-      await prisma.userStats.update({
-        where: { userId },
-        data: {
-          achievements: updatedAchievements as any
-        }
-      });
-
-      return {
-        newAchievements: newlyUnlocked,
-        totalAchievements: updatedAchievements.unlockedAchievements.length
-      };
-    }
-
-    // Update progress even if no new achievements
     const updatedAchievements: UserAchievements = {
-      ...currentAchievements,
+      unlockedAchievements: newlyUnlocked.length > 0
+        ? [...currentAchievements.unlockedAchievements, ...newlyUnlocked]
+        : currentAchievements.unlockedAchievements,
       progress,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
-    await prisma.userStats.update({
-      where: { userId },
-      data: {
-        achievements: updatedAchievements as any
-      }
-    });
+    await db
+      .update(userStats)
+      .set({ achievements: updatedAchievements })
+      .where(eq(userStats.userId, userId));
 
     return {
-      newAchievements: [],
-      totalAchievements: currentAchievements.unlockedAchievements.length
+      newAchievements: newlyUnlocked,
+      totalAchievements: updatedAchievements.unlockedAchievements.length,
     };
-
   } catch (error) {
     console.error('Error updating user achievements:', error);
-    return {
-      newAchievements: [],
-      totalAchievements: 0
-    };
+    return { newAchievements: [], totalAchievements: 0 };
   }
 }
 
-/**
- * Get user's achievement data with progress information
- */
 export async function getUserAchievements(userId: string) {
   try {
-    // First try with achievements field
-    let userStats;
-    try {
-      userStats = await prisma.userStats.findUnique({
-        where: { userId },
-        select: {
-          achievements: true,
-          totalVolume: true,
-          totalWorkouts: true,
-          uniqueExercises: true,
-          totalTrainingHours: true,
-          longestStreak: true,
-          personalRecords: true,
-          activeWeeks: true
-        }
-      });
-    } catch (prismaError: any) {
-      // If achievements field doesn't exist, try without it and create default
-      console.log('Achievements field not available, creating default...');
-      userStats = await prisma.userStats.findUnique({
-        where: { userId },
-        select: {
-          totalVolume: true,
-          totalWorkouts: true,
-          totalTrainingHours: true,
-          longestStreak: true,
-          personalRecords: true,
-          activeWeeks: true
-        }
-      });
+    const [stats] = await db
+      .select({
+        achievements: userStats.achievements,
+        totalVolume: userStats.totalVolume,
+        totalWorkouts: userStats.totalWorkouts,
+        uniqueExercises: userStats.uniqueExercises,
+        totalTrainingHours: userStats.totalTrainingHours,
+        longestStreak: userStats.longestStreak,
+        personalRecords: userStats.personalRecords,
+        activeWeeks: userStats.activeWeeks,
+      })
+      .from(userStats)
+      .where(eq(userStats.userId, userId));
 
-      if (userStats) {
-        // Add default values for missing fields
-        (userStats as any).achievements = null;
-        (userStats as any).uniqueExercises = 0;
-      }
-    }
+    if (!stats) return null;
 
-    if (!userStats) {
-      return null;
-    }
-
-    const achievements: UserAchievements = userStats.achievements as UserAchievements || {
+    const achievements: UserAchievements = (stats.achievements as UserAchievements) || {
       unlockedAchievements: [],
       progress: {},
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
-    const currentProgress = calculateAchievementProgress(userStats);
+    const currentProgress = calculateAchievementProgress(stats);
 
-    // Get achievement details with progress
     const achievementDetails = ACHIEVEMENT_DEFINITIONS.map(achievement => {
       const isUnlocked = achievements.unlockedAchievements.includes(achievement.id);
       const progress = currentProgress[achievement.category] || 0;
@@ -193,15 +122,12 @@ export async function getUserAchievements(userId: string) {
         isUnlocked,
         progress,
         progressPercentage,
-        unlockedAt: isUnlocked ? achievements.lastUpdated : undefined
+        unlockedAt: isUnlocked ? achievements.lastUpdated : undefined,
       };
     });
 
-    // Group by category
     const achievementsByCategory = achievementDetails.reduce((acc, achievement) => {
-      if (!acc[achievement.category]) {
-        acc[achievement.category] = [];
-      }
+      if (!acc[achievement.category]) acc[achievement.category] = [];
       acc[achievement.category].push(achievement);
       return acc;
     }, {} as Record<AchievementCategory, typeof achievementDetails>);
@@ -210,58 +136,41 @@ export async function getUserAchievements(userId: string) {
       achievements: achievementsByCategory,
       unlockedCount: achievements.unlockedAchievements.length,
       totalCount: ACHIEVEMENT_DEFINITIONS.length,
-      currentProgress
+      currentProgress,
     };
-
   } catch (error) {
     console.error('Error getting user achievements:', error);
     return null;
   }
 }
 
-/**
- * Update unique exercises count when a workout is completed
- */
-export async function updateUniqueExercisesCount(userId: string, exerciseKeys: string[]) {
+export async function updateUniqueExercisesCount(userId: string, _exerciseKeys?: string[]) {
   try {
-    // Get all completed sessions to calculate unique exercises
-    const sessions = await prisma.workoutSession.findMany({
-      where: {
-        userId,
-        completedAt: { not: null },
-        performanceData: { not: null }
-      },
-      select: {
-        performanceData: true
-      }
-    });
+    const sessions = await db
+      .select({ performanceData: workoutSessions.performanceData })
+      .from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.userId, userId),
+        isNotNull(workoutSessions.completedAt),
+        isNotNull(workoutSessions.performanceData),
+      ));
 
     const uniqueExercises = new Set<string>();
-
-    // Extract all unique exercise keys from all sessions
     sessions.forEach(session => {
-      if (session.performanceData && typeof session.performanceData === 'object') {
-        const data = session.performanceData as any;
-        if (data.performance) {
-          Object.values(data.performance).forEach((exercisePerf: any) => {
-            if (exercisePerf.exerciseKey) {
-              uniqueExercises.add(exercisePerf.exerciseKey);
-            }
-          });
-        }
+      const performance = session.performanceData?.performance;
+      if (performance) {
+        Object.values(performance).forEach(exercisePerf => {
+          if (exercisePerf.exerciseKey) uniqueExercises.add(exercisePerf.exerciseKey);
+        });
       }
     });
 
-    // Update the count in UserStats
-    await prisma.userStats.update({
-      where: { userId },
-      data: {
-        uniqueExercises: uniqueExercises.size
-      }
-    });
+    await db
+      .update(userStats)
+      .set({ uniqueExercises: uniqueExercises.size })
+      .where(eq(userStats.userId, userId));
 
     return uniqueExercises.size;
-
   } catch (error) {
     console.error('Error updating unique exercises count:', error);
     return 0;

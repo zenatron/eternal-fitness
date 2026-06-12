@@ -5,7 +5,6 @@ import {
   WorkoutTemplateData,
   WorkoutSessionData,
   WorkoutExercise,
-  WorkoutSet,
   ExercisePerformance,
   PerformedSet,
   SessionMetrics,
@@ -59,7 +58,6 @@ export function createWorkoutTemplate(
     restBetweenSets: 60,
   }));
 
-  const totalVolume = calculateTemplateVolume(workoutExercises);
   const estimatedDuration = calculateEstimatedDuration(workoutExercises);
 
   return {
@@ -225,6 +223,7 @@ export function calculateExerciseVolume(sets: PerformedSet[]): number {
  * but metrics calculation expects ExercisePerformance format
  */
 export function convertExerciseProgressToPerformance(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exerciseProgress: { [exerciseId: string]: any },
   template: WorkoutTemplateData
 ): { [exerciseId: string]: ExercisePerformance } {
@@ -234,6 +233,7 @@ export function convertExerciseProgressToPerformance(
     const exercise = template.exercises.find(ex => ex.id === progress.exerciseId);
     if (!exercise) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const performedSets: PerformedSet[] = progress.sets.map((setProgress: any) => ({
       setId: setProgress.setId,
       actualReps: setProgress.actualReps,
@@ -338,6 +338,7 @@ export function detectPersonalRecords(
 /**
  * Validates workout template data structure
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateWorkoutTemplate(data: any): data is WorkoutTemplateData {
   if (!data || typeof data !== 'object') return false;
   if (!data.metadata || !data.exercises || !Array.isArray(data.exercises)) return false;
@@ -361,6 +362,7 @@ export function validateWorkoutTemplate(data: any): data is WorkoutTemplateData 
 /**
  * Validates workout session performance data
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateWorkoutSession(data: any): data is WorkoutSessionData {
   if (!data || typeof data !== 'object') return false;
   if (!data.templateSnapshot || !data.performance || !data.metrics) return false;

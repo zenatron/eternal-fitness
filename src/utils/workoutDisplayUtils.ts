@@ -1,10 +1,8 @@
 // 🚀 WORKOUT DISPLAY UTILITIES
 // Helper functions for displaying JSON-based workout data in the UI
 
-import { 
-  WorkoutTemplate, 
-  WorkoutTemplateData, 
-  WorkoutExercise, 
+import {
+  WorkoutTemplate,
   WorkoutSet,
   WorkoutSession,
   WorkoutSessionData,
@@ -95,11 +93,12 @@ export function formatTemplateForLegacyComponents(template: WorkoutTemplate): {
     };
   }>;
 } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sets: any[] = [];
-  
+
   if (template.workoutData?.exercises) {
-    template.workoutData.exercises.forEach((exercise, exerciseIndex) => {
-      exercise.sets.forEach((set, setIndex) => {
+    template.workoutData.exercises.forEach((exercise) => {
+      exercise.sets.forEach((set) => {
         sets.push({
           id: `${exercise.id}-${set.id}`,
           reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0,

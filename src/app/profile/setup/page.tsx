@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
-import { SignedIn, SignOutButton } from '@clerk/nextjs';
+import { signOut } from 'next-auth/react';
 import { ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
 import { Switch } from '@headlessui/react';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
@@ -257,19 +257,16 @@ export default function ProfileSetup() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <SignedIn>
-                <SignOutButton redirectUrl="/login">
-                  <motion.button
-                    type="button"
-                    className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors inline-flex items-center justify-center gap-2 font-semibold"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
-                    Sign Out
-                  </motion.button>
-                </SignOutButton>
-              </SignedIn>
+              <motion.button
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors inline-flex items-center justify-center gap-2 font-semibold"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
+                Sign Out
+              </motion.button>
               <motion.button
                 type="submit"
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"

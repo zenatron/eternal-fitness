@@ -1,99 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import prisma from '@/lib/prisma';
+import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { userStats, workoutTemplates } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { ActiveWorkoutSessionData, WorkoutTemplateData } from '@/types/workout';
+import { z } from 'zod';
 
-// Response helpers
-const successResponse = (data: any, status = 200) => {
+const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json(data, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
+const errorResponse = (message: string, status = 500, details?: unknown) => {
   console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status }
-  );
+  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
-import { 
-  ActiveWorkoutSessionData, 
-  WorkoutTemplateData 
-} from '@/types/workout';
-import { z } from 'zod';
-
-// ============================================================================
-// VALIDATION SCHEMAS
-// ============================================================================
 
 const recoverSessionSchema = z.object({
   templateId: z.string(),
   forceRecover: z.boolean().optional().default(false),
 });
 
-// ============================================================================
-// POST: Recover or reset active workout session
-// ============================================================================
-
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const body = await request.json();
     const validationResult = recoverSessionSchema.safeParse(body);
-
     if (!validationResult.success) {
       return errorResponse('Invalid recovery data', 400, validationResult.error.errors);
     }
 
     const { templateId, forceRecover } = validationResult.data;
 
-    // Get current active session
-    const userStats = await prisma.userStats.findUnique({
-      where: { userId },
-      select: {
-        activeWorkoutId: true,
-        activeWorkoutData: true,
-        activeWorkoutStartedAt: true,
-      },
-    });
+    const [stats] = await db
+      .select({
+        activeWorkoutId: userStats.activeWorkoutId,
+        activeWorkoutData: userStats.activeWorkoutData,
+        activeWorkoutStartedAt: userStats.activeWorkoutStartedAt,
+      })
+      .from(userStats)
+      .where(eq(userStats.userId, userId));
 
-    if (!userStats?.activeWorkoutId || !userStats.activeWorkoutData) {
+    if (!stats?.activeWorkoutId || !stats.activeWorkoutData) {
       return errorResponse('No active workout session found to recover', 404);
     }
 
-    const currentSessionData = userStats.activeWorkoutData as ActiveWorkoutSessionData;
+    const currentSessionData = stats.activeWorkoutData as ActiveWorkoutSessionData;
 
-    // Validate session data integrity
     const issues: string[] = [];
-    
-    if (!currentSessionData.templateId) {
-      issues.push('Missing template ID');
-    }
-    
-    if (!currentSessionData.originalTemplate) {
-      issues.push('Missing original template data');
-    }
-    
-    if (!currentSessionData.startedAt) {
-      issues.push('Missing start time');
-    }
-    
+    if (!currentSessionData.templateId) issues.push('Missing template ID');
+    if (!currentSessionData.originalTemplate) issues.push('Missing original template data');
+    if (!currentSessionData.startedAt) issues.push('Missing start time');
     if (currentSessionData.templateId !== templateId) {
       issues.push(`Template ID mismatch: expected ${templateId}, found ${currentSessionData.templateId}`);
     }
 
-    // Check if template still exists
-    const template = await prisma.workoutTemplate.findFirst({
-      where: { id: templateId, userId },
-    });
+    const [template] = await db
+      .select()
+      .from(workoutTemplates)
+      .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
 
-    if (!template) {
-      issues.push('Template no longer exists or is not accessible');
-    }
+    if (!template) issues.push('Template no longer exists or is not accessible');
 
-    // If there are issues and force recover is not enabled, return the issues
     if (issues.length > 0 && !forceRecover) {
       return errorResponse('Session data integrity issues found', 400, {
         issues,
@@ -102,11 +71,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Attempt recovery if template exists
     if (template && (issues.length === 0 || forceRecover)) {
-      const templateData = (template as any).workoutData as WorkoutTemplateData;
-      
-      // Create a recovered session with corrected data
+      const templateData = template.workoutData as WorkoutTemplateData;
+
       const recoveredSessionData: ActiveWorkoutSessionData = {
         templateId: template.id,
         templateName: template.name,
@@ -123,43 +90,39 @@ export async function POST(request: NextRequest) {
         lastUpdated: new Date(),
       };
 
-      // Update UserStats with recovered session data
-      await prisma.userStats.update({
-        where: { userId },
-        data: {
+      await db
+        .update(userStats)
+        .set({
           activeWorkoutId: template.id,
           activeWorkoutData: recoveredSessionData,
           activeWorkoutStartedAt: recoveredSessionData.startedAt,
-        },
-      });
+        })
+        .where(eq(userStats.userId, userId));
 
-      return successResponse({ 
+      return successResponse({
         activeSession: recoveredSessionData,
         recovered: true,
         issues: issues.length > 0 ? issues : undefined,
-        message: 'Active workout session recovered successfully'
+        message: 'Active workout session recovered successfully',
       });
     }
 
-    // If we can't recover, clear the session
-    await prisma.userStats.update({
-      where: { userId },
-      data: {
+    await db
+      .update(userStats)
+      .set({
         activeWorkoutId: null,
         activeWorkoutData: null,
         activeWorkoutStartedAt: null,
-      },
-    });
+      })
+      .where(eq(userStats.userId, userId));
 
-    return successResponse({ 
+    return successResponse({
       activeSession: null,
       recovered: false,
       issues,
-      message: 'Active workout session cleared due to unrecoverable issues'
+      message: 'Active workout session cleared due to unrecoverable issues',
     });
-
   } catch (error) {
-    console.error('Error recovering active session:', error);
     return errorResponse('Failed to recover active session', 500);
   }
 }

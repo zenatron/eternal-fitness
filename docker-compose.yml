@@ -1,0 +1,36 @@
+services:
+  app:
+    image: zenatron/eternal-fitness:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://eternal:eternal@db:5432/eternal_fitness
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_POCKETID_ID=${AUTH_POCKETID_ID}
+      - AUTH_POCKETID_SECRET=${AUTH_POCKETID_SECRET}
+      - AUTH_POCKETID_ISSUER=${AUTH_POCKETID_ISSUER}
+      - AUTH_URL=${AUTH_URL:?AUTH_URL must be set to your public app URL (e.g. https://fitness.z3n.me)}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eternal
+      POSTGRES_PASSWORD: eternal
+      POSTGRES_DB: eternal_fitness
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eternal -d eternal_fitness"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

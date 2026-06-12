@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client';
-
 // 🚀 REVOLUTIONARY JSON-BASED WORKOUT TYPES
 
 // ============================================================================
@@ -13,31 +11,34 @@ export enum WorkoutStatus {
   IN_PROGRESS = 'IN_PROGRESS',
 }
 
-export enum WorkoutType {
-  STRENGTH = 'strength',
-  CARDIO = 'cardio',
-  HYBRID = 'hybrid',
-  FLEXIBILITY = 'flexibility',
-  SPORTS = 'sports',
-}
+export const WorkoutType = {
+  STRENGTH: 'strength',
+  CARDIO: 'cardio',
+  HYBRID: 'hybrid',
+  FLEXIBILITY: 'flexibility',
+  SPORTS: 'sports',
+} as const;
+export type WorkoutType = (typeof WorkoutType)[keyof typeof WorkoutType];
 
-export enum Difficulty {
-  BEGINNER = 'beginner',
-  INTERMEDIATE = 'intermediate',
-  ADVANCED = 'advanced',
-}
+export const Difficulty = {
+  BEGINNER: 'beginner',
+  INTERMEDIATE: 'intermediate',
+  ADVANCED: 'advanced',
+} as const;
+export type Difficulty = (typeof Difficulty)[keyof typeof Difficulty];
 
-export enum SetType {
-  STANDARD = 'standard',
-  WARMUP = 'warmup',
-  WORKING = 'working',
-  DROPSET = 'dropset',
-  SUPERSET = 'superset',
-  AMRAP = 'amrap', // As Many Reps As Possible
-  EMOM = 'emom', // Every Minute On the Minute
-  TABATA = 'tabata',
-  REST = 'rest',
-}
+export const SetType = {
+  STANDARD: 'standard',
+  WARMUP: 'warmup',
+  WORKING: 'working',
+  DROPSET: 'dropset',
+  SUPERSET: 'superset',
+  AMRAP: 'amrap', // As Many Reps As Possible
+  EMOM: 'emom', // Every Minute On the Minute
+  TABATA: 'tabata',
+  REST: 'rest',
+} as const;
+export type SetType = (typeof SetType)[keyof typeof SetType];
 
 // ============================================================================
 // JSON WORKOUT DATA STRUCTURES
@@ -291,6 +292,7 @@ export interface ActiveWorkoutSessionData {
   // Current workout state
   modifiedTemplate?: WorkoutTemplateData; // Template with user modifications
   performance: { [exerciseId: string]: ExercisePerformance };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exerciseProgress: { [exerciseId: string]: any };
   sessionNotes: string;
 
@@ -303,6 +305,7 @@ export interface ActiveWorkoutSessionData {
 export interface ActiveSessionUpdatePayload {
   performance?: { [exerciseId: string]: ExercisePerformance };
   modifiedTemplate?: WorkoutTemplateData;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exerciseProgress?: { [exerciseId: string]: any };
   sessionNotes?: string;
   pausedTime?: number;
@@ -318,6 +321,7 @@ export interface ActiveSessionUpdatePayload {
 export type WorkoutTemplate = {
   id: string;
   name: string;
+  description?: string | null;
   favorite: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -371,7 +375,7 @@ export type Exercise = {
   equipment: string[];
   category: string;
   difficulty: string;
-  metadata?: any; // JSON metadata
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -465,6 +469,30 @@ export type FormExercise = {
   name: string;
   muscles: string[];
   equipment: string[];
+};
+
+// 🧩 FORM SET — the flat shape used by the template editor UI (distinct from
+// the JSON-based WorkoutSet). Built from / converted to WorkoutSet at the edges.
+export type FormSet = {
+  id: string;
+  reps: number;
+  weight: number;
+  duration?: number;
+  workoutTemplateId: string;
+  exerciseId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// 🧩 FORM EDITOR EXERCISE — the exercise shape the template editor operates on.
+export type FormEditorExercise = {
+  id: string;
+  name: string;
+  muscles: string[];
+  equipment: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  sets: FormSet[];
 };
 
 export type ExerciseList = {

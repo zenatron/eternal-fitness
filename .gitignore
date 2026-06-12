@@ -381,6 +381,5 @@ gradle-app.setting
 # clerk configuration (can include secrets)
 /.clerk/
 
-# Prisma
-.prisma/
-/prisma/migrations/
+# Drizzle
+/drizzle/meta/

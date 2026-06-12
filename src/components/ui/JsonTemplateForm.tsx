@@ -19,6 +19,7 @@ import { TemplateInputData } from '@/lib/hooks/useMutations';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { WorkoutType, Difficulty } from '@/types/workout';
 
 interface ExerciseSet {
   id?: string; // Add unique ID for drag and drop
@@ -362,7 +363,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 </label>
                 <select
                   value={workoutType}
-                  onChange={(e) => setWorkoutType(e.target.value)}
+                  onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
                 >
                   <option value="strength">💪 Strength Training</option>
@@ -379,7 +380,7 @@ export default function JsonTemplateForm({ mode, initialData, onSuccess }: JsonT
                 </label>
                 <select
                   value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value)}
+                  onChange={(e) => setDifficulty(e.target.value as Difficulty)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
                 >
                   <option value="beginner">🌱 Beginner</option>

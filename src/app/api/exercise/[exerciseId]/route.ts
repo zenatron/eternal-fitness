@@ -1,21 +1,12 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { exercises as staticExercises } from '@/lib/exercises';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
+const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [exercise/{id}]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
+const errorResponse = (message: string, status = 500) => {
+  return NextResponse.json({ error: { message } }, { status });
 };
 
 export async function GET(
@@ -24,17 +15,14 @@ export async function GET(
 ) {
   try {
     const { exerciseId } = await params;
+    const exercise = staticExercises[exerciseId as keyof typeof staticExercises];
 
-    const exercise = await prisma.exercise.findUnique({
-      where: { id: exerciseId },
-    });
+    if (!exercise) {
+      return errorResponse('Exercise not found', 404);
+    }
 
-    return successResponse(exercise);
+    return successResponse({ exerciseKey: exerciseId, ...exercise });
   } catch (error) {
-    return errorResponse(
-      'Internal Server Error',
-      500,
-      error instanceof Error ? error.message : String(error),
-    );
+    return errorResponse('Internal Server Error', 500);
   }
 }

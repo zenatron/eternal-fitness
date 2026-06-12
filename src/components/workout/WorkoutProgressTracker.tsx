@@ -6,14 +6,11 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   PlusIcon,
-  ClockIcon,
-  ScaleIcon,
-  ArrowPathIcon,
   TrashIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { WorkoutTemplateData, WorkoutExercise, WorkoutSet, ExercisePerformance, PerformedSet } from '@/types/workout';
+import { WorkoutTemplateData, ExercisePerformance, PerformedSet } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
 
 // Basic exercise database for adding new exercises during workout

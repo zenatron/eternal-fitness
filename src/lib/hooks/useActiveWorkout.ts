@@ -13,6 +13,7 @@ interface LegacyActiveWorkoutState {
   sessionNotes: string;
   workoutPerformance: { [exerciseId: string]: ExercisePerformance };
   modifiedTemplate?: WorkoutTemplateData;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exerciseProgress?: { [exerciseId: string]: any };
   lastPauseTime?: number;
 }
@@ -24,7 +25,6 @@ export function useActiveWorkout() {
   const [currentTime, setCurrentTime] = useState<string>('0:00');
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // API functions for server sync
@@ -217,6 +217,7 @@ export function useActiveWorkout() {
     updateWorkout({ performance });
   }, [updateWorkout]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateExerciseProgress = useCallback((exerciseProgress: { [exerciseId: string]: any }) => {
     updateWorkout({ exerciseProgress });
   }, [updateWorkout]);

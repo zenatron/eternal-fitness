@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@/lib/auth';
 
 export async function GET() {
   try {
     // Get auth data
-    const { userId } = await auth();
-    const user = await currentUser();
+    const session = await auth();
+    const userId = session?.user?.id ?? null;
 
     // Check if we have a userId (authenticated)
     if (!userId) {
@@ -23,9 +23,9 @@ export async function GET() {
       {
         authenticated: true,
         userId,
-        email: user?.emailAddresses?.[0]?.emailAddress || '',
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
+        email: session?.user?.email || '',
+        firstName: '',
+        lastName: '',
       },
       { status: 200 },
     );

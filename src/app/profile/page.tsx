@@ -17,11 +17,10 @@ import {
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
-import { SignedIn } from '@clerk/nextjs';
+import { signOut } from 'next-auth/react';
 import SavedWorkouts from '@/components/ui/FavoriteWorkouts';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useUserStats } from '@/lib/hooks/useUserStats';
-import { SignOutButton } from '@clerk/nextjs';
 
 // Import new profile components
 import { StatsOverview } from '@/components/ui/profile/StatsOverview';
@@ -248,42 +247,41 @@ function ProfileContent() {
           {/* Quick Action Buttons */}
           <div className="p-6 border-t border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              <SignedIn>
-                <Link
-                  href="/template/create"
-                  className="btn btn-primary inline-flex items-center justify-center gap-2 text-sm"
-                >
-                  <CalendarDaysIcon className="w-4 h-4" />
-                  Create Template
-                </Link>
-                <Link
-                  href="/templates"
-                  className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
-                >
-                  <CalendarDaysIcon className="w-4 h-4" />
-                  Templates
-                </Link>
-                <button
-                  onClick={() => openModal('activity')}
-                  className="btn btn-tertiary inline-flex items-center justify-center gap-2 text-sm"
-                >
-                  <ChartBarIcon className="w-4 h-4" />
-                  Activity
-                </button>
-                <Link
-                  href="/account"
-                  className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
-                >
-                  <UserCircleIcon className="w-4 h-4" />
-                  Account
-                </Link>
-                <SignOutButton redirectUrl="/login">
-                  <button className="btn btn-danger inline-flex items-center justify-center gap-2 text-sm">
-                    <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
-                    Sign Out
-                  </button>
-                </SignOutButton>
-              </SignedIn>
+              <Link
+                href="/template/create"
+                className="btn btn-primary inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <CalendarDaysIcon className="w-4 h-4" />
+                Create Template
+              </Link>
+              <Link
+                href="/templates"
+                className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <CalendarDaysIcon className="w-4 h-4" />
+                Templates
+              </Link>
+              <button
+                onClick={() => openModal('activity')}
+                className="btn btn-tertiary inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <ChartBarIcon className="w-4 h-4" />
+                Activity
+              </button>
+              <Link
+                href="/profile/edit"
+                className="btn btn-secondary inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <UserCircleIcon className="w-4 h-4" />
+                Settings
+              </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="btn btn-danger inline-flex items-center justify-center gap-2 text-sm"
+              >
+                <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
+                Sign Out
+              </button>
             </div>
           </div>
         </div>

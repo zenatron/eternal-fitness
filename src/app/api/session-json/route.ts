@@ -1,40 +1,41 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import prisma from '@/lib/prisma';
+import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { workoutTemplates, workoutSessions, userStats } from '@/lib/db/schema';
+import { eq, and, isNotNull, desc, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   createWorkoutSession,
-  calculateSessionMetrics,
+  validateWorkoutSession,
   calculateExerciseVolume,
-  detectPersonalRecords,
-  validateWorkoutSession
 } from '@/utils/workoutJsonUtils';
-import {
-  WorkoutSessionData,
-  ExercisePerformance,
-  PerformedSet,
-  WorkoutTemplateData
-} from '@/types/workout';
+import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 
-// --- Standard Response Helpers ---
-const successResponse = (data: any, status = 200) => {
+/**
+ * Normalizes client-supplied performance data into full ExercisePerformance
+ * objects, computing per-exercise totalVolume server-side from the sets so we
+ * never trust a client-provided volume.
+ */
+function normalizePerformance(
+  performance: Record<string, z.infer<typeof exercisePerformanceSchema>>,
+): { [exerciseId: string]: ExercisePerformance } {
+  const normalized: { [exerciseId: string]: ExercisePerformance } = {};
+  for (const [exerciseId, ep] of Object.entries(performance)) {
+    normalized[exerciseId] = { ...ep, totalVolume: calculateExerciseVolume(ep.sets) };
+  }
+  return normalized;
+}
+
+const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [session-json/]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
+const errorResponse = (message: string, status = 500, details?: unknown) => {
+  console.error(`API Error (${status}) [session-json/]:`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
-// 🚀 JSON-BASED SESSION SCHEMAS
 const performedSetSchema = z.object({
   setId: z.string(),
   actualReps: z.number().int().nonnegative().optional(),
@@ -77,7 +78,7 @@ const environmentDataSchema = z.object({
 });
 
 const createSessionSchema = z.object({
-  templateId: z.string().cuid(),
+  templateId: z.string(),
   scheduledAt: z.string().datetime({ offset: true }).optional(),
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
@@ -86,65 +87,52 @@ const createSessionSchema = z.object({
 });
 
 const completeScheduledSessionSchema = z.object({
-  scheduledSessionId: z.string().cuid(),
+  scheduledSessionId: z.string(),
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
   performance: z.record(z.string(), exercisePerformanceSchema),
   environment: environmentDataSchema.optional(),
 });
 
-const postSessionSchema = z.union([
-  createSessionSchema,
-  completeScheduledSessionSchema,
-]);
+const postSessionSchema = z.union([createSessionSchema, completeScheduledSessionSchema]);
 
-// 🚀 POST - Create or Complete JSON-based Session
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const body = await request.json();
     const validationResult = postSessionSchema.safeParse(body);
-    
     if (!validationResult.success) {
       return errorResponse('Invalid session data', 400, validationResult.error.errors);
     }
 
     const validatedData = validationResult.data;
 
-    // Check if this is completing a scheduled session
     if ('scheduledSessionId' in validatedData) {
       return await completeScheduledSession(userId, validatedData);
     } else {
       return await createNewSession(userId, validatedData);
     }
   } catch (error) {
-    console.error('Error in POST /api/session-json:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
 }
 
-// 🎯 CREATE NEW SESSION (immediate or scheduled)
 async function createNewSession(userId: string, data: z.infer<typeof createSessionSchema>) {
   const { templateId, scheduledAt, duration, notes, performance, environment } = data;
   const isScheduling = !!scheduledAt;
 
-  // Get the template
-  const template = await prisma.workoutTemplate.findFirst({
-    where: { id: templateId, userId },
-    select: { 
-      id: true, 
-      name: true, 
-      workoutData: true,
-      totalVolume: true,
-      estimatedDuration: true,
-    },
-  });
+  const [template] = await db
+    .select({
+      id: workoutTemplates.id,
+      name: workoutTemplates.name,
+      workoutData: workoutTemplates.workoutData,
+      totalVolume: workoutTemplates.totalVolume,
+      estimatedDuration: workoutTemplates.estimatedDuration,
+    })
+    .from(workoutTemplates)
+    .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
 
   if (!template) {
     return errorResponse('Template not found or not owned by user', 404, { templateId });
@@ -153,9 +141,9 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
   const templateData = template.workoutData as WorkoutTemplateData;
 
   if (isScheduling) {
-    // Just create the scheduled session
-    const newSession = await prisma.workoutSession.create({
-      data: {
+    const [newSession] = await db
+      .insert(workoutSessions)
+      .values({
         userId,
         workoutTemplateId: templateId,
         notes,
@@ -165,46 +153,37 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         totalExercises: 0,
         personalRecords: 0,
         scheduledAt: new Date(scheduledAt!),
-        completedAt: null,
         performanceData: {
           templateSnapshot: templateData,
           performance: {},
           metrics: {
-            totalVolume: 0,
-            totalSets: 0,
-            totalExercises: 0,
-            completedSets: 0,
-            skippedSets: 0,
-            personalRecords: [],
-            volumeRecords: [],
-            adherenceScore: 0,
+            totalVolume: 0, totalSets: 0, totalExercises: 0,
+            completedSets: 0, skippedSets: 0,
+            personalRecords: [], volumeRecords: [], adherenceScore: 0,
           },
           environment,
-        } as any,
-      },
-      include: { workoutTemplate: { select: { name: true } } },
-    });
+        },
+      })
+      .returning();
 
-    console.log(`✅ Created scheduled JSON session: ${newSession.id}`);
     return successResponse(newSession, 201);
   } else {
-    // Create immediate completed session
     if (!performance) {
       return errorResponse('Performance data required for completed session', 400);
     }
 
-    const sessionData = createWorkoutSession(templateData, performance);
-    
+    const normalizedPerformance = normalizePerformance(performance);
+    const sessionData = createWorkoutSession(templateData, normalizedPerformance);
     if (!validateWorkoutSession(sessionData)) {
       return errorResponse('Invalid workout session structure', 500);
     }
 
     const completionTime = new Date();
 
-    const [newSession] = await prisma.$transaction(async (tx) => {
-      // Create the session
-      const session = await tx.workoutSession.create({
-        data: {
+    const newSession = await db.transaction(async (tx) => {
+      const [session] = await tx
+        .insert(workoutSessions)
+        .values({
           userId,
           workoutTemplateId: templateId,
           notes,
@@ -213,39 +192,20 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
           totalSets: sessionData.metrics.totalSets,
           totalExercises: sessionData.metrics.totalExercises,
           personalRecords: sessionData.metrics.personalRecords.length,
-          scheduledAt: null,
           completedAt: completionTime,
-          performanceData: sessionData as any,
-        },
-        include: { workoutTemplate: { select: { name: true } } },
-      });
+          performanceData: sessionData,
+        })
+        .returning();
 
-      // Process personal records
       try {
-        const prResults = await processWorkoutSessionPRs(
-          userId,
-          session.id,
-          performance,
-          templateData
-        );
-        console.log(`✅ Processed ${prResults.newPRs.length} new PRs for session ${session.id}`);
+        await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData);
       } catch (error) {
         console.error('Error processing PRs:', error);
-        // Don't fail the session creation if PR processing fails
       }
 
-      // Update user stats
-      const userStats = await tx.userStats.upsert({
-        where: { userId },
-        update: {
-          totalWorkouts: { increment: 1 },
-          totalVolume: { increment: sessionData.metrics.totalVolume },
-          totalSets: { increment: sessionData.metrics.totalSets },
-          totalExercises: { increment: sessionData.metrics.totalExercises },
-          totalTrainingHours: { increment: duration ? duration / 60 : 0 },
-          lastWorkoutAt: completionTime,
-        },
-        create: {
+      await tx
+        .insert(userStats)
+        .values({
           userId,
           totalWorkouts: 1,
           totalVolume: sessionData.metrics.totalVolume,
@@ -255,58 +215,61 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
           lastWorkoutAt: completionTime,
           currentStreak: 1,
           longestStreak: 1,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: userStats.userId,
+          set: {
+            totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
+            totalVolume: sql`${userStats.totalVolume} + ${sessionData.metrics.totalVolume}`,
+            totalSets: sql`${userStats.totalSets} + ${sessionData.metrics.totalSets}`,
+            totalExercises: sql`${userStats.totalExercises} + ${sessionData.metrics.totalExercises}`,
+            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 60 : 0}`,
+            lastWorkoutAt: completionTime,
+          },
+        });
 
       return session;
     });
 
-    console.log(`✅ Created completed JSON session: ${newSession.id}`);
     return successResponse(newSession, 201);
   }
 }
 
-// 🎯 COMPLETE SCHEDULED SESSION
 async function completeScheduledSession(userId: string, data: z.infer<typeof completeScheduledSessionSchema>) {
   const { scheduledSessionId, duration, notes, performance, environment } = data;
 
-  // Get the scheduled session
-  const scheduledSession = await prisma.workoutSession.findFirst({
-    where: {
-      id: scheduledSessionId,
-      userId,
-      completedAt: null, // Must be uncompleted
-    },
-    include: {
+  const scheduledSession = await db.query.workoutSessions.findFirst({
+    where: and(
+      eq(workoutSessions.id, scheduledSessionId),
+      eq(workoutSessions.userId, userId),
+    ),
+    with: {
       workoutTemplate: {
-        select: { workoutData: true, name: true },
+        columns: { workoutData: true, name: true },
       },
     },
   });
 
-  if (!scheduledSession) {
+  if (!scheduledSession || scheduledSession.completedAt) {
     return errorResponse('Scheduled session not found or already completed', 404, { scheduledSessionId });
   }
 
   const templateData = scheduledSession.workoutTemplate.workoutData as WorkoutTemplateData;
-  const sessionData = createWorkoutSession(templateData, performance);
-  
+  const normalizedPerformance = normalizePerformance(performance);
+  const sessionData = createWorkoutSession(templateData, normalizedPerformance);
+
   if (!validateWorkoutSession(sessionData)) {
     return errorResponse('Invalid workout session structure', 500);
   }
 
-  // Add environment data if provided
-  if (environment) {
-    sessionData.environment = environment;
-  }
+  if (environment) sessionData.environment = environment;
 
   const completionTime = new Date();
 
-  const [updatedSession] = await prisma.$transaction(async (tx) => {
-    // Update the session
-    const session = await tx.workoutSession.update({
-      where: { id: scheduledSessionId },
-      data: {
+  const updatedSession = await db.transaction(async (tx) => {
+    const [session] = await tx
+      .update(workoutSessions)
+      .set({
         completedAt: completionTime,
         duration,
         notes,
@@ -314,37 +277,20 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
         totalSets: sessionData.metrics.totalSets,
         totalExercises: sessionData.metrics.totalExercises,
         personalRecords: sessionData.metrics.personalRecords.length,
-        performanceData: sessionData as any,
-      },
-      include: { workoutTemplate: { select: { name: true } } },
-    });
+        performanceData: sessionData,
+      })
+      .where(eq(workoutSessions.id, scheduledSessionId))
+      .returning();
 
-    // Process personal records
     try {
-      const prResults = await processWorkoutSessionPRs(
-        userId,
-        session.id,
-        performance,
-        templateData
-      );
-      console.log(`✅ Processed ${prResults.newPRs.length} new PRs for scheduled session ${session.id}`);
+      await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData);
     } catch (error) {
       console.error('Error processing PRs:', error);
-      // Don't fail the session completion if PR processing fails
     }
 
-    // Update user stats
-    const userStats = await tx.userStats.upsert({
-      where: { userId },
-      update: {
-        totalWorkouts: { increment: 1 },
-        totalVolume: { increment: sessionData.metrics.totalVolume },
-        totalSets: { increment: sessionData.metrics.totalSets },
-        totalExercises: { increment: sessionData.metrics.totalExercises },
-        totalTrainingHours: { increment: duration ? duration / 60 : 0 },
-        lastWorkoutAt: completionTime,
-      },
-      create: {
+    await tx
+      .insert(userStats)
+      .values({
         userId,
         totalWorkouts: 1,
         totalVolume: sessionData.metrics.totalVolume,
@@ -354,55 +300,42 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
         lastWorkoutAt: completionTime,
         currentStreak: 1,
         longestStreak: 1,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: userStats.userId,
+        set: {
+          totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
+          totalVolume: sql`${userStats.totalVolume} + ${sessionData.metrics.totalVolume}`,
+          totalSets: sql`${userStats.totalSets} + ${sessionData.metrics.totalSets}`,
+          totalExercises: sql`${userStats.totalExercises} + ${sessionData.metrics.totalExercises}`,
+          totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 60 : 0}`,
+          lastWorkoutAt: completionTime,
+        },
+      });
 
     return session;
   });
 
-  console.log(`✅ Completed scheduled JSON session: ${updatedSession.id}`);
   return successResponse(updatedSession);
 }
 
-// 🚀 GET - Fetch JSON-based Sessions
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
-    const sessions = await prisma.workoutSession.findMany({
-      where: {
-        userId,
-        completedAt: { not: null },
-      },
-      orderBy: { completedAt: 'desc' },
-      select: {
-        id: true,
-        completedAt: true,
-        scheduledAt: true,
-        duration: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        performanceData: true,
-        totalVolume: true,
-        totalSets: true,
-        totalExercises: true,
-        personalRecords: true,
+    const sessions = await db.query.workoutSessions.findMany({
+      where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
+      orderBy: desc(workoutSessions.completedAt),
+      with: {
         workoutTemplate: {
-          select: { id: true, name: true },
+          columns: { id: true, name: true },
         },
       },
     });
 
-    console.log(`✅ Fetched ${sessions.length} JSON-based sessions for user ${userId}`);
     return successResponse(sessions);
   } catch (error) {
-    console.error('Error in GET /api/session-json:', error);
-    return errorResponse('Internal Server Error', 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
 }

@@ -1,17 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  output: "standalone",
   compiler: {
     removeConsole:
-      process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
+      process.env.NODE_ENV === "production" ? { exclude: ["error"] } : false,
   },
 };
 module.exports = {
   ...nextConfig,
-  allowedDevOrigins: ['logical-teal-deeply.ngrok-free.app'],
+  allowedDevOrigins: ["logical-teal-deeply.ngrok-free.app"],
 };

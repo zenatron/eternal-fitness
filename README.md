@@ -1,101 +1,82 @@
 # Eternal Fitness
+
 A personalized fitness application that helps users track, create, and maintain their workout routines.
 
-## 📄 Abstract
-Eternal Fitness is a comprehensive workout planning and tracking application built with Next.js and TypeScript. It allows users to create personalized workout routines, track their progress, and maintain consistency in their fitness journey. With features like workout generation, exercise tracking, and profile management, the app serves as a digital fitness companion for users of all fitness levels.
+## Features
 
-## 🪄 Features
 - **Personalized Workout Creation:** Generate workout plans tailored to your fitness goals, preferred workout splits, and available time.
 - **Progress Tracking:** Monitor your completed workouts, current weight, height, and other fitness metrics over time.
 - **Dark/Light Theme Support:** Enjoy a comfortable user experience with automatic theme switching based on your device preferences.
 - **Responsive Design:** Access your fitness data on any device with a fully responsive interface.
-- **User Authentication:** Secure login and account management through Clerk authentication.
+- **Self-Hosted Authentication:** Secure login through PocketID (OIDC) with Auth.js.
 - **Unit Conversion:** Toggle between metric and imperial measurements based on your preference.
 
-## 💾 Installation
-### Requirements
-- Node.js 18+
-- Next.js 15+
-- pnpm
-- PostgreSQL database
-- Clerk account for authentication
+## Installation
 
-### Installation Steps
-1. **Clone the repository:**
-```bash
-git clone https://github.com/zenatron/eternal-fitness.git
-```
-2. **Navigate into the directory:**
-```bash
-cd eternal-fitness
-```
-3. **Install dependencies:**
-```bash
-pnpm install
-```
-4. **Additional configuration:**
-   - Create a `.env` file in the root directory with the following variables:
-   ```
-   DATABASE_URL=postgresql://username:password@localhost:5432/eternal_fitness
-   DIRECT_URL=postgresql://username:password@localhost:5432/eternal_fitness
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-   CLERK_SECRET_KEY=your_clerk_secret_key
-   ```
-   - Set up your Clerk account and obtain the necessary API keys
-   - Run Prisma migrations to set up the database schema:
-   ```bash
-   pnpm prisma migrate dev
-   ```
+### Docker (Recommended)
 
-## ⚙️ Usage
-1. **Start the development server:**
 ```bash
-pnpm dev
+# Copy the example env and fill in your values
+cp .env.example .env
+
+# Generate a secret for Auth.js (required)
+# Use: openssl rand -base64 32
+
+# Start the application and database
+docker compose up -d
 ```
-2. **Build for production:**
+
+### Manual Development
+
+**Requirements:** Bun, PostgreSQL
+
 ```bash
-pnpm build
-```
-3. **Run production server:**
-```bash
-pnpm start
+cp .env.example .env  # Fill in your values
+bun install
+bun run db:migrate
+bun run dev
 ```
 
 The application will be available at `http://localhost:3000`.
 
-## 💬 Contribution
-Contributions are welcome! To contribute:
-1. **Fork the repository.**
-2. **Create a new branch** for your feature or bug fix.
-3. **Commit your changes** with clear commit messages.
-4. **Push your branch** to your fork.
-5. **Submit a pull request** detailing your changes.
+## Environment Variables
 
-### Code of Conduct
-Please be respectful and inclusive when contributing to this project. We aim to create a welcoming environment for all contributors regardless of experience level.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `AUTH_SECRET` | Yes | Random secret for JWT signing (`openssl rand -base64 32`) |
+| `AUTH_URL` | Yes | Public URL of the application (e.g. `https://fitness.example.com`) |
+| `AUTH_POCKETID_ID` | Yes | OIDC client ID from PocketID |
+| `AUTH_POCKETID_SECRET` | Yes | OIDC client secret from PocketID |
+| `AUTH_POCKETID_ISSUER` | Yes | PocketID issuer URL (e.g. `https://auth.example.com`) |
 
-## 🧪 Tests
-Run tests using Jest:
+## Auth Setup
+
+Eternal Fitness uses [PocketID](https://pocket-id.org) as the OIDC identity provider via [Auth.js](https://authjs.dev).
+
+1. Set up a PocketID instance (see [PocketID docs](https://pocket-id.org/docs))
+2. In the PocketID admin UI, create an OIDC client with these settings:
+   - **Redirect URI:** `https://your-domain.com/api/auth/callback/pocketid`
+   - **Grant types:** `authorization_code`
+   - **Scopes:** `openid`, `profile`, `email`
+3. Copy the client ID and secret into your `.env`
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) — React framework
+- [Auth.js](https://authjs.dev) — Authentication
+- [PocketID](https://pocket-id.org) — Self-hosted OIDC provider
+- [Drizzle ORM](https://orm.drizzle.team) — Database ORM (PostgreSQL)
+- [Tailwind CSS](https://tailwindcss.com) — Styling
+- [Framer Motion](https://www.framer.com/motion) — Animations
+
+## Tests
+
 ```bash
-pnpm test
+bun test
+bun test:watch
 ```
 
-For watching tests during development:
-```bash
-pnpm test:watch
-```
+## License
 
-## ©️ License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🤝 Acknowledgements
-- [Next.js](https://nextjs.org/) - The React framework for production
-- [Clerk](https://clerk.dev/) - Authentication and user management
-- [Prisma](https://www.prisma.io/) - Database ORM
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Framer Motion](https://www.framer.com/motion/) - Animation library
-- [Headless UI](https://headlessui.com/) - Unstyled UI components
-
-## ✉️ Contact
-For any questions or support, please contact:
-- **GitHub:** [Project Repository](https://github.com/zenatron/eternal-fitness)
+MIT

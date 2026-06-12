@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { Prisma } from '@prisma/client';
-import prisma from '@/lib/prisma';
+import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import {
@@ -9,34 +10,18 @@ import {
   validateWorkoutTemplate,
   calculateTemplateVolume,
   calculateEstimatedDuration,
-  extractMuscleGroups,
-  extractEquipment
 } from '@/utils/workoutJsonUtils';
-import {
-  WorkoutTemplateData,
-  WorkoutType,
-  Difficulty,
-  SetType
-} from '@/types/workout';
+import { WorkoutType, Difficulty } from '@/types/workout';
 
-// --- Standard Response Helpers (Re-added) ---
-const successResponse = (data: any, status = 200) => {
+const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
 };
 
-const errorResponse = (message: string, status = 500, details?: any) => {
-  console.error(
-    `API Error (${status}) [template/{id}]:`,
-    message,
-    details ? JSON.stringify(details) : '',
-  );
-  return NextResponse.json(
-    { error: { message, ...(details && { details }) } },
-    { status },
-  );
+const errorResponse = (message: string, status = 500, details?: unknown) => {
+  console.error(`API Error (${status}) [template/{id}]:`, message, details ? JSON.stringify(details) : '');
+  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
-// --- Zod Schema for PUT Request (JSON-based Update) ---
 const updateSetSchema = z.object({
   reps: z.number().int().positive(),
   weight: z.number().nonnegative().optional(),
@@ -63,114 +48,59 @@ const updateTemplateSchema = z.object({
   exercises: z.array(updateExerciseSchema).min(1, { message: 'Template must have at least one exercise' }),
 });
 
-type UpdateTemplateData = z.infer<typeof updateTemplateSchema>;
-
-// --- Helper: Get Exercise Data from Static Data ---
 function getExerciseData(exerciseKey: string) {
   const staticData = staticExercisesData[exerciseKey as keyof typeof staticExercisesData];
   if (staticData) {
-    return {
-      name: staticData.name,
-      muscles: staticData.muscles,
-      equipment: staticData.equipment,
-    };
+    return { name: staticData.name, muscles: staticData.muscles, equipment: staticData.equipment };
   }
-
-  // Fallback for unknown exercises
-  return {
-    name: exerciseKey, // Use the key as the name
-    muscles: [],
-    equipment: [],
-  };
+  return { name: exerciseKey, muscles: [], equipment: [] };
 }
 
-// 🚀 GET a single JSON-based template
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const { templateId } = await params;
 
-    // 🎯 FETCH JSON-BASED TEMPLATE
-    const template = await prisma.workoutTemplate.findUnique({
-      where: {
-        id: templateId,
-        userId,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        favorite: true,
-        createdAt: true,
-        updatedAt: true,
-        workoutData: true, // JSON workout data
-        totalVolume: true,
-        estimatedDuration: true,
-        exerciseCount: true,
-        difficulty: true,
-        workoutType: true,
-        tags: true,
-        userId: true,
-      },
-    });
+    const [template] = await db
+      .select()
+      .from(workoutTemplates)
+      .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
 
     if (!template) {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
+      return errorResponse('Template not found or access denied', 404, { templateId });
     }
-
-    console.log(`✅ Fetched JSON-based template: ${template.name} (${template.id})`);
 
     return successResponse(template);
   } catch (error) {
     const { templateId } = await params;
-    console.error(`Error fetching template ${templateId}:`, error);
-    return errorResponse('Internal Server Error', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error', 500, { templateId, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
-// PUT (update) a template - JSON-based FULL REPLACE
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const { templateId } = await params;
     const body = await request.json();
 
-    // Debug: Log the incoming request body
-    console.log('PUT /api/template/[templateId] - Received body:', JSON.stringify(body, null, 2));
-
-    // Validate request body
     const validationResult = updateTemplateSchema.safeParse(body);
     if (!validationResult.success) {
-      return errorResponse(
-        'Invalid template data',
-        400,
-        validationResult.error.errors,
-      );
+      return errorResponse('Invalid template data', 400, validationResult.error.errors);
     }
 
     const validatedData = validationResult.data;
 
-    // Create workout template data structure
-    const exercisesWithStaticData = validatedData.exercises.map((ex, exIndex) => {
+    const exercisesWithStaticData = validatedData.exercises.map((ex) => {
       const exerciseData = getExerciseData(ex.exerciseKey);
       return {
         exerciseKey: ex.exerciseKey,
@@ -183,145 +113,75 @@ export async function PUT(
       };
     });
 
-    const workoutData = createWorkoutTemplate(
-      validatedData.name,
-      exercisesWithStaticData,
-      {
-        description: validatedData.description,
-        tags: validatedData.tags,
-        workoutType: validatedData.workoutType,
-        difficulty: validatedData.difficulty,
-      }
-    );
+    const workoutData = createWorkoutTemplate(validatedData.name, exercisesWithStaticData, {
+      description: validatedData.description,
+      tags: validatedData.tags,
+      workoutType: validatedData.workoutType,
+      difficulty: validatedData.difficulty,
+    });
 
-    // Validate the created workout data
-    const validationErrors = validateWorkoutTemplate(workoutData);
-    if (validationErrors.length > 0) {
-      return errorResponse(
-        'Invalid workout template structure',
-        400,
-        { validationErrors }
-      );
+    if (!validateWorkoutTemplate(workoutData)) {
+      return errorResponse('Invalid workout template structure', 400);
     }
 
-    // Calculate computed fields
     const totalVolume = calculateTemplateVolume(workoutData.exercises);
     const estimatedDuration = calculateEstimatedDuration(workoutData.exercises);
     const exerciseCount = workoutData.exercises.length;
 
-    // Update template with JSON data
-    const updatedTemplate = await prisma.workoutTemplate.update({
-      where: {
-        id: templateId,
-        userId, // Ensure user owns the template
-      },
-      data: {
+    const [updatedTemplate] = await db
+      .update(workoutTemplates)
+      .set({
         name: validatedData.name,
         favorite: validatedData.favorite,
-        workoutData: workoutData as any, // Prisma Json type
+        workoutData,
         totalVolume,
         estimatedDuration,
         exerciseCount,
         difficulty: validatedData.difficulty || 'intermediate',
         workoutType: validatedData.workoutType || 'strength',
-      },
-      select: {
-        id: true,
-        name: true,
-        favorite: true,
-        createdAt: true,
-        updatedAt: true,
-        workoutData: true,
-        totalVolume: true,
-        estimatedDuration: true,
-        exerciseCount: true,
-        difficulty: true,
-        workoutType: true,
-        userId: true,
-      },
-    });
+      })
+      .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)))
+      .returning();
 
-    console.log(`✅ Updated JSON-based template: ${updatedTemplate.name} (${updatedTemplate.id})`);
+    if (!updatedTemplate) {
+      return errorResponse('Template not found or access denied', 404, { templateId });
+    }
 
     return successResponse(updatedTemplate);
-  } catch (error: any) {
+  } catch (error) {
     const { templateId } = await params;
-
-    // Handle template not found or access denied
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
-    }
-
-    console.error(`Error updating template ${templateId}:`, error);
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error updating template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error updating template', 500, { templateId, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
-// DELETE a template
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return errorResponse('Unauthorized', 401);
-    }
+    const userId = await getUserId();
+    if (!userId) return errorResponse('Unauthorized', 401);
 
     const { templateId } = await params;
 
-    // Use a transaction for atomicity, although deleting dependencies first is key
-    await prisma.$transaction(async (tx) => {
-      // 1. Verify template exists and belongs to the user *before* deleting
-      const existingTemplate = await tx.workoutTemplate.findUnique({
-        where: { id: templateId, userId },
-        select: { id: true }, // Only need ID to confirm existence and ownership
-      });
+    await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: workoutTemplates.id })
+        .from(workoutTemplates)
+        .where(and(eq(workoutTemplates.id, templateId), eq(workoutTemplates.userId, userId)));
 
-      if (!existingTemplate) {
-        throw new Error('TemplateNotFound'); // Abort transaction
-      }
+      if (!existing) throw new Error('TemplateNotFound');
 
-      // 🚀 JSON-BASED DELETION - Much simpler!
-      // Delete associated WorkoutSessions (they reference templateId)
-      await tx.workoutSession.deleteMany({
-        where: { workoutTemplateId: templateId, userId },
-      });
-      console.log(`Deleted associated sessions for template ${templateId}`);
+      await tx.delete(workoutSessions).where(and(eq(workoutSessions.workoutTemplateId, templateId), eq(workoutSessions.userId, userId)));
+      await tx.delete(workoutTemplates).where(eq(workoutTemplates.id, templateId));
+    });
 
-      // Delete the template itself (no sets to delete - they're in JSON!)
-      await tx.workoutTemplate.delete({
-        where: { id: templateId },
-      });
-      console.log(`✅ Deleted JSON-based template ${templateId}`);
-    }); // End Transaction
-
-    return new NextResponse(null, { status: 204 }); // Success, No Content
+    return new NextResponse(null, { status: 204 });
   } catch (error: any) {
-    // Handle specific not found error from transaction
     const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {
-      return errorResponse('Template not found or access denied', 404, {
-        templateId,
-      });
+      return errorResponse('Template not found or access denied', 404, { templateId });
     }
-
-    console.error(`Error deleting template ${templateId}:`, error);
-    // Handle other potential errors (e.g., Prisma constraint errors if relations aren't deleted correctly)
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error('Prisma Error Code:', error.code);
-    }
-    return errorResponse('Internal Server Error deleting template', 500, {
-      templateId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return errorResponse('Internal Server Error deleting template', 500, { templateId, error: error instanceof Error ? error.message : String(error) });
   }
 }

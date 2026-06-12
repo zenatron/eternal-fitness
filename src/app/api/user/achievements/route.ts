@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getUserId } from '@/lib/auth';
 import { getUserAchievements, updateUserAchievements } from '@/lib/achievements';
 
 const errorResponse = (message: string, status = 400, details?: any) => {
@@ -12,7 +12,7 @@ const successResponse = (data: any, status = 200) => {
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const userId = await getUserId();
     
     if (!userId) {
       return errorResponse('Unauthorized', 401);
@@ -34,7 +34,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const { userId } = await auth();
+    const userId = await getUserId();
     
     if (!userId) {
       return errorResponse('Unauthorized', 401);

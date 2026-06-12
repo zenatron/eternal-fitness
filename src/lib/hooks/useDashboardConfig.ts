@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG } from '@/types/dashboard-config';
 import { toast } from 'react-hot-toast';

@@ -77,7 +77,7 @@ export const useToggleFavorite = () => {
     // onMutate uses templateId (string) as input now
     onMutate: async (
       templateId: string,
-    ): Promise<ToggleFavoriteContext | undefined> => {
+    ): Promise<ToggleFavoriteContext> => {
       console.log(`useToggleFavorite: onMutate running for ${templateId}`);
       await queryClient.cancelQueries({ queryKey: ['json-templates'] });
       await queryClient.cancelQueries({ queryKey: ['json-template', templateId] });
@@ -260,7 +260,7 @@ export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (profileData: any) => {
+    mutationFn: async (profileData: Record<string, unknown>) => {
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
@@ -312,7 +312,7 @@ export const useDeduplicateExercises = () => {
       return response.json();
     },
 
-    onSettled: (data, error, variables) => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       queryClient.invalidateQueries({ queryKey: ['json-template'] });
     },

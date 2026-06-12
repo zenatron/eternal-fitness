@@ -10,15 +10,10 @@ import {
   StarIcon as StarOutline,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
-import { Exercise, Set as WorkoutSet } from '@/types/workout';
+import { FormSet, FormEditorExercise as FormExerciseWithSets } from '@/types/workout';
 import { useRouter } from 'next/navigation';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useProfile } from '@/lib/hooks/useProfile';
-
-// Define a local type for the component's internal exercise state
-interface FormExerciseWithSets extends Exercise {
-  sets: WorkoutSet[];
-}
 
 // Generate a simple unique ID
 function generateId() {
@@ -246,7 +241,7 @@ export default function TemplateFormEditor({
     if (!exercise || !exercise.sets) return;
 
     exercise.sets = exercise.sets.filter(
-      (_: WorkoutSet, i: number) => i !== setIndex,
+      (_: FormSet, i: number) => i !== setIndex,
     );
     setTemplateExercises(updatedExercises);
   };
@@ -286,7 +281,7 @@ export default function TemplateFormEditor({
 
     if (!exercise || !exercise.sets) return;
 
-    exercise.sets = exercise.sets.map((set: WorkoutSet, i: number) => {
+    exercise.sets = exercise.sets.map((set: FormSet, i: number) => {
       if (i === setIndex) {
         return { ...set, [field]: value };
       }
@@ -579,7 +574,7 @@ export default function TemplateFormEditor({
 
                                   <div className="space-y-2">
                                     {exercise.sets?.map(
-                                      (set: WorkoutSet, setIndex: number) => (
+                                      (set: FormSet, setIndex: number) => (
                                         <div
                                           key={`set-${exercise.id}-${setIndex}`}
                                           className="grid grid-cols-3 gap-3 items-center p-3 rounded-lg bg-white dark:bg-gray-800/50"

@@ -5,15 +5,9 @@ import { FlagIcon } from '@heroicons/react/24/outline';
 import TemplateFormEditor from '@/components/ui/TemplateFormEditor';
 import {
   WorkoutTemplate,
-  Exercise,
-  Set as WorkoutSet,
+  FormEditorExercise as FormExerciseWithSets,
 } from '@/types/workout';
 import { useTemplate } from '@/lib/hooks/useTemplate';
-
-// Define a local type for the structure used in the map
-interface FormExerciseWithSets extends Exercise {
-  sets: WorkoutSet[]; // Use WorkoutSet for the sets array
-}
 
 export default function EditTemplatePage({
   params,
@@ -23,7 +17,7 @@ export default function EditTemplatePage({
   const { templateId } = use(params);
   const { template, isLoading, error } = useTemplate(templateId);
   const [initialTemplateName, setInitialTemplateName] = useState('');
-  const [initialExercises, setInitialExercises] = useState<Exercise[]>([]);
+  const [initialExercises, setInitialExercises] = useState<FormExerciseWithSets[]>([]);
   const [initialFavorite, setInitialFavorite] = useState(false);
 
   // Convert JSON-based WorkoutTemplate format to FormExercise[] format for the editor
@@ -89,7 +83,7 @@ export default function EditTemplatePage({
 
       // Convert JSON-based template data to form format
       const formattedExercises = convertTemplateToFormExercises(template);
-      setInitialExercises(formattedExercises as Exercise[]);
+      setInitialExercises(formattedExercises);
     }
   }, [template, convertTemplateToFormExercises]);
 
@@ -139,7 +133,7 @@ export default function EditTemplatePage({
       mode="edit"
       templateId={templateId}
       initialTemplateName={initialTemplateName}
-      initialExercises={initialExercises as FormExerciseWithSets[]}
+      initialExercises={initialExercises}
       initialFavorite={initialFavorite}
       headerElement={headerElement}
     />

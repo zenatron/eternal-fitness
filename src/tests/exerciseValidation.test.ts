@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'bun:test';
 import { exercises } from '@/lib/exercises';
 import { Equipment, equipment } from '@/lib/equipment';
 import { MuscleGroup, muscleGroups } from '@/lib/muscleGroups';
