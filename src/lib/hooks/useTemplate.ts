@@ -21,7 +21,6 @@ export const useTemplate = (templateId: string) => {
       }
 
       const result = await response.json();
-      console.log(`✅ Fetched JSON-based template: ${result.data.name} (${templateId})`);
       return result.data;
     },
     staleTime: 60 * 1000,

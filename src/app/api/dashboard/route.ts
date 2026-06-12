@@ -180,7 +180,7 @@ export async function GET() {
 
         return {
           id: session.id,
-          title: session.workoutTemplate.name,
+          title: session.workoutTemplate?.name || 'Quick Workout',
           details: `Completed ${formatTimeAgo(session.completedAt)} • ${formattedVolume} Vol.`,
           timeAgo: formatTimeAgo(session.completedAt),
         };

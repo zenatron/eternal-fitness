@@ -192,20 +192,9 @@ export async function DELETE(request: Request) {
   let userIdToDelete: string | null = null;
 
   try {
-    const url = new URL(request.url);
-    const userIdParam = url.searchParams.get('userId');
-
-    if (userIdParam) {
-      userIdToDelete = userIdParam;
-    } else {
-      const authenticatedUserId = await getUserId();
-      if (!authenticatedUserId) return errorResponse('Unauthorized', 401);
-      userIdToDelete = authenticatedUserId;
-    }
-
-    if (!userIdToDelete) {
-      return errorResponse('User ID for deletion could not be determined', 400);
-    }
+    const authenticatedUserId = await getUserId();
+    if (!authenticatedUserId) return errorResponse('Unauthorized', 401);
+    userIdToDelete = authenticatedUserId;
 
     const result = await deleteUserById(userIdToDelete);
     return successResponse(result, 200);

@@ -7,7 +7,7 @@ interface StatItemProps {
 export function StatItem({ value, label, className = '' }: StatItemProps) {
   return (
     <div
-      className={`bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center ${className}`}
+      className={`bg-surface-950 dark:bg-surface-200 rounded-lg p-3 text-center ${className}`}
     >
       <p className="text-xl font-bold text-heading">{value}</p>
       <p className="text-xs text-secondary">{label}</p>

@@ -64,13 +64,11 @@ export function useActiveWorkout() {
 
   // Debounced sync function
   const debouncedSync = useCallback((updates: ActiveSessionUpdatePayload) => {
-    console.log('⏱️ debouncedSync called with:', JSON.stringify(updates, null, 2));
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
 
     syncTimeoutRef.current = setTimeout(() => {
-      console.log('🚀 Syncing to server after debounce:', JSON.stringify(updates, null, 2));
       syncToServer(updates).catch(console.error);
     }, 1000); // Sync after 1 second of inactivity
   }, [syncToServer]);
@@ -201,19 +199,15 @@ export function useActiveWorkout() {
   }, []);
 
   const updateWorkout = useCallback((updates: ActiveSessionUpdatePayload) => {
-    console.log('💾 updateWorkout called with updates:', JSON.stringify(updates, null, 2));
     setActiveWorkout(prev => {
       if (!prev) return null;
       const updated = { ...prev, ...updates };
-      console.log('💾 Updated active workout state:', JSON.stringify(updated, null, 2));
-      // Debounced sync to server
       debouncedSync(updates);
       return updated;
     });
   }, [debouncedSync]);
 
   const updatePerformance = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    console.log('🔄 updatePerformance called with:', JSON.stringify(performance, null, 2));
     updateWorkout({ performance });
   }, [updateWorkout]);
 

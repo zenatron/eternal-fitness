@@ -77,7 +77,7 @@ export const workoutSessions = pgTable(
     totalExercises: integer('total_exercises').notNull().default(0),
     personalRecords: jsonb('personal_records'),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    workoutTemplateId: text('workout_template_id').notNull().references(() => workoutTemplates.id),
+    workoutTemplateId: text('workout_template_id').references(() => workoutTemplates.id),
   },
   (table) => [
     index('workout_sessions_user_id_idx').on(table.userId),

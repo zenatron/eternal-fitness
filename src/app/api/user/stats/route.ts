@@ -164,7 +164,7 @@ export async function GET() {
         duration: s.duration || 0,
         totalVolume: s.totalVolume || 0,
         totalSets: s.totalSets || 0,
-        templateName: s.workoutTemplate?.name || 'Unknown Template',
+        templateName: s.workoutTemplate?.name || 'Quick Workout',
       })),
       monthlyStats: monthly.map(s => ({
         month: new Date(s.year, s.month - 1).toLocaleDateString('en-US', { month: 'long' }),

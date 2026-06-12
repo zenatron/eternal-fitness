@@ -95,6 +95,41 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
+      // Calculate streak
+      let newStreak = 1;
+      let newLongestStreak = 1;
+
+      // Fetch current streak values
+      const [streakData] = await tx
+        .select({
+          currentStreak: userStats.currentStreak,
+          longestStreak: userStats.longestStreak,
+          lastWorkoutAt: userStats.lastWorkoutAt,
+        })
+        .from(userStats)
+        .where(eq(userStats.userId, userId));
+
+      if (streakData) {
+        const lastWorkoutDate = streakData.lastWorkoutAt;
+        if (lastWorkoutDate) {
+          const lastDate = new Date(lastWorkoutDate);
+          const today = new Date(completionTime);
+          // Compare calendar dates (strip time)
+          lastDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 0) {
+            newStreak = Math.max(1, streakData.currentStreak);
+          } else if (diffDays === 1) {
+            // Consecutive day - increment streak
+            newStreak = streakData.currentStreak + 1;
+          }
+          // else diffDays > 1, streak resets to 1
+        }
+        newLongestStreak = Math.max(streakData.longestStreak, newStreak);
+      }
+
       // Clear active session and update stats
       await tx
         .update(userStats)
@@ -108,6 +143,8 @@ export async function POST(request: NextRequest) {
           totalExercises: sql`${userStats.totalExercises} + ${metrics.totalExercises}`,
           totalTrainingHours: sql`${userStats.totalTrainingHours} + ${sessionDuration ? sessionDuration / 3600 : 0}`,
           lastWorkoutAt: completionTime,
+          currentStreak: newStreak,
+          longestStreak: newLongestStreak,
         })
         .where(eq(userStats.userId, userId));
 
@@ -165,10 +202,10 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await Promise.all([
-        updateUserAchievements(userId),
-        updateUniqueExercisesCount(userId),
-      ]);
+      // Update unique exercises count first, then check achievements
+      // (achievements depend on the updated uniqueExercises count)
+      await updateUniqueExercisesCount(userId);
+      await updateUserAchievements(userId);
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
     }

@@ -18,8 +18,9 @@ export async function GET() {
       return errorResponse('Unauthorized', 401);
     }
 
+    await updateUserAchievements(userId);
     const achievementData = await getUserAchievements(userId);
-    
+
     if (!achievementData) {
       return errorResponse('Failed to fetch achievements', 500);
     }

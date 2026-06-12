@@ -15,6 +15,7 @@ export interface TemplateInputData {
       reps: number;
       weight?: number;
       duration?: number;
+      distance?: number;
       type?: string;
       restTime?: number;
       notes?: string;
@@ -44,10 +45,6 @@ export const useToggleFavorite = () => {
   // Update mutation signature: Input is string (templateId), context is ToggleFavoriteContext
   return useMutation<WorkoutTemplate, Error, string, ToggleFavoriteContext>({
     mutationFn: async (templateId: string) => {
-      // Call the dedicated favorite toggle endpoint
-      console.log(
-        `useToggleFavorite: Calling POST /api/template/${templateId}/favorite`,
-      );
       const response = await fetch(`/api/template/${templateId}/favorite`, {
         method: 'POST',
         headers: {
@@ -68,17 +65,13 @@ export const useToggleFavorite = () => {
         throw new Error(errorData?.error?.message || errorData?.error || 'Failed to toggle favorite status');
       }
 
-      console.log(
-        `useToggleFavorite: Successfully called POST for ${templateId}/favorite`,
-      );
-      return response.json(); // Assume endpoint returns the updated template
+      return response.json();
     },
 
     // onMutate uses templateId (string) as input now
     onMutate: async (
       templateId: string,
     ): Promise<ToggleFavoriteContext> => {
-      console.log(`useToggleFavorite: onMutate running for ${templateId}`);
       await queryClient.cancelQueries({ queryKey: ['json-templates'] });
       await queryClient.cancelQueries({ queryKey: ['json-template', templateId] });
 
@@ -90,11 +83,7 @@ export const useToggleFavorite = () => {
         templateId,
       ]);
 
-      // Optimistically update based on cache state
       const newFavoriteStatusOptimistic = !previousTemplate?.favorite;
-      console.log(
-        `useToggleFavorite: Optimistic update for ${templateId} to ${newFavoriteStatusOptimistic}`,
-      );
 
       // Update the cache for the list view
       if (previousTemplates) {
@@ -135,9 +124,6 @@ export const useToggleFavorite = () => {
     },
 
     onSettled: (templateId) => {
-      console.log(
-        `useToggleFavorite: onSettled for ${templateId}, invalidating queries.`,
-      );
       queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       queryClient.invalidateQueries({ queryKey: ['json-template', templateId] });
     },
@@ -233,15 +219,14 @@ export const useUpdateTemplate = () => {
           .catch(() => ({ error: 'Failed to update template' }));
         throw new Error(errorData.error?.message || errorData.error || 'Failed to update template');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data;
     },
     onSuccess: (updatedTemplate) => {
-      // Invalidate the list and the specific template
       queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       queryClient.invalidateQueries({
         queryKey: ['json-template', updatedTemplate.id],
       });
-      // Optionally, update the specific template in the cache
       queryClient.setQueryData(
         ['json-template', updatedTemplate.id],
         updatedTemplate,
@@ -315,6 +300,101 @@ export const useDeduplicateExercises = () => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['json-templates'] });
       queryClient.invalidateQueries({ queryKey: ['json-template'] });
+    },
+  });
+};
+
+// ============================================================================
+// SESSION MUTATIONS
+// ============================================================================
+
+export interface UpdateSessionData {
+  duration?: number;
+  notes?: string;
+  completedAt?: string;
+  performance?: Record<string, {
+    exerciseKey: string;
+    sets: Array<{
+      setId: string;
+      actualReps?: number;
+      actualWeight?: number;
+      actualDuration?: number;
+      actualRpe?: number;
+      completed: boolean;
+      skipped?: boolean;
+      notes?: string;
+      restTime?: number;
+    }>;
+    exerciseNotes?: string;
+    totalVolume: number;
+    averageRpe?: number;
+  }>;
+}
+
+export const useUpdateSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateSessionData }) => {
+      const response = await fetch(`/api/session/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update session' }));
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to update session');
+      }
+      const result = await response.json();
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userStats'] });
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+    },
+  });
+};
+
+export interface LogPastWorkoutData {
+  templateId?: string;
+  completedAt: string;
+  duration: number;
+  notes?: string;
+  performance?: UpdateSessionData['performance'];
+  adHocName?: string;
+  adHocExercises?: Array<{
+    exerciseKey: string;
+    sets: Array<{
+      reps: number;
+      weight?: number;
+      duration?: number;
+      distance?: number;
+      type?: string;
+      restTime?: number;
+    }>;
+  }>;
+}
+
+export const useLogPastWorkout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: LogPastWorkoutData) => {
+      const response = await fetch('/api/session/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to log workout' }));
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to log workout');
+      }
+      const result = await response.json();
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userStats'] });
+      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
     },
   });
 };

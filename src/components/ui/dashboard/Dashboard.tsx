@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardHeader } from './DashboardHeader';
+import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { StreakCard } from './StreakCard';
 import { ProgressCard } from './ProgressCard';
 import { RecentActivityCard } from './RecentActivityCard';
@@ -13,8 +14,181 @@ import { useDashboardData } from '@/lib/hooks/useDashboardData';
 import { UpcomingWorkoutsCard } from './UpcomingWorkoutsCard';
 import { useDashboardConfig } from '@/lib/hooks/useDashboardConfig';
 import DashboardSettingsModal from './DashboardSettingsModal';
-import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { PlusIcon, PlayIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+
+const springSnappy = {
+  type: 'spring' as const,
+  stiffness: 400,
+  damping: 30,
+  mass: 0.8,
+};
+
+const springGentle = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 25,
+  mass: 0.9,
+};
+
+function Greeting({ firstName }: { firstName: string }) {
+  const prefersReducedMotion = useReducedMotion();
+  const dateStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return (
+    <motion.div
+      initial={
+        prefersReducedMotion
+          ? {}
+          : { opacity: 0, y: 20, scale: 0.97 }
+      }
+      animate={
+        prefersReducedMotion
+          ? {}
+          : { opacity: 1, y: 0, scale: 1 }
+      }
+      transition={{ ...springGentle, delay: 0.05 }}
+      className="relative overflow-hidden rounded-lg"
+    >
+      <div className="absolute inset-0 greeting-gradient" />
+
+      <div
+        className="absolute inset-0 opacity-[0.04] dark:opacity-[0.08]"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 25% 25%, white 1px, transparent 1px), radial-gradient(circle at 75% 75%, white 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }}
+      />
+
+      {!prefersReducedMotion && (
+        <>
+          <motion.div
+            className="absolute w-64 h-64 rounded-full bg-white/10 -top-20 -right-20"
+            animate={{
+              x: [0, 30, 0],
+              y: [0, -20, 0],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute w-48 h-48 rounded-full bg-white/5 bottom-0 left-1/4"
+            animate={{
+              x: [0, -20, 0],
+              y: [0, 15, 0],
+              scale: [1, 1.05, 1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: 1,
+            }}
+          />
+        </>
+      )}
+
+      <div className="relative z-10 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <motion.h1
+              className="text-3xl sm:text-4xl font-display font-bold text-white tracking-wide"
+              initial={
+                prefersReducedMotion
+                  ? {}
+                  : { opacity: 0, x: -20 }
+              }
+              animate={
+                prefersReducedMotion
+                  ? {}
+                  : { opacity: 1, x: 0 }
+              }
+              transition={{ ...springSnappy, delay: 0.15 }}
+            >
+              WELCOME BACK, {firstName.toUpperCase()}
+            </motion.h1>
+            <motion.p
+              className="text-forge-100 mt-1"
+              initial={
+                prefersReducedMotion
+                  ? {}
+                  : { opacity: 0, x: -20 }
+              }
+              animate={
+                prefersReducedMotion
+                  ? {}
+                  : { opacity: 1, x: 0 }
+              }
+              transition={{ ...springSnappy, delay: 0.2 }}
+            >
+              {dateStr}
+            </motion.p>
+          </div>
+          <motion.div
+            className="flex items-center gap-3"
+            initial={
+              prefersReducedMotion
+                ? {}
+                : { opacity: 0, x: 20 }
+            }
+            animate={
+              prefersReducedMotion
+                ? {}
+                : { opacity: 1, x: 0 }
+            }
+            transition={{ ...springSnappy, delay: 0.25 }}
+          >
+            <Link
+              href="/templates"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-forge-700 text-sm font-display font-bold tracking-wide uppercase rounded-lg hover:bg-forge-50 transition-colors shadow-sm"
+            >
+              <PlayIcon className="w-4 h-4" />
+              Start Workout
+            </Link>
+            <Link
+              href="/template/create"
+              className="inline-flex items-center gap-2 px-4 py-2.5 border border-white/30 text-white text-sm font-display font-semibold tracking-wide uppercase rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" />
+              New Template
+            </Link>
+            <button
+              onClick={() => {
+                const event = new CustomEvent('open-dashboard-settings');
+                window.dispatchEvent(event);
+              }}
+              className="p-2.5 border border-white/30 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              title="Dashboard Settings"
+            >
+              <Cog6ToothIcon className="w-5 h-5" />
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+const cardSpringVariants = {
+  hidden: { opacity: 0, y: 24, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: 'spring' as const,
+      stiffness: 350,
+      damping: 28,
+      mass: 0.8,
+      delay: i * 0.06,
+    },
+  }),
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -23,30 +197,30 @@ export default function Dashboard() {
   const { data, loading, error, refetch } = useDashboardData();
   const { config, saveConfig, isLoading: configLoading } = useDashboardConfig();
   const { profile, isLoading: profileLoading } = useProfile();
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    setMounted(true);
+    const handler = () => setShowSettings(true);
+    window.addEventListener('open-dashboard-settings', handler);
+    return () => window.removeEventListener('open-dashboard-settings', handler);
   }, []);
 
-  // Profile setup redirect logic
   useEffect(() => {
-    // Only perform checks after initial loading is done and we're mounted
-    if (mounted && !profileLoading) {
-      // If profile is null (not found), redirect to setup
-      if (profile === null) {
-        router.replace('/profile/setup');
-        return;
-      }
-
-      // If profile exists but is incomplete, redirect to setup
-      if (profile && (
-        profile.name == null ||
+    if (!mounted || profileLoading) return;
+    if (profile === null) {
+      router.replace('/profile/setup');
+      return;
+    }
+    if (
+      profile &&
+      (profile.name == null ||
         profile.age == null ||
         profile.weight == null ||
-        profile.height == null
-      )) {
-        router.replace('/profile/setup');
-      }
+        profile.height == null)
+    ) {
+      router.replace('/profile/setup');
     }
   }, [mounted, profileLoading, profile, router]);
 
@@ -56,92 +230,100 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen app-bg flex flex-col items-center justify-center px-4">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md">
-          <h2 className="text-xl font-bold text-red-500 mb-4">
+      <motion.div
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
+        animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+        transition={springSnappy}
+        className="flex flex-col items-center justify-center min-h-[60vh] px-4"
+      >
+        <div className="forge-card p-8 max-w-md text-center">
+          <h2 className="text-lg font-display font-bold text-ember-500 mb-2 tracking-wide uppercase">
             Error Loading Dashboard
           </h2>
-          <p className="text-secondary">{error.message}</p>
-          <button
+          <p className="text-surface-500 dark:text-surface-600 text-sm mb-4">
+            {error.message}
+          </p>
+          <motion.button
             onClick={() => refetch()}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            className="btn btn-primary"
+            whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+            whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
+            transition={springSnappy}
           >
             Try Again
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
-  // Component mapping for dynamic rendering
-  const componentMap = {
-    StreakCard: () => <StreakCard streak={data.streak} activityData={data.activityData} />,
-    ProgressCard: () => <ProgressCard data={data.progress} />,
-    RecentActivityCard: () => <RecentActivityCard activities={data.recentActivity} />,
-    UpcomingWorkoutsCard: () => <UpcomingWorkoutsCard sessions={data.upcomingWorkouts} />,
-    StatsCard: () => <StatsCard data={data.stats} />,
-    QuickActionsCard: () => <QuickActionsCard />,
-  };
-
-  // Get enabled tiles sorted by order
   const enabledTiles = config.tiles
-    .filter(tile => tile.enabled)
+    .filter((tile) => tile.enabled)
     .sort((a, b) => a.order - b.order);
 
+  const firstName = profile?.name?.split(' ')[0] || 'Champion';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderTile = (componentName: string, data: any) => {
+    switch (componentName) {
+      case 'StreakCard':
+        return <StreakCard streak={data.streak} activityData={data.activityData} />;
+      case 'ProgressCard':
+        return <ProgressCard data={data.progress} />;
+      case 'RecentActivityCard':
+        return <RecentActivityCard activities={data.recentActivity} />;
+      case 'UpcomingWorkoutsCard':
+        return <UpcomingWorkoutsCard sessions={data.upcomingWorkouts} />;
+      case 'StatsCard':
+        return <StatsCard data={data.stats} />;
+      case 'QuickActionsCard':
+        return <QuickActionsCard />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
-      <div className="w-full max-w-7xl mx-auto px-4 pt-8">
-        {/* Enhanced Dashboard Header */}
+    <div className="pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
         <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-8 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">Welcome back! 👋</h1>
-                  <p className="text-blue-100">
-                    Ready to crush your fitness goals today?
-                  </p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setShowSettings(true)}
-                    className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                    title="Dashboard Settings"
-                  >
-                    <Cog6ToothIcon className="h-6 w-6 text-white" />
-                  </button>
-                  <div className="hidden md:block">
-                    <div className="text-right">
-                      <p className="text-blue-100 text-sm">Today</p>
-                      <p className="text-xl font-semibold">
-                        {new Date().toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Greeting firstName={firstName} />
         </div>
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {enabledTiles.map((tile) => {
-            const Component = componentMap[tile.component as keyof typeof componentMap];
-            return Component ? (
-              <div key={tile.id}>
-                {Component()}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial="hidden"
+          animate="visible"
+          variants={
+            prefersReducedMotion
+              ? {}
+              : {
+                  visible: {
+                    transition: { staggerChildren: 0.05, delayChildren: 0.1 },
+                  },
+                }
+          }
+        >
+          {enabledTiles.map((tile, i) => (
+            <motion.div
+              key={tile.id}
+              variants={prefersReducedMotion ? {} : cardSpringVariants}
+              custom={i}
+              whileHover={
+                prefersReducedMotion
+                  ? {}
+                  : { y: -4, transition: springSnappy }
+              }
+              className="h-full"
+            >
+              <div className="h-full">
+                {renderTile(tile.component, data)}
               </div>
-            ) : null;
-          })}
-        </div>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
 
-      {/* Dashboard Settings Modal */}
       <DashboardSettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}

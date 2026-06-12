@@ -254,7 +254,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
     return errorResponse('Scheduled session not found or already completed', 404, { scheduledSessionId });
   }
 
-  const templateData = scheduledSession.workoutTemplate.workoutData as WorkoutTemplateData;
+  const templateData = scheduledSession.workoutTemplate!.workoutData as WorkoutTemplateData;
   const normalizedPerformance = normalizePerformance(performance);
   const sessionData = createWorkoutSession(templateData, normalizedPerformance);
 

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutSessions } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
@@ -14,11 +15,30 @@ const errorResponse = (message: string, status = 500, details?: unknown) => {
   return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
+const performanceSchema = z.record(z.object({
+  exerciseKey: z.string(),
+  sets: z.array(z.object({
+    setId: z.string(),
+    actualReps: z.number().optional(),
+    actualWeight: z.number().optional(),
+    actualDuration: z.number().optional(),
+    actualRpe: z.number().optional(),
+    completed: z.boolean(),
+    skipped: z.boolean().optional(),
+    notes: z.string().optional(),
+    restTime: z.number().optional(),
+  })),
+  exerciseNotes: z.string().optional(),
+  totalVolume: z.number(),
+  averageRpe: z.number().optional(),
+}));
+
 const updateSessionSchema = z.object({
   duration: z.number().int().positive().optional(),
   notes: z.string().optional(),
   completedAt: z.string().datetime({ offset: true }).optional(),
   scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
+  performance: performanceSchema.optional(),
 });
 
 export async function GET(
@@ -68,35 +88,172 @@ export async function PUT(
 
     const validatedData = validationResult.data;
 
-    const [existing] = await db
-      .select({ id: workoutSessions.id })
-      .from(workoutSessions)
-      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
+    const updatedSession = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(workoutSessions)
+        .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
 
-    if (!existing) {
-      return errorResponse('Session not found or access denied', 404, { sessionId });
+      if (!existing) throw new Error('SessionNotFound');
+
+      const oldVolume = existing.totalVolume || 0;
+      const oldDuration = existing.duration || 0;
+      const oldSets = existing.totalSets || 0;
+      const oldExercises = existing.totalExercises || 0;
+      const oldCompletedAt = existing.completedAt;
+
+      const updatePayload: Record<string, unknown> = {};
+
+      if (validatedData.duration !== undefined) updatePayload.duration = validatedData.duration;
+      if (validatedData.notes !== undefined) updatePayload.notes = validatedData.notes;
+
+      if (validatedData.completedAt) {
+        updatePayload.completedAt = new Date(validatedData.completedAt);
+        updatePayload.scheduledAt = null;
+      } else if (validatedData.scheduledAt !== undefined) {
+        updatePayload.scheduledAt = validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null;
+        if (updatePayload.scheduledAt) updatePayload.completedAt = null;
+      }
+
+      if (validatedData.performance) {
+        const perf = validatedData.performance;
+        const newVolume = Object.values(perf).reduce((t, ep) => t + ep.totalVolume, 0);
+        const newCompletedSets = Object.values(perf).reduce(
+          (t, ep) => t + ep.sets.filter(s => s.completed).length, 0
+        );
+        const newTotalSets = Object.values(perf).reduce((t, ep) => t + ep.sets.length, 0);
+        const newExercises = Object.keys(perf).length;
+        const skippedSets = Object.values(perf).reduce(
+          (t, ep) => t + ep.sets.filter(s => s.skipped).length, 0
+        );
+        const adherenceScore = newTotalSets > 0 ? Math.round((newCompletedSets / newTotalSets) * 100) : 100;
+
+        const existingPerfData = (existing.performanceData as unknown as Record<string, unknown>) || {};
+        updatePayload.performanceData = {
+          ...existingPerfData,
+          performance: perf,
+          metrics: {
+            totalVolume: newVolume,
+            totalSets: newTotalSets,
+            totalExercises: newExercises,
+            completedSets: newCompletedSets,
+            skippedSets,
+            adherenceScore,
+            personalRecords: [],
+            volumeRecords: [],
+          },
+        };
+        updatePayload.totalVolume = newVolume;
+        updatePayload.totalSets = newCompletedSets;
+        updatePayload.totalExercises = newExercises;
+      }
+
+      const [updated] = await tx
+        .update(workoutSessions)
+        .set(updatePayload)
+        .where(eq(workoutSessions.id, sessionId))
+        .returning();
+
+      // Recalculate stats diffs if volume, duration, sets, or exercises changed
+      const newVolume = (updatePayload.totalVolume as number) ?? oldVolume;
+      const newDuration = (updatePayload.duration as number) ?? oldDuration;
+      const newSets = (updatePayload.totalSets as number) ?? oldSets;
+      const newExercises = (updatePayload.totalExercises as number) ?? oldExercises;
+
+      const volumeDiff = newVolume - oldVolume;
+      const hoursDiff = (newDuration - oldDuration) / 3600;
+      const setsDiff = newSets - oldSets;
+      const exercisesDiff = newExercises - oldExercises;
+
+      const hasStatsDiff = volumeDiff !== 0 || hoursDiff !== 0 || setsDiff !== 0 || exercisesDiff !== 0;
+
+      if (hasStatsDiff) {
+        await tx
+          .update(userStats)
+          .set({
+            totalVolume: sql`GREATEST(0, ${userStats.totalVolume} + ${volumeDiff})`,
+            totalTrainingHours: sql`GREATEST(0, ${userStats.totalTrainingHours} + ${hoursDiff})`,
+            totalSets: sql`GREATEST(0, ${userStats.totalSets} + ${setsDiff})`,
+            totalExercises: sql`GREATEST(0, ${userStats.totalExercises} + ${exercisesDiff})`,
+          })
+          .where(eq(userStats.userId, userId));
+      }
+
+      // Handle completedAt date change — move monthly stats between buckets
+      const newCompletedAt = (updatePayload.completedAt as Date) ?? oldCompletedAt;
+      if (oldCompletedAt && newCompletedAt) {
+        const oldYear = oldCompletedAt.getFullYear();
+        const oldMonth = oldCompletedAt.getMonth() + 1;
+        const newYear = newCompletedAt.getFullYear();
+        const newMonth = newCompletedAt.getMonth() + 1;
+
+        if (oldYear !== newYear || oldMonth !== newMonth) {
+          // Decrement old month bucket
+          await tx
+            .update(monthlyStats)
+            .set({
+              workoutsCount: sql`GREATEST(0, ${monthlyStats.workoutsCount} - 1)`,
+              volume: sql`GREATEST(0, ${monthlyStats.volume} - ${oldVolume})`,
+              trainingHours: sql`GREATEST(0, ${monthlyStats.trainingHours} - ${oldDuration / 3600})`,
+            })
+            .where(and(
+              eq(monthlyStats.userId, userId),
+              eq(monthlyStats.year, oldYear),
+              eq(monthlyStats.month, oldMonth),
+            ));
+
+          // Upsert new month bucket
+          await tx
+            .insert(monthlyStats)
+            .values({
+              userId,
+              year: newYear,
+              month: newMonth,
+              workoutsCount: 1,
+              volume: newVolume,
+              trainingHours: newDuration / 3600,
+            })
+            .onConflictDoUpdate({
+              target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
+              set: {
+                workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
+                volume: sql`${monthlyStats.volume} + ${newVolume}`,
+                trainingHours: sql`${monthlyStats.trainingHours} + ${newDuration / 3600}`,
+              },
+            });
+        } else if (hasStatsDiff) {
+          // Same month but values changed — apply diffs
+          await tx
+            .update(monthlyStats)
+            .set({
+              volume: sql`GREATEST(0, ${monthlyStats.volume} + ${volumeDiff})`,
+              trainingHours: sql`GREATEST(0, ${monthlyStats.trainingHours} + ${hoursDiff})`,
+            })
+            .where(and(
+              eq(monthlyStats.userId, userId),
+              eq(monthlyStats.year, oldYear),
+              eq(monthlyStats.month, oldMonth),
+            ));
+        }
+      }
+
+      return updated;
+    });
+
+    // Re-evaluate achievements outside the transaction
+    try {
+      await updateUniqueExercisesCount(userId);
+      await updateUserAchievements(userId);
+    } catch (achievementError) {
+      console.error('Error updating achievements after session edit:', achievementError);
     }
-
-    const updatePayload: Record<string, unknown> = {};
-    if (validatedData.duration !== undefined) updatePayload.duration = validatedData.duration;
-    if (validatedData.notes !== undefined) updatePayload.notes = validatedData.notes;
-    if (validatedData.completedAt) {
-      updatePayload.completedAt = new Date(validatedData.completedAt);
-      updatePayload.scheduledAt = null;
-    } else if (validatedData.scheduledAt !== undefined) {
-      updatePayload.scheduledAt = validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null;
-      if (updatePayload.scheduledAt) updatePayload.completedAt = null;
-    }
-
-    const [updatedSession] = await db
-      .update(workoutSessions)
-      .set(updatePayload)
-      .where(eq(workoutSessions.id, sessionId))
-      .returning();
 
     return successResponse(updatedSession);
-  } catch (error) {
+  } catch (error: any) {
     const { sessionId } = await params;
+    if (error.message === 'SessionNotFound') {
+      return errorResponse('Session not found or access denied', 404, { sessionId });
+    }
     return errorResponse('Internal Server Error updating session', 500, { sessionId, error: error instanceof Error ? error.message : String(error) });
   }
 }

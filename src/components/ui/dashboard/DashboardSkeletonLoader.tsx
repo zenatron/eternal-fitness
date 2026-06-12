@@ -1,43 +1,49 @@
 export function DashboardSkeletonLoader() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
-      <div className="w-full max-w-7xl mx-auto px-4 pt-8">
-        {/* Header Skeleton */}
-        <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 px-8 py-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="h-8 w-48 bg-gray-200 dark:bg-gray-600 rounded-lg animate-pulse mb-2"></div>
-                  <div className="h-4 w-64 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-                </div>
-                <div className="hidden md:block">
-                  <div className="h-6 w-24 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="pb-16">
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes skeletonFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg, #e8e6e2 25%, #f5f3f0 50%, #e8e6e2 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite ease-in-out;
+        }
+        .dark .skeleton-shimmer {
+          background: linear-gradient(90deg, #242320 25%, #2f2d2a 50%, #242320 75%);
+          background-size: 200% 100%;
+        }
+        .skeleton-card {
+          animation: skeletonFadeIn 0.6s ease-out backwards;
+        }
+      `}</style>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
+        <div className="skeleton-card mb-8 forge-card p-6 sm:p-8">
+          <div className="h-8 w-48 skeleton-shimmer rounded-lg mb-3" />
+          <div className="h-5 w-64 skeleton-shimmer rounded-lg" />
         </div>
 
-        {/* Cards Grid Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden"
+              className="skeleton-card forge-card"
+              style={{ animationDelay: `${i * 0.08}s` }}
             >
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
-                </div>
-                <div className="space-y-4">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
-                </div>
-                <div className="mt-6 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+              <div className="px-5 py-4 border-b border-surface-100 dark:border-surface-300">
+                <div className="h-5 w-28 skeleton-shimmer rounded" />
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="h-4 skeleton-shimmer rounded w-full" />
+                <div className="h-4 skeleton-shimmer rounded w-3/4" />
+                <div className="h-4 skeleton-shimmer rounded w-1/2" />
+                <div className="h-10 skeleton-shimmer rounded-lg mt-3" />
               </div>
             </div>
           ))}

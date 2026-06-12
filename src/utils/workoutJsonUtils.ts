@@ -32,8 +32,14 @@ export function createWorkoutTemplate(
     sets: Array<{
       reps: number;
       weight?: number;
+      duration?: number;
+      distance?: number;
       type?: SetType;
+      restTime?: number;
+      notes?: string;
     }>;
+    instructions?: string;
+    restBetweenSets?: number;
   }>,
   options: {
     description?: string;
@@ -53,9 +59,13 @@ export function createWorkoutTemplate(
       type: set.type || SetType.STANDARD,
       targetReps: set.reps,
       targetWeight: set.weight,
-      restTime: 60, // default 60 seconds rest
+      targetDuration: set.duration,
+      targetDistance: set.distance,
+      restTime: set.restTime ?? 60,
+      notes: set.notes,
     })),
-    restBetweenSets: 60,
+    instructions: ex.instructions,
+    restBetweenSets: ex.restBetweenSets ?? 60,
   }));
 
   const estimatedDuration = calculateEstimatedDuration(workoutExercises);
@@ -96,17 +106,24 @@ export function calculateTemplateVolume(exercises: WorkoutExercise[]): number {
  * Estimates workout duration based on sets and rest times
  */
 export function calculateEstimatedDuration(exercises: WorkoutExercise[]): number {
-  let totalMinutes = 0;
-  
+  let totalSeconds = 0;
+
   exercises.forEach(exercise => {
-    // Estimate 30 seconds per set + rest time
-    const setTime = exercise.sets.length * 0.5; // 30 seconds per set
-    const restTime = (exercise.sets.length - 1) * (exercise.restBetweenSets || 60) / 60; // rest in minutes
-    totalMinutes += setTime + restTime;
+    const fallbackRest = exercise.restBetweenSets || 60;
+    exercise.sets.forEach((set, i) => {
+      if (set.targetDuration) {
+        totalSeconds += set.targetDuration;
+      } else {
+        const reps = typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.max || 0;
+        totalSeconds += reps * 3;
+      }
+      if (i < exercise.sets.length - 1) {
+        totalSeconds += set.restTime ?? fallbackRest;
+      }
+    });
   });
-  
-  // Add 5 minutes for warmup and transitions
-  return Math.round(totalMinutes + 5);
+
+  return Math.round(totalSeconds / 60 + 5);
 }
 
 /**

@@ -1,215 +1,336 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ThemeSwitch from './theme/ThemeSwitch';
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect } from 'react';
+import {
+  AnimatePresence,
+  motion,
+  useScroll,
+  useTransform,
+  useMotionValueEvent,
+  useReducedMotion,
+} from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
-import { UserCircleIcon, ArrowRightStartOnRectangleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import {
+  UserCircleIcon,
+  ArrowRightStartOnRectangleIcon,
+  Cog6ToothIcon,
+  Bars3Icon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+
+const navLinks = [
+  { href: '/templates', label: 'Templates' },
+  { href: '/profile', label: 'Profile' },
+];
+
+const springTransition = {
+  type: 'spring' as const,
+  stiffness: 400,
+  damping: 30,
+};
+
+const springBouncy = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 20,
+};
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [visible, setVisible] = useState(true);
   const { data: session } = useSession();
+  const prefersReducedMotion = useReducedMotion();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
 
-  const menuVariants = {
-    closed: {
-      opacity: 0,
-      x: '100%',
-      transition: { duration: 0.2 },
-    },
-    open: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.3 },
-    },
-  };
+  const { scrollY } = useScroll();
 
-  const userInitial = session?.user?.name?.charAt(0)?.toUpperCase() || session?.user?.email?.charAt(0)?.toUpperCase() || '?';
+  const headerHeight = useTransform(scrollY, [0, 80], ['4rem', '3.25rem']);
+  const headerShadow = useTransform(scrollY, [0, 80], [
+    '0 1px 0 0 rgba(237, 123, 22, 0.05)',
+    '0 4px 20px rgba(0,0,0,0.3), 0 0 1px rgba(237, 123, 22, 0.1)',
+  ]);
+  const logoScale = useTransform(scrollY, [0, 80], [1, 0.85]);
+
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    if (Math.abs(latest - lastScrollY.current) < 5) return;
+    if (latest > lastScrollY.current && latest > 120) {
+      setVisible(false);
+    } else {
+      setVisible(true);
+    }
+    lastScrollY.current = latest;
+  });
+
+  useEffect(() => {
+    setMenuOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
+
+  const initial =
+    session?.user?.name?.charAt(0)?.toUpperCase() ||
+    session?.user?.email?.charAt(0)?.toUpperCase() ||
+    '?';
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-slate-800 dark:bg-gray-950 shadow-sm z-[40] h-16 px-6 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold">
-          <Link
-            href="/"
-            className="
-              bg-clip-text text-transparent
-              bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500
-              hover:animate-gradient-x
-              bg-[size:200%]
-            "
+    <motion.header
+      ref={headerRef}
+      style={{
+        height: prefersReducedMotion ? '4rem' : headerHeight,
+        boxShadow: prefersReducedMotion ? undefined : headerShadow,
+      }}
+      animate={{
+        y: visible ? 0 : -80,
+        opacity: visible ? 1 : 0,
+      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className="sticky top-0 z-40 border-b border-surface-200/80 dark:border-surface-300/50 bg-white/95 dark:bg-surface-50/95 backdrop-blur-sm"
+    >
+      <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+          <motion.div
+            style={{
+              scale: prefersReducedMotion ? 1 : logoScale,
+            }}
+            className="w-8 h-8 rounded-lg bg-forge-500 flex items-center justify-center relative overflow-hidden"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+            transition={springTransition}
           >
-            Eternal Fitness
-          </Link>
-        </h1>
-      </div>
-
-      <nav className="hidden md:flex items-center space-x-6">
-        {session ? (
-          <div className="relative">
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white text-sm font-medium"
+            <motion.svg
+              className="w-5 h-5 text-white relative z-10"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              animate={
+                prefersReducedMotion
+                  ? {}
+                  : { rotate: [0, 0, 0] }
+              }
             >
-              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                {userInitial}
-              </span>
-            </button>
+              <motion.path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                animate={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        pathLength: [0.85, 1, 0.85],
+                        transition: {
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        },
+                      }
+                }
+              />
+            </motion.svg>
+            {!prefersReducedMotion && (
+              <motion.div
+                className="absolute inset-0 rounded-lg bg-forge-400/30"
+                animate={{ scale: [1, 1.3, 1], opacity: [0, 0.3, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+          </motion.div>
+          <motion.span
+            style={{
+              scale: prefersReducedMotion ? 1 : logoScale,
+            }}
+            className="text-lg font-display font-bold text-surface-50 dark:text-white origin-left tracking-wide"
+          >
+            ETERNAL FITNESS
+          </motion.span>
+        </Link>
 
-            <AnimatePresence>
-              {isUserMenuOpen && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-10"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                    className="absolute right-0 top-full mt-2 w-56 bg-gray-800 dark:bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-20 py-2"
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-1">
+          {session &&
+            navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="relative px-3 py-2 text-sm font-display font-semibold tracking-wide uppercase rounded-lg transition-colors"
+                >
+                  <span
+                    className={
+                      isActive
+                        ? 'text-forge-500 dark:text-forge-400'
+                        : 'text-surface-500 dark:text-surface-700 hover:text-surface-800 dark:hover:text-white'
+                    }
                   >
-                    <div className="px-4 py-2 border-b border-gray-700">
-                      <p className="text-sm font-medium text-white truncate">
-                        {session.user?.name || session.user?.email}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {session.user?.email}
-                      </p>
-                    </div>
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 transition-colors"
+                    {link.label}
+                  </span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-active"
+                      className="absolute inset-0 bg-forge-50 dark:bg-forge-950/40 rounded-lg -z-10"
+                      transition={springTransition}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+
+          {session && (
+            <div className="relative ml-2">
+              <motion.button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-surface-200 dark:border-surface-400 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                transition={springTransition}
+              >
+                <motion.span
+                  className="w-7 h-7 rounded-full bg-forge-500 flex items-center justify-center text-white text-xs font-display font-bold"
+                  animate={
+                    prefersReducedMotion
+                      ? {}
+                      : {
+                          boxShadow: [
+                            '0 0 0 0 rgba(237, 123, 22, 0.4)',
+                            '0 0 0 4px rgba(237, 123, 22, 0)',
+                            '0 0 0 0 rgba(237, 123, 22, 0)',
+                          ],
+                        }
+                  }
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  {initial}
+                </motion.span>
+                <span className="text-sm text-surface-600 dark:text-surface-800 hidden lg:block max-w-[120px] truncate">
+                  {session.user?.name || session.user?.email}
+                </span>
+              </motion.button>
+
+              <AnimatePresence>
+                {userMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setUserMenuOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={springBouncy}
+                      className="absolute right-0 top-full mt-2 w-56 forge-card shadow-lg z-20 py-1 overflow-hidden origin-top-right"
                     >
-                      <UserCircleIcon className="w-5 h-5" />
-                      Profile
-                    </Link>
-                    <Link
-                      href="/profile/edit"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-200 hover:bg-white/10 transition-colors"
-                    >
-                      <Cog6ToothIcon className="w-5 h-5" />
-                      Settings
-                    </Link>
-                    <div className="border-t border-gray-700 mt-1 pt-1">
-                      <button
-                        onClick={() => signOut({ callbackUrl: '/login' })}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-white/10 transition-colors w-full"
-                      >
-                        <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        ) : null}
-
-        <ThemeSwitch />
-      </nav>
-
-      <button
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="md:hidden flex flex-col justify-center items-center w-6 h-6 space-y-1.5 focus:outline-none"
-        aria-label="Toggle menu"
-      >
-        <span
-          className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
-            isMenuOpen ? 'rotate-45 translate-y-2' : ''
-          }`}
-        />
-        <span
-          className={`w-6 h-0.5 bg-white transition-all duration-300 ${
-            isMenuOpen ? 'opacity-0' : ''
-          }`}
-        />
-        <span
-          className={`w-6 h-0.5 bg-white transform transition-all duration-300 ${
-            isMenuOpen ? '-rotate-45 -translate-y-2' : ''
-          }`}
-        />
-      </button>
-
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black md:hidden"
-              onClick={() => setIsMenuOpen(false)}
-            />
-
-            <motion.div
-              variants={menuVariants}
-              initial="closed"
-              animate="open"
-              exit="closed"
-              className="fixed right-0 top-0 h-screen w-64 bg-gray-800 dark:bg-gray-900 p-6 md:hidden shadow-lg"
-            >
-              <div className="flex flex-col space-y-6">
-                {session ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <span className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                        {userInitial}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-white truncate">
+                      <div className="px-4 py-2.5 border-b border-surface-100 dark:border-surface-300">
+                        <p className="text-sm font-semibold text-surface-800 dark:text-white truncate">
                           {session.user?.name || session.user?.email}
                         </p>
+                        <p className="text-xs text-surface-500 dark:text-surface-600 truncate">
+                          {session.user?.email}
+                        </p>
                       </div>
-                    </div>
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 text-sm text-gray-200 hover:text-white transition-colors"
-                    >
-                      <UserCircleIcon className="w-5 h-5" />
-                      Profile
-                    </Link>
-                    <Link
-                      href="/profile/edit"
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 text-sm text-gray-200 hover:text-white transition-colors"
-                    >
-                      <Cog6ToothIcon className="w-5 h-5" />
-                      Settings
-                    </Link>
-                    <button
-                      onClick={() => signOut({ callbackUrl: '/login' })}
-                      className="flex items-center gap-3 text-sm text-red-400 hover:text-red-300 transition-colors"
-                    >
-                      <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
-                      Sign Out
-                    </button>
-                  </div>
-                ) : (
-                  <Link
-                    href="/login"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="text-sm text-gray-200 hover:text-white transition-colors"
-                  >
-                    Sign In
-                  </Link>
+                      <Link
+                        href="/profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-600 dark:text-surface-800 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors"
+                      >
+                        <UserCircleIcon className="w-4 h-4" />
+                        Profile
+                      </Link>
+                      <Link
+                        href="/profile/edit"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-600 dark:text-surface-800 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors"
+                      >
+                        <Cog6ToothIcon className="w-4 h-4" />
+                        Settings
+                      </Link>
+                      <div className="border-t border-surface-100 dark:border-surface-300 pt-1 mt-1">
+                        <button
+                          onClick={() => signOut({ callbackUrl: '/login' })}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-ember-500 dark:text-ember-400 hover:bg-red-50 dark:hover:bg-ember-500/10 transition-colors w-full"
+                        >
+                          <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
                 )}
-                <div className="pt-4 border-t border-gray-700">
-                  <ThemeSwitch />
-                </div>
-              </div>
-            </motion.div>
-          </>
+              </AnimatePresence>
+            </div>
+          )}
+
+          <div className="ml-2">
+            <ThemeSwitch />
+          </div>
+        </nav>
+
+        {/* Mobile hamburger */}
+        <motion.button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden p-2 -mr-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+          whileTap={{ scale: 0.9 }}
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? (
+            <XMarkIcon className="w-5 h-5" />
+          ) : (
+            <Bars3Icon className="w-5 h-5" />
+          )}
+        </motion.button>
+      </div>
+
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+            className="md:hidden border-t border-surface-200 dark:border-surface-300 bg-white dark:bg-surface-50 overflow-hidden"
+          >
+            <div className="px-4 py-3 space-y-1">
+              {session &&
+                navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              <Link
+                href="/profile/edit"
+                onClick={() => setMenuOpen(false)}
+                className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+              >
+                Settings
+              </Link>
+              {session && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    signOut({ callbackUrl: '/login' });
+                  }}
+                  className="block w-full text-left px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-ember-500 dark:text-ember-400 rounded-lg hover:bg-red-50 dark:hover:bg-ember-500/10 transition-colors"
+                >
+                  Sign Out
+                </button>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }

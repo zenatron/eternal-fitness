@@ -17,7 +17,6 @@ const fetchTemplates = async (): Promise<WorkoutTemplate[]> => {
     throw new Error('Invalid API response structure for templates');
   }
 
-  console.log(`✅ Fetched ${data.length} JSON-based templates from API`);
   return data;
 };
 

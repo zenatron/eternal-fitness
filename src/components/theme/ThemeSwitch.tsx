@@ -2,54 +2,58 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import {
-  MoonIcon,
-  SunIcon,
-  ComputerDesktopIcon,
-} from '@heroicons/react/24/outline';
-
-const themes = [
-  { id: 'system', icon: ComputerDesktopIcon },
-  { id: 'light', icon: SunIcon },
-  { id: 'dark', icon: MoonIcon },
-] as const;
+import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 export default function ThemeSwitch() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    const currentIndex = themes.findIndex((t) => t.id === theme);
-    const nextIndex = (currentIndex + 1) % themes.length;
-    setTheme(themes[nextIndex].id);
-  };
+  useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return (
-      <button
-        className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors duration-200"
-        aria-label="Theme settings"
-      >
-        <span className="opacity-0">Loading...</span>
-      </button>
-    );
+    return <div className="w-9 h-9" />;
   }
 
-  const currentTheme = themes.find((t) => t.id === theme) || themes[0];
-  const CurrentIcon = currentTheme.icon;
+  const isDark = theme === 'dark';
 
   return (
-    <button
-      onClick={toggleTheme}
-      className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-100 dark:text-gray-200 hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200"
+    <motion.button
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      className="p-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors relative"
+      whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
+      whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       aria-label="Toggle theme"
-      title={`Current theme: ${currentTheme.id}`}
     >
-      <CurrentIcon className="w-4 h-4" />
-    </button>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={isDark ? 'moon' : 'sun'}
+          initial={
+            prefersReducedMotion
+              ? {}
+              : { rotate: -90, opacity: 0, scale: 0.5 }
+          }
+          animate={
+            prefersReducedMotion
+              ? {}
+              : { rotate: 0, opacity: 1, scale: 1 }
+          }
+          exit={
+            prefersReducedMotion
+              ? {}
+              : { rotate: 90, opacity: 0, scale: 0.5 }
+          }
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        >
+          {isDark ? (
+            <MoonIcon className="w-5 h-5" />
+          ) : (
+            <SunIcon className="w-5 h-5" />
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </motion.button>
   );
 }

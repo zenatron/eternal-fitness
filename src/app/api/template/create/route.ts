@@ -22,9 +22,10 @@ const errorResponse = (message: string, status = 500, details?: unknown) => {
 };
 
 const createSetSchema = z.object({
-  reps: z.number().int().positive(),
+  reps: z.number().int().nonnegative(),
   weight: z.number().nonnegative().optional(),
   duration: z.number().positive().optional(),
+  distance: z.number().positive().optional(),
   type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest']).optional().default('standard'),
   restTime: z.number().positive().optional(),
   notes: z.string().optional(),

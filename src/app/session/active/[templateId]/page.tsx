@@ -13,11 +13,15 @@ import {
   DocumentTextIcon,
   CalendarIcon,
 } from '@heroicons/react/24/outline';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { ExercisePerformance } from '@/types/workout';
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
+
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
+const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 
 
@@ -37,6 +41,7 @@ export default function ActiveSessionPage({
     error: templateError,
   } = useTemplate(templateId);
   const { profile, isLoading: profileLoading } = useProfile();
+  const prefersReducedMotion = useReducedMotion();
 
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
@@ -100,7 +105,6 @@ export default function ActiveSessionPage({
   }, [updateModifiedTemplate]);
 
   const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    console.log('🎯 Performance update received:', JSON.stringify(performance, null, 2));
     updatePerformance(performance);
   }, [updatePerformance]);
 
@@ -193,12 +197,6 @@ export default function ActiveSessionPage({
     } else {
       // Creating a new immediate session - use the new active session completion API
       try {
-        console.log('🚀 Completing workout with active session data:', {
-          performance: activeWorkout?.performance,
-          duration: finalDurationMinutes,
-          notes: activeWorkout?.sessionNotes || ''
-        });
-
         await completeWorkout(finalDurationMinutes, activeWorkout?.sessionNotes || '');
 
         setSaveMessage('Session saved successfully!');
@@ -297,31 +295,35 @@ export default function ActiveSessionPage({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4"
+      initial={prefersReducedMotion ? {} : { opacity: 0 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1 }}
+      transition={springGentle}
+      className="min-h-screen app-bg py-8 px-4"
     >
       <div className="max-w-5xl mx-auto">
         {/* Enhanced Header */}
         <motion.div
           className="mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: -20 }}
+          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          transition={springGentle}
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          <div className="forge-card overflow-hidden">
             <div className="bg-gradient-to-br from-orange-600 via-red-600 to-orange-800 px-8 py-6 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <button
+                  <motion.button
                     onClick={() => router.back()}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={springSnappy}
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                     aria-label="Go back"
                   >
                     <ArrowLeftIcon className="h-6 w-6" />
-                  </button>
+                  </motion.button>
                   <div>
-                    <h1 className="text-3xl font-bold mb-2">
+                    <h1 className="text-3xl font-display font-bold tracking-wide mb-2">
                       🔥 Active Session
                     </h1>
                     <p className="text-orange-100 text-lg">
@@ -331,14 +333,18 @@ export default function ActiveSessionPage({
                 </div>
 
                 {/* Live Timer Display */}
-                <div className="text-right">
+                <motion.div
+                  className="text-right"
+                  animate={isTimerActive && !prefersReducedMotion ? { scale: [1, 1.03, 1] } : {}}
+                  transition={{ type: "tween", ease: "easeInOut", repeat: isTimerActive ? Infinity : 0, duration: 2 }}
+                >
                   <div className="text-3xl font-mono font-bold">
                     {formatWorkoutDuration}
                   </div>
                   <div className="text-orange-100 text-sm">
                     {isTimerActive ? '🟢 Recording' : '⏸️ Paused'}
                   </div>
-                </div>
+                </motion.div>
               </div>
             </div>
           </div>
@@ -348,22 +354,22 @@ export default function ActiveSessionPage({
         {scheduledSessionId && (
           <motion.div
             className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.1 }}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+            <div className="forge-card overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-forge-500 to-forge-300"></div>
               <div className="p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                    <CalendarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="p-3 bg-forge-100 dark:bg-forge-900/30 rounded-xl">
+                    <CalendarIcon className="h-6 w-6 text-forge-600 dark:text-forge-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
                       Scheduled Workout
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-surface-500 dark:text-surface-600">
                       You are completing a previously scheduled workout session
                     </p>
                   </div>
@@ -377,11 +383,11 @@ export default function ActiveSessionPage({
         {hasActiveWorkout && (
           <motion.div
             className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.2 }}
           >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          <div className="forge-card overflow-hidden">
             <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
             <div className="p-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -390,19 +396,22 @@ export default function ActiveSessionPage({
                     <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
                       Session Timer
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-surface-500 dark:text-surface-600">
                       Track your workout duration
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button
+                  <motion.button
                     onClick={toggleTimer}
-                    className={`px-6 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 font-semibold ${
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={springSnappy}
+                    className={`px-6 py-3 rounded-xl flex items-center gap-2 font-semibold ${
                       isTimerActive
                         ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
                         : 'bg-green-500 hover:bg-green-600 text-white'
@@ -414,11 +423,14 @@ export default function ActiveSessionPage({
                       <PlayIcon className="h-5 w-5" />
                     )}
                     {isTimerActive ? 'Pause Timer' : 'Start Timer'}
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={stopTimerAndSave}
                     disabled={isSaving}
-                    className="px-6 py-3 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-xl transition-all duration-200 flex items-center gap-2 font-semibold"
+                    whileHover={isSaving ? {} : { scale: 1.03 }}
+                    whileTap={isSaving ? {} : { scale: 0.97 }}
+                    transition={springSnappy}
+                    className="px-6 py-3 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-xl flex items-center gap-2 font-semibold"
                   >
                     {isSaving ? (
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
@@ -426,7 +438,7 @@ export default function ActiveSessionPage({
                       <CheckCircleIcon className="h-5 w-5" />
                     )}
                     {isSaving ? 'Saving...' : 'Finish & Save'}
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </div>
@@ -457,57 +469,57 @@ export default function ActiveSessionPage({
         {/* Template Overview */}
         <motion.div
           className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.3 }}
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+          <div className="forge-card overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-forge-500 to-forge-700"></div>
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                  <div className="w-6 h-6 bg-blue-600 dark:bg-blue-400 rounded"></div>
+                <div className="p-3 bg-forge-100 dark:bg-forge-900/30 rounded-xl">
+                  <div className="w-6 h-6 bg-forge-600 dark:bg-blue-400 rounded"></div>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
                     Workout Overview
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-surface-500 dark:text-surface-600">
                     Today's training session details
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     {template.workoutData?.exercises?.length || 0}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
+                  <div className="text-sm text-surface-500 dark:text-surface-600">Exercises</div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     {template.workoutData?.exercises?.reduce((total, ex) => total + ex.sets.length, 0) || 0}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Total Sets</div>
+                  <div className="text-sm text-surface-500 dark:text-surface-600">Total Sets</div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     {template.totalVolume > 0 ? formatVolume(template.totalVolume, profile?.useMetric) : '-'}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Volume</div>
+                  <div className="text-sm text-surface-500 dark:text-surface-600">Volume</div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     ~{template.estimatedDuration}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Est. Minutes</div>
+                  <div className="text-sm text-surface-500 dark:text-surface-600">Est. Minutes</div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-                  <div className="text-lg font-bold text-gray-900 dark:text-white capitalize">
+                <div className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center">
+                  <div className="text-lg font-display font-bold text-surface-800 dark:text-white capitalize">
                     {template.difficulty}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Difficulty</div>
+                  <div className="text-sm text-surface-500 dark:text-surface-600">Difficulty</div>
                 </div>
               </div>
             </div>
@@ -517,35 +529,36 @@ export default function ActiveSessionPage({
         {/* Start Workout Button - Show when no active workout */}
         {!hasActiveWorkout && !isActiveWorkoutLoading && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.5 }}
             className="mb-6"
           >
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div className="forge-card overflow-hidden">
               <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-500"></div>
               <div className="p-8 text-center">
                 <div className="mb-6">
                   <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                     <PlayIcon className="w-10 h-10 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  <h3 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-2">
                     Ready to Start Your Workout?
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-surface-500 dark:text-surface-600">
                     Click the button below to begin tracking your workout session
                   </p>
                 </div>
 
-                <button
+                <motion.button
                   onClick={handleStartWorkout}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
+                  transition={springSnappy}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg flex items-center gap-3 mx-auto"
                 >
-                  <div className="flex items-center gap-3">
-                    <PlayIcon className="w-6 h-6" />
-                    Start Workout
-                  </div>
-                </button>
+                  <PlayIcon className="w-6 h-6" />
+                  Start Workout
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -554,9 +567,9 @@ export default function ActiveSessionPage({
         {/* Workout Progress Tracker */}
         {hasActiveWorkout && activeWorkout && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.5 }}
           >
             <WorkoutProgressTracker
               key={`workout-tracker-${activeWorkout.templateId}-${new Date(activeWorkout.startedAt).getTime()}`}
@@ -574,22 +587,22 @@ export default function ActiveSessionPage({
         {hasActiveWorkout && (
           <motion.div
             className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.4 }}
           >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+          <div className="forge-card overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-forge-500 to-pink-500"></div>
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                  <DocumentTextIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="p-3 bg-forge-100 dark:bg-forge-900/30 rounded-xl">
+                  <DocumentTextIcon className="w-6 h-6 text-forge-600 dark:text-forge-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
                     Session Notes
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-surface-500 dark:text-surface-600">
                     Record your thoughts, PRs, and observations
                   </p>
                 </div>
@@ -600,7 +613,7 @@ export default function ActiveSessionPage({
                 rows={4}
                 value={activeWorkout?.sessionNotes || ''}
                 onChange={(e) => handleNotesUpdate(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none transition-all duration-200"
+                className="w-full px-4 py-3 border border-surface-300 dark:border-surface-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-surface-200 dark:text-white resize-none"
                 placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
                 disabled={isSaving}
               />
@@ -616,53 +629,64 @@ export default function ActiveSessionPage({
           <>
             {/* Backdrop overlay */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={prefersReducedMotion ? {} : { opacity: 0 }}
+              animate={prefersReducedMotion ? {} : { opacity: 1 }}
+              exit={prefersReducedMotion ? {} : { opacity: 0 }}
+              transition={springGentle}
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setShowSaveTemplatePrompt(false)}
             />
 
             {/* Modal content */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+              animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+              exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+              transition={springBouncy}
               className="fixed inset-0 flex items-center justify-center z-50 p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-200 dark:border-gray-700">
+              <div className="forge-card shadow-2xl p-8 max-w-md w-full">
                 <div className="text-center mb-6">
                   <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl w-fit mx-auto mb-4">
                     <DocumentTextIcon className="w-8 h-8 text-orange-600 dark:text-orange-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-2">
                     Save Template Changes?
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <p className="text-surface-500 dark:text-surface-600">
                     You've modified this workout template. Would you like to save these changes?
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <button
+                  <motion.button
                     onClick={saveAsNewTemplate}
-                    className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors font-semibold"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={springSnappy}
+                    className="btn btn-primary w-full !py-3"
                   >
                     Save as New Template
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={updateExistingTemplate}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={springSnappy}
                     className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors font-semibold"
                   >
                     Update Existing Template
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={() => setShowSaveTemplatePrompt(false)}
-                    className="w-full px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={springSnappy}
+                    className="w-full px-6 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium"
                   >
                     Continue Without Saving
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </motion.div>

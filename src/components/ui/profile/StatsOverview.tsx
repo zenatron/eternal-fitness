@@ -1,3 +1,6 @@
+'use client';
+
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   TrophyIcon,
   FireIcon,
@@ -14,7 +17,12 @@ interface StatsOverviewProps {
   useMetric: boolean;
 }
 
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
+
 export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const noMotion = prefersReducedMotion ?? false;
 
   const formatHours = (hours: number) => {
     if (hours >= 1000) {
@@ -28,9 +36,9 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
       title: 'Total Workouts',
       value: stats.totalWorkouts.toLocaleString(),
       icon: TrophyIcon,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      iconColor: 'text-blue-600 dark:text-blue-400',
+      color: 'from-forge-500 to-blue-600',
+      bgColor: 'bg-forge-50 dark:bg-forge-900/20',
+      iconColor: 'text-forge-600 dark:text-forge-400',
     },
     {
       title: 'Current Streak',
@@ -52,9 +60,9 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
       title: 'Total Volume',
       value: formatVolume(stats.totalVolume, useMetric),
       icon: ScaleIcon,
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      iconColor: 'text-purple-600 dark:text-purple-400',
+      color: 'from-forge-500 to-purple-600',
+      bgColor: 'bg-forge-50 dark:bg-forge-900/20',
+      iconColor: 'text-forge-600 dark:text-forge-400',
     },
     {
       title: 'Total Sets',
@@ -77,27 +85,44 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {statCards.map((stat, index) => (
-        <div
+        <motion.div
           key={index}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
+          initial={noMotion ? {} : { opacity: 0, y: 20, scale: 0.95 }}
+          animate={noMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
+          transition={{ ...springBouncy, delay: noMotion ? 0 : index * 0.05 }}
+          whileHover={noMotion ? {} : { y: -3, scale: 1.02 }}
+          className="forge-card overflow-hidden"
         >
-          <div className={`h-2 bg-gradient-to-r ${stat.color}`}></div>
+          <motion.div
+            className={`h-2 bg-gradient-to-r ${stat.color}`}
+            animate={noMotion ? {} : {
+              backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+            style={{ backgroundSize: '200% 200%' }}
+          />
           <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                <p className="text-sm font-medium text-surface-500 dark:text-surface-600 mb-1">
                   {stat.title}
                 </p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                <p className="text-3xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                   {stat.value}
                 </p>
               </div>
-              <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+              <motion.div
+                className={`p-3 rounded-xl ${stat.bgColor}`}
+                animate={noMotion ? {} : {
+                  scale: [1, 1.05, 1],
+                }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: index * 0.2 }}
+              >
                 <stat.icon className={`w-8 h-8 ${stat.iconColor}`} />
-              </div>
+              </motion.div>
             </div>
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

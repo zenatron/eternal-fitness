@@ -12,8 +12,13 @@ import {
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
 import { WorkoutTemplateData, ExercisePerformance, PerformedSet } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
+import { exercises as exerciseLibrary } from '@/lib/exercises';
+import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
 
-// Basic exercise database for adding new exercises during workout
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
+const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
+
 const COMMON_EXERCISES = [
   { key: 'bench-press', name: 'Bench Press', muscles: ['chest', 'triceps', 'shoulders'], equipment: ['barbell'] },
   { key: 'squat', name: 'Squat', muscles: ['quadriceps', 'glutes', 'hamstrings'], equipment: ['barbell'] },
@@ -76,26 +81,21 @@ export default function WorkoutProgressTracker({
   const onPerformanceUpdateRef = useRef(onPerformanceUpdate);
   const onExerciseProgressUpdateRef = useRef(onExerciseProgressUpdate);
 
-  // Keep the refs updated
   useEffect(() => {
     onPerformanceUpdateRef.current = onPerformanceUpdate;
     onExerciseProgressUpdateRef.current = onExerciseProgressUpdate;
   }, [onPerformanceUpdate, onExerciseProgressUpdate]);
 
-  // Sync modifiedTemplate with template prop changes
   useEffect(() => {
     setModifiedTemplate(template);
   }, [template]);
 
-  // Initialize progress state from template or saved state
   useEffect(() => {
-    // Use initial progress if provided, otherwise create new progress
     if (initialExerciseProgress && Object.keys(initialExerciseProgress).length > 0) {
       setExerciseProgress(initialExerciseProgress);
       isInitialized.current = true;
     } else if (!isInitialized.current) {
       const initialProgress: { [exerciseId: string]: ExerciseProgress } = {};
-
       template.exercises.forEach((exercise) => {
         initialProgress[exercise.id] = {
           exerciseId: exercise.id,
@@ -109,21 +109,16 @@ export default function WorkoutProgressTracker({
           completed: false,
         };
       });
-
       setExerciseProgress(initialProgress);
       isInitialized.current = true;
     }
-  }, [initialExerciseProgress]); // Remove template from dependencies to prevent re-initialization
+  }, [initialExerciseProgress]);
 
-  // Handle template changes after initialization (e.g., adding new exercises/sets)
   useEffect(() => {
     if (!isInitialized.current) return;
-
     setExerciseProgress(prev => {
       const updated = { ...prev };
       let hasChanges = false;
-
-      // Add progress for new exercises
       modifiedTemplate.exercises.forEach((exercise) => {
         if (!updated[exercise.id]) {
           updated[exercise.id] = {
@@ -139,10 +134,8 @@ export default function WorkoutProgressTracker({
           };
           hasChanges = true;
         } else {
-          // Add progress for new sets in existing exercises
           const existingProgress = updated[exercise.id];
           const existingSetIds = new Set(existingProgress.sets.map(s => s.setId));
-
           exercise.sets.forEach((set) => {
             if (!existingSetIds.has(set.id)) {
               existingProgress.sets.push({
@@ -157,30 +150,21 @@ export default function WorkoutProgressTracker({
           });
         }
       });
-
-      // Remove progress for deleted exercises
       Object.keys(updated).forEach(exerciseId => {
         if (!modifiedTemplate.exercises.find(ex => ex.id === exerciseId)) {
           delete updated[exerciseId];
           hasChanges = true;
         }
       });
-
       return hasChanges ? updated : prev;
     });
-  }, [modifiedTemplate.exercises]); // Only depend on exercises array
+  }, [modifiedTemplate.exercises]);
 
-  // Update parent component when progress changes
   useEffect(() => {
-    console.log('🎯 WorkoutProgressTracker: Performance calculation effect running');
-    console.log('🎯 exerciseProgress:', JSON.stringify(exerciseProgress, null, 2));
-
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
-
     Object.values(exerciseProgress).forEach((progress) => {
       const exercise = modifiedTemplate.exercises.find(ex => ex.id === progress.exerciseId);
       if (!exercise) return;
-
       const performedSets: PerformedSet[] = progress.sets.map((setProgress) => ({
         setId: setProgress.setId,
         actualReps: setProgress.actualReps,
@@ -191,19 +175,16 @@ export default function WorkoutProgressTracker({
         skipped: setProgress.skipped || false,
         notes: setProgress.notes,
       }));
-
       const totalVolume = performedSets.reduce((total, set) => {
         if (set.completed && set.actualReps && set.actualWeight) {
           return total + (set.actualReps * set.actualWeight);
         }
         return total;
       }, 0);
-
       const completedSets = performedSets.filter(set => set.completed);
       const averageRpe = completedSets.length > 0
         ? completedSets.reduce((sum, set) => sum + (set.actualRpe || 0), 0) / completedSets.length
         : undefined;
-
       performance[progress.exerciseId] = {
         exerciseKey: exercise.exerciseKey,
         sets: performedSets,
@@ -212,29 +193,18 @@ export default function WorkoutProgressTracker({
         averageRpe,
       };
     });
-
-    // Only update if performance has actually changed
     const performanceString = JSON.stringify(performance);
-    console.log('🎯 Calculated performance:', JSON.stringify(performance, null, 2));
-    console.log('🎯 Performance string comparison:', {
-      current: performanceString,
-      last: lastPerformanceRef.current,
-      different: performanceString !== lastPerformanceRef.current
-    });
-
     if (performanceString !== lastPerformanceRef.current) {
       lastPerformanceRef.current = performanceString;
-      console.log('🎯 Calling onPerformanceUpdate with:', JSON.stringify(performance, null, 2));
       onPerformanceUpdateRef.current(performance);
     }
-  }, [exerciseProgress, modifiedTemplate.exercises]); // Removed onPerformanceUpdate from dependencies
+  }, [exerciseProgress, modifiedTemplate.exercises]);
 
-  // Notify parent of exercise progress changes for persistence
   useEffect(() => {
     if (onExerciseProgressUpdateRef.current && Object.keys(exerciseProgress).length > 0) {
       onExerciseProgressUpdateRef.current(exerciseProgress);
     }
-  }, [exerciseProgress]); // Removed onExerciseProgressUpdate from dependencies
+  }, [exerciseProgress]);
 
   const updateSetProgress = (exerciseId: string, setId: string, updates: Partial<SetProgress>) => {
     setExerciseProgress(prev => ({
@@ -251,19 +221,14 @@ export default function WorkoutProgressTracker({
   const toggleSetCompletion = (exerciseId: string, setId: string) => {
     const currentSet = exerciseProgress[exerciseId]?.sets.find(s => s.setId === setId);
     if (!currentSet) return;
-
     const newCompletedState = !currentSet.completed;
-
-    // Update the set and check if all sets are completed in a single state update
     setExerciseProgress(prev => {
       const updatedSets = prev[exerciseId].sets.map(set =>
         set.setId === setId
           ? { ...set, completed: newCompletedState, skipped: false }
           : set
       );
-
       const allSetsCompleted = updatedSets.every(set => set.completed || set.skipped);
-
       return {
         ...prev,
         [exerciseId]: {
@@ -276,61 +241,29 @@ export default function WorkoutProgressTracker({
   };
 
   const skipSet = (exerciseId: string, setId: string) => {
-    updateSetProgress(exerciseId, setId, {
-      skipped: true,
-      completed: false,
-    });
+    updateSetProgress(exerciseId, setId, { skipped: true, completed: false });
   };
 
   const addExtraSet = (exerciseId: string) => {
     const exercise = modifiedTemplate.exercises.find(ex => ex.id === exerciseId);
     if (!exercise) return;
-
     const lastSet = exercise.sets[exercise.sets.length - 1];
     const newSetId = `extra-set-${Date.now()}`;
-
-    // Update both template and progress state simultaneously to avoid clearing progress
     const updatedTemplate = {
       ...modifiedTemplate,
       exercises: modifiedTemplate.exercises.map(ex =>
         ex.id === exerciseId
-          ? {
-              ...ex,
-              sets: [
-                ...ex.sets,
-                {
-                  id: newSetId,
-                  type: lastSet.type,
-                  targetReps: lastSet.targetReps,
-                  targetWeight: lastSet.targetWeight,
-                  targetDuration: lastSet.targetDuration,
-                  restTime: lastSet.restTime,
-                },
-              ],
-            }
+          ? { ...ex, sets: [...ex.sets, { id: newSetId, type: lastSet.type, targetReps: lastSet.targetReps, targetWeight: lastSet.targetWeight, targetDuration: lastSet.targetDuration, restTime: lastSet.restTime }] }
           : ex
       ),
     };
-
-    // Update progress state first to preserve existing progress
     setExerciseProgress(prev => ({
       ...prev,
       [exerciseId]: {
         ...prev[exerciseId],
-        sets: [
-          ...prev[exerciseId].sets,
-          {
-            setId: newSetId,
-            completed: false,
-            actualReps: typeof lastSet.targetReps === 'number' ? lastSet.targetReps : lastSet.targetReps?.min,
-            actualWeight: lastSet.targetWeight,
-            actualDuration: lastSet.targetDuration,
-          },
-        ],
+        sets: [...prev[exerciseId].sets, { setId: newSetId, completed: false, actualReps: typeof lastSet.targetReps === 'number' ? lastSet.targetReps : lastSet.targetReps?.min, actualWeight: lastSet.targetWeight, actualDuration: lastSet.targetDuration }],
       },
     }));
-
-    // Then update template (this won't trigger progress reset since we updated progress first)
     setModifiedTemplate(updatedTemplate);
     setHasModifications(true);
     onTemplateModified?.(updatedTemplate);
@@ -338,67 +271,33 @@ export default function WorkoutProgressTracker({
 
   const addExercise = (exerciseData: typeof COMMON_EXERCISES[0]) => {
     const newExerciseId = `exercise-${Date.now()}`;
-    const newSetId = `set-1`;
-
+    const newSetId = 'set-1';
     const newExercise = {
       id: newExerciseId,
       exerciseKey: exerciseData.key,
       name: exerciseData.name,
       muscles: exerciseData.muscles,
       equipment: exerciseData.equipment,
-      sets: [
-        {
-          id: newSetId,
-          type: 'standard' as const,
-          targetReps: 10,
-          targetWeight: 0,
-          restTime: 60,
-        },
-      ],
+      sets: [{ id: newSetId, type: 'standard' as const, targetReps: 10, targetWeight: 0, restTime: 60 }],
       restBetweenSets: 60,
     };
-
-    const updatedTemplate = {
-      ...modifiedTemplate,
-      exercises: [...modifiedTemplate.exercises, newExercise],
-    };
-
+    const updatedTemplate = { ...modifiedTemplate, exercises: [...modifiedTemplate.exercises, newExercise] };
     setModifiedTemplate(updatedTemplate);
     setHasModifications(true);
     onTemplateModified?.(updatedTemplate);
-
-    // Initialize progress for the new exercise
     setExerciseProgress(prev => ({
       ...prev,
-      [newExerciseId]: {
-        exerciseId: newExerciseId,
-        sets: [
-          {
-            setId: newSetId,
-            completed: false,
-            actualReps: 10,
-            actualWeight: 0,
-          },
-        ],
-        completed: false,
-      },
+      [newExerciseId]: { exerciseId: newExerciseId, sets: [{ setId: newSetId, completed: false, actualReps: 10, actualWeight: 0 }], completed: false },
     }));
-
     setShowAddExercise(false);
     setExerciseSearch('');
   };
 
   const removeExercise = (exerciseId: string) => {
-    const updatedTemplate = {
-      ...modifiedTemplate,
-      exercises: modifiedTemplate.exercises.filter(ex => ex.id !== exerciseId),
-    };
-
+    const updatedTemplate = { ...modifiedTemplate, exercises: modifiedTemplate.exercises.filter(ex => ex.id !== exerciseId) };
     setModifiedTemplate(updatedTemplate);
     setHasModifications(true);
     onTemplateModified?.(updatedTemplate);
-
-    // Remove from progress tracking
     setExerciseProgress(prev => {
       const newProgress = { ...prev };
       delete newProgress[exerciseId];
@@ -414,7 +313,6 @@ export default function WorkoutProgressTracker({
   const getExerciseStats = (exerciseId: string) => {
     const progress = exerciseProgress[exerciseId];
     if (!progress) return { completed: 0, total: 0, volume: 0 };
-
     const completed = progress.sets.filter(set => set.completed).length;
     const total = progress.sets.length;
     const volume = progress.sets.reduce((sum, set) => {
@@ -423,7 +321,6 @@ export default function WorkoutProgressTracker({
       }
       return sum;
     }, 0);
-
     return { completed, total, volume };
   };
 
@@ -437,13 +334,7 @@ export default function WorkoutProgressTracker({
       }
       return sum;
     }, 0);
-
-    return {
-      completedSets,
-      totalSets,
-      totalVolume,
-      percentage: totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0,
-    };
+    return { completedSets, totalSets, totalVolume, percentage: totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0 };
   };
 
   const overallProgress = getOverallProgress();
@@ -451,98 +342,108 @@ export default function WorkoutProgressTracker({
   return (
     <div className="space-y-6">
       {/* Overall Progress Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springSnappy}
+        className="forge-card overflow-hidden"
+      >
         <div className="h-2 bg-gradient-to-r from-green-500 to-emerald-500"></div>
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                Workout Progress
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Track your actual performance vs planned
-              </p>
+              <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white">Workout Progress</h3>
+              <p className="text-surface-500 dark:text-surface-600">Track your actual performance vs planned</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+              <motion.div
+                className="text-3xl font-display font-bold tracking-wide text-green-600 dark:text-green-400"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ ...springBouncy, delay: 0.3 }}
+              >
                 {overallProgress.percentage}%
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+              </motion.div>
+              <div className="text-sm text-surface-500 dark:text-surface-600">
                 {overallProgress.completedSets}/{overallProgress.totalSets} sets
               </div>
               {hasModifications && (
-                <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                  ⚠️ Modified
-                </div>
+                <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">{'\u26a0\uFE0F'} Modified</div>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {overallProgress.completedSets}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Sets Completed</div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatVolume(overallProgress.totalVolume, useMetric)}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Volume Lifted</div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {modifiedTemplate.exercises.length}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
-            </div>
+            {[
+              { value: overallProgress.completedSets, label: 'Sets Completed' },
+              { value: formatVolume(overallProgress.totalVolume, useMetric), label: 'Volume Lifted' },
+              { value: modifiedTemplate.exercises.length, label: 'Exercises' },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...springSnappy, delay: i * 0.1 + 0.2 }}
+                className="bg-surface-950 dark:bg-surface-200/50 rounded-xl p-4 text-center"
+              >
+                <div className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">{stat.value}</div>
+                <div className="text-sm text-surface-500 dark:text-surface-600">{stat.label}</div>
+              </motion.div>
+            ))}
           </div>
 
           {/* Progress Bar */}
           <div className="mt-4">
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-              <div
-                className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${overallProgress.percentage}%` }}
-              ></div>
+            <div className="w-full bg-surface-200 dark:bg-surface-200 rounded-full h-3 overflow-hidden">
+              <motion.div
+                className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${overallProgress.percentage}%` }}
+                transition={{ ...springBouncy, delay: 0.5 }}
+              />
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Add Exercise Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...springSnappy, delay: 0.1 }}
+        className="forge-card overflow-hidden"
+      >
+        <div className="h-2 bg-gradient-to-r from-forge-500 to-pink-500"></div>
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                Add Exercise
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Customize your workout on the fly
-              </p>
+              <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">Add Exercise</h3>
+              <p className="text-surface-500 dark:text-surface-600">Customize your workout on the fly</p>
             </div>
             <div className="flex items-center gap-2">
               {showAddExercise && (
                 <button
-                  onClick={() => {
-                    setShowAddExercise(false);
-                    setExerciseSearch('');
-                  }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => { setShowAddExercise(false); setExerciseSearch(''); }}
+                  className="px-4 py-2 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
                 >
                   Cancel
                 </button>
               )}
-              <button
+              <motion.button
                 onClick={() => setShowAddExercise(!showAddExercise)}
-                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springSnappy}
+                className="px-4 py-2 bg-forge-500 hover:bg-purple-600 text-white rounded-lg flex items-center gap-2"
               >
-                <PlusIcon className="w-4 h-4" />
+                <motion.span
+                  animate={{ rotate: showAddExercise ? 45 : 0 }}
+                  transition={springSnappy}
+                >
+                  <PlusIcon className="w-4 h-4" />
+                </motion.span>
                 {showAddExercise ? 'Close' : 'Add Exercise'}
-              </button>
+              </motion.button>
             </div>
           </div>
 
@@ -552,49 +453,40 @@ export default function WorkoutProgressTracker({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
+                transition={springSnappy}
                 className="space-y-4"
               >
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                    <MagnifyingGlassIcon className="h-5 w-5 text-surface-600" />
                   </div>
                   <input
                     type="text"
                     placeholder="Search exercises..."
                     value={exerciseSearch}
                     onChange={(e) => setExerciseSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                    className="form-input !pl-10"
                   />
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
                   {filteredExercises.map((exercise) => (
                     <button
                       key={exercise.key}
                       onClick={() => addExercise(exercise)}
-                      className="p-3 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      className="p-3 text-left border border-surface-200 dark:border-surface-400 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
                     >
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {exercise.name}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {exercise.muscles.join(', ')}
-                      </div>
+                      <div className="font-medium text-surface-800 dark:text-white">{exercise.name}</div>
+                      <div className="text-sm text-surface-500 dark:text-surface-600">{exercise.muscles.join(', ')}</div>
                     </button>
                   ))}
                 </div>
-
-                {/* Cancel button for add exercise modal */}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between items-center pt-4 border-t border-surface-200 dark:border-surface-400">
+                  <p className="text-sm text-surface-500 dark:text-surface-600">
                     {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
                   </p>
                   <button
-                    onClick={() => {
-                      setShowAddExercise(false);
-                      setExerciseSearch('');
-                    }}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => { setShowAddExercise(false); setExerciseSearch(''); }}
+                    className="px-4 py-2 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
                   >
                     Cancel
                   </button>
@@ -603,7 +495,7 @@ export default function WorkoutProgressTracker({
             )}
           </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
 
       {/* Exercise List */}
       <div className="space-y-4">
@@ -617,63 +509,58 @@ export default function WorkoutProgressTracker({
               key={exercise.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden"
+              transition={{ ...springSnappy, delay: index * 0.08 }}
+              className="forge-card overflow-hidden"
             >
-              <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+              <div className="h-2 bg-gradient-to-r from-forge-500 to-forge-700"></div>
               <div className="p-6">
                 <div
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => setExpandedExercise(isExpanded ? null : exercise.id)}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl ${
-                      progress?.completed 
-                        ? 'bg-green-100 dark:bg-green-900/30' 
-                        : 'bg-blue-100 dark:bg-blue-900/30'
-                    }`}>
+                    <motion.div
+                      className={`p-3 rounded-xl ${progress?.completed ? 'bg-green-100 dark:bg-green-900/30' : 'bg-forge-100 dark:bg-forge-900/30'}`}
+                      initial={{ scale: progress?.completed ? 1.2 : 1 }}
+                      animate={{ scale: 1 }}
+                      transition={springBouncy}
+                      key={progress?.completed ? 'completed' : 'pending'}
+                    >
                       {progress?.completed ? (
                         <CheckCircleIconSolid className="w-6 h-6 text-green-600 dark:text-green-400" />
                       ) : (
-                        <div className="w-6 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                        <div className="w-6 h-6 bg-forge-600 dark:bg-blue-400 rounded-full"></div>
                       )}
-                    </div>
+                    </motion.div>
                     <div>
-                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                        {exercise.name}
-                      </h4>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                      <h4 className="text-lg font-display font-bold text-surface-800 dark:text-white">{exercise.name}</h4>
+                      <div className="flex items-center gap-4 text-sm text-surface-500 dark:text-surface-600">
                         <span>{stats.completed}/{stats.total} sets</span>
-                        <span>•</span>
+                        <span>{'\u2022'}</span>
                         <span>{formatVolume(stats.volume, useMetric)} volume</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addExtraSet(exercise.id);
-                      }}
-                      className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    <motion.button
+                      onClick={(e) => { e.stopPropagation(); addExtraSet(exercise.id); }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={springSnappy}
+                      className="p-2 bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400 rounded-lg hover:bg-purple-200 dark:hover:bg-forge-900/50 transition-colors"
                       title="Add extra set"
                     >
                       <PlusIcon className="w-4 h-4" />
-                    </button>
+                    </motion.button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Remove ${exercise.name} from workout?`)) {
-                          removeExercise(exercise.id);
-                        }
-                      }}
+                      onClick={(e) => { e.stopPropagation(); if (confirm(`Remove ${exercise.name} from workout?`)) { removeExercise(exercise.id); } }}
                       className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                       title="Remove exercise"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      <div className="text-lg font-display font-bold text-surface-800 dark:text-white">
                         {Math.round((stats.completed / stats.total) * 100)}%
                       </div>
                     </div>
@@ -686,6 +573,7 @@ export default function WorkoutProgressTracker({
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
+                      transition={springSnappy}
                       className="mt-6 space-y-3"
                     >
                       {progress.sets.map((setProgress, setIndex) => {
@@ -695,25 +583,37 @@ export default function WorkoutProgressTracker({
                         return (
                           <div
                             key={setProgress.setId}
-                            className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                            className={`p-4 rounded-xl border-2 ${
                               setProgress.completed
                                 ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
                                 : setProgress.skipped
                                 ? 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20'
-                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50'
+                                : 'border-surface-200 dark:border-surface-400 bg-surface-950 dark:bg-surface-200/50'
                             }`}
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                <span className="text-sm font-medium text-surface-500 dark:text-surface-600">
                                   Set {setIndex + 1} {isExtraSet && '(Extra)'}
                                 </span>
-                                {templateSet && (
-                                  <span className="text-xs text-gray-500 dark:text-gray-500">
-                                    Target: {typeof templateSet.targetReps === 'number' ? templateSet.targetReps : `${templateSet.targetReps?.min}-${templateSet.targetReps?.max}`} reps
-                                    {templateSet.targetWeight && ` @ ${templateSet.targetWeight}${useMetric ? 'kg' : 'lbs'}`}
-                                  </span>
-                                )}
+                                {templateSet && (() => {
+                                  const exLib = exerciseLibrary[exercise.exerciseKey as keyof typeof exerciseLibrary];
+                                  const isCardioEx = (exLib as any)?.exerciseType === 'cardio';
+                                  if (isCardioEx) {
+                                    return (
+                                      <span className="text-xs text-surface-500">
+                                        Target: {templateSet.targetDuration ? formatDurationHuman(templateSet.targetDuration) : '—'}
+                                        {templateSet.targetDistance && ` / ${templateSet.targetDistance}${useMetric ? 'km' : 'mi'}`}
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="text-xs text-surface-500">
+                                      Target: {typeof templateSet.targetReps === 'number' ? templateSet.targetReps : `${templateSet.targetReps?.min}-${templateSet.targetReps?.max}`} reps
+                                      {templateSet.targetWeight && ` @ ${templateSet.targetWeight}${useMetric ? 'kg' : 'lbs'}`}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
@@ -724,91 +624,133 @@ export default function WorkoutProgressTracker({
                                 >
                                   <XMarkIcon className="w-4 h-4" />
                                 </button>
-                                <button
+                                <motion.button
                                   onClick={() => toggleSetCompletion(exercise.id, setProgress.setId)}
-                                  className={`p-1 rounded transition-colors ${
+                                  whileHover={{ scale: 1.15 }}
+                                  whileTap={{ scale: 0.85 }}
+                                  transition={springSnappy}
+                                  className={`p-1 rounded ${
                                     setProgress.completed
                                       ? 'text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
-                                      : 'text-gray-400 hover:text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'
+                                      : 'text-surface-600 hover:text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'
                                   }`}
                                   title={setProgress.completed ? 'Mark incomplete' : 'Mark complete'}
                                 >
-                                  <CheckCircleIcon className="w-5 h-5" />
-                                </button>
+                                  <motion.span
+                                    initial={{ scale: setProgress.completed ? 1.3 : 1 }}
+                                    animate={{ scale: 1 }}
+                                    transition={springBouncy}
+                                    key={String(setProgress.completed)}
+                                  >
+                                    <CheckCircleIcon className="w-5 h-5" />
+                                  </motion.span>
+                                </motion.button>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  Reps
-                                </label>
-                                <input
-                                  type="number"
-                                  value={setProgress.actualReps || ''}
-                                  onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, {
-                                    actualReps: parseInt(e.target.value) || undefined
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  Weight ({useMetric ? 'kg' : 'lbs'})
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.5"
-                                  value={setProgress.actualWeight || ''}
-                                  onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, {
-                                    actualWeight: parseFloat(e.target.value) || undefined
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                                  placeholder="0"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  RPE (1-10)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="10"
-                                  value={setProgress.actualRpe || ''}
-                                  onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, {
-                                    actualRpe: parseInt(e.target.value) || undefined
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                                  placeholder="RPE"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  Rest (sec)
-                                </label>
-                                <input
-                                  type="number"
-                                  value={setProgress.restTime || ''}
-                                  onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, {
-                                    restTime: parseInt(e.target.value) || undefined
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                                  placeholder="60"
-                                />
-                              </div>
-                            </div>
+                            {(() => {
+                              const exLib = exerciseLibrary[exercise.exerciseKey as keyof typeof exerciseLibrary];
+                              const isCardio = (exLib as any)?.exerciseType === 'cardio';
 
-                            {/* Set Notes */}
+                              if (isCardio) {
+                                return (
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <div>
+                                      <label className="form-label">Duration</label>
+                                      <input
+                                        type="text"
+                                        value={setProgress.actualDuration ? formatDurationInput(setProgress.actualDuration) : ''}
+                                        onChange={(e) => {
+                                          const parsed = parseDuration(e.target.value);
+                                          if (parsed !== null) updateSetProgress(exercise.id, setProgress.setId, { actualDuration: parsed });
+                                        }}
+                                        className="form-input !py-2 !px-3 text-sm"
+                                        placeholder="30:00"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="form-label">RPE (1-10)</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="10"
+                                        value={setProgress.actualRpe || ''}
+                                        onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { actualRpe: parseInt(e.target.value) || undefined })}
+                                        className="form-input !py-2 !px-3 text-sm"
+                                        placeholder="RPE"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="form-label">Rest (sec)</label>
+                                      <input
+                                        type="number"
+                                        value={setProgress.restTime || ''}
+                                        onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { restTime: parseInt(e.target.value) || undefined })}
+                                        className="form-input !py-2 !px-3 text-sm"
+                                        placeholder="60"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div>
+                                    <label className="form-label">Reps</label>
+                                    <input
+                                      type="number"
+                                      value={setProgress.actualReps || ''}
+                                      onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { actualReps: parseInt(e.target.value) || undefined })}
+                                      className="form-input !py-2 !px-3 text-sm"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="form-label">
+                                      Weight ({useMetric ? 'kg' : 'lbs'})
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      value={setProgress.actualWeight || ''}
+                                      onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { actualWeight: parseFloat(e.target.value) || undefined })}
+                                      className="form-input !py-2 !px-3 text-sm"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="form-label">RPE (1-10)</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="10"
+                                      value={setProgress.actualRpe || ''}
+                                      onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { actualRpe: parseInt(e.target.value) || undefined })}
+                                      className="form-input !py-2 !px-3 text-sm"
+                                      placeholder="RPE"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="form-label">Rest (sec)</label>
+                                    <input
+                                      type="number"
+                                      value={setProgress.restTime || ''}
+                                      onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { restTime: parseInt(e.target.value) || undefined })}
+                                      className="form-input !py-2 !px-3 text-sm"
+                                      placeholder="60"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
                             <div className="mt-3">
                               <input
                                 type="text"
                                 value={setProgress.notes || ''}
-                                onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, {
-                                  notes: e.target.value
-                                })}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                                onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { notes: e.target.value })}
+                                className="form-input !py-2 !px-3 text-sm"
                                 placeholder="Set notes (e.g., felt easy, form breakdown, etc.)"
                               />
                             </div>
@@ -816,21 +758,12 @@ export default function WorkoutProgressTracker({
                         );
                       })}
 
-                      {/* Exercise Notes */}
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                          Exercise Notes
-                        </label>
+                        <label className="form-label">Exercise Notes</label>
                         <textarea
                           value={progress.exerciseNotes || ''}
-                          onChange={(e) => setExerciseProgress(prev => ({
-                            ...prev,
-                            [exercise.id]: {
-                              ...prev[exercise.id],
-                              exerciseNotes: e.target.value,
-                            },
-                          }))}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-sm resize-none"
+                          onChange={(e) => setExerciseProgress(prev => ({ ...prev, [exercise.id]: { ...prev[exercise.id], exerciseNotes: e.target.value } }))}
+                          className="form-input !py-2 !px-3 text-sm resize-none"
                           rows={2}
                           placeholder="Overall thoughts on this exercise..."
                         />

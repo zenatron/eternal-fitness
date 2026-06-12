@@ -18,7 +18,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useScheduledSessions } from '@/lib/hooks/useScheduledSessions';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
@@ -33,6 +33,10 @@ import {
   getWorkoutTypeColor
 } from '@/utils/workoutDisplayUtils';
 
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
+const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
+
 // Schedule Modal Component
 function ScheduleModal({
   isOpen,
@@ -46,6 +50,7 @@ function ScheduleModal({
   templateName: string;
 }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <AnimatePresence>
@@ -53,42 +58,49 @@ function ScheduleModal({
         <>
           {/* Backdrop overlay */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0 }}
+            transition={springGentle}
             className="fixed inset-0 bg-black/50 z-40"
             onClick={onClose}
           />
 
           {/* Modal content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+            transition={springBouncy}
             className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-lg w-full border border-gray-200 dark:border-gray-700">
+            <div
+              className="forge-card shadow-2xl p-8 max-w-lg w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     Schedule Workout
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-surface-500 dark:text-surface-600 mt-1">
                     Plan your workout session
                   </p>
                 </div>
-                <button
+                <motion.button
                   onClick={onClose}
-                  className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={springSnappy}
+                  className="p-2 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200 text-surface-500 dark:text-surface-600 transition-colors"
                 >
                   <XMarkIcon className="h-6 w-6" />
-                </button>
+                </motion.button>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 mb-6">
-                <p className="text-blue-800 dark:text-blue-200 font-medium">
-                  📅 Scheduling: <span className="font-bold">"{templateName}"</span>
+              <div className="bg-forge-50 dark:bg-forge-900/20 rounded-xl p-4 mb-6">
+                <p className="text-forge-800 dark:text-forge-200 font-medium">
+                  Scheduling: <span className="font-bold">"{templateName}"</span>
                 </p>
               </div>
 
@@ -103,21 +115,27 @@ function ScheduleModal({
               </div>
 
               <div className="flex gap-4">
-                <button
+                <motion.button
                   onClick={onClose}
-                  className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={springSnappy}
+                  className="flex-1 px-6 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={() => {
                     onSchedule(selectedDate);
                     onClose();
                   }}
-                  className="flex-1 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors font-semibold"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={springSnappy}
+                  className="btn btn-primary flex-1 !py-3"
                 >
                   Schedule Workout
-                </button>
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -141,37 +159,43 @@ function DeleteConfirmationModal({
   templateName: string;
   isDeleting: boolean;
 }) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop overlay */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0 }}
+            transition={springGentle}
             className="fixed inset-0 bg-black/50 z-40"
             onClick={onClose}
           />
 
           {/* Modal content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95 }}
+            transition={springBouncy}
             className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full border border-gray-200 dark:border-gray-700">
+            <div
+              className="forge-card shadow-2xl p-8 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
                   <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                     Delete Template
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <p className="text-surface-500 dark:text-surface-600 text-sm">
                     This action cannot be undone
                   </p>
                 </div>
@@ -185,16 +209,22 @@ function DeleteConfirmationModal({
               </div>
 
               <div className="flex gap-4">
-                <button
+                <motion.button
                   onClick={onClose}
                   disabled={isDeleting}
-                  className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium disabled:opacity-50"
+                  whileHover={isDeleting ? {} : { scale: 1.02 }}
+                  whileTap={isDeleting ? {} : { scale: 0.98 }}
+                  transition={springSnappy}
+                  className="flex-1 px-6 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium disabled:opacity-50"
                 >
                   Cancel
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   onClick={onConfirm}
                   disabled={isDeleting}
+                  whileHover={isDeleting ? {} : { scale: 1.03 }}
+                  whileTap={isDeleting ? {} : { scale: 0.97 }}
+                  transition={springSnappy}
                   className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isDeleting ? (
@@ -205,7 +235,7 @@ function DeleteConfirmationModal({
                   ) : (
                     'Delete Template'
                   )}
-                </button>
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -225,6 +255,7 @@ export default function TemplatesPage() {
   } = useScheduledSessions();
   const toggleFavoriteMutation = useToggleFavorite();
   const { profile } = useProfile();
+  const prefersReducedMotion = useReducedMotion();
 
   // Search and modal state
   const [searchTerm, setSearchTerm] = useState('');
@@ -245,7 +276,6 @@ export default function TemplatesPage() {
     filteredTemplates?.filter((t: WorkoutTemplate) => !t.favorite) || [];
 
   const handleToggleFavorite = (templateId: string) => {
-    console.log(`TemplatesPage: Toggling favorite for ${templateId}`);
     toggleFavoriteMutation.mutate(templateId);
   };
 
@@ -331,20 +361,20 @@ export default function TemplatesPage() {
 
   if (isLoadingData) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="min-h-screen app-bg py-8 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Header Skeleton */}
           <div className="mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 px-8 py-8">
+            <div className="forge-card overflow-hidden">
+              <div className="bg-gradient-to-br from-surface-300 to-surface-400 dark:from-surface-400 dark:to-surface-500 px-8 py-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="h-8 w-48 bg-gray-200 dark:bg-gray-600 rounded-lg animate-pulse mb-2"></div>
-                    <div className="h-4 w-64 bg-gray-200 dark:bg-gray-600 rounded animate-pulse"></div>
+                    <div className="h-8 w-48 bg-surface-200 dark:bg-surface-600 rounded-lg animate-pulse mb-2"></div>
+                    <div className="h-4 w-64 bg-surface-200 dark:bg-surface-600 rounded animate-pulse"></div>
                   </div>
                   <div className="flex gap-3">
-                    <div className="h-10 w-32 bg-gray-200 dark:bg-gray-600 rounded-lg animate-pulse"></div>
-                    <div className="h-10 w-36 bg-gray-200 dark:bg-gray-600 rounded-lg animate-pulse"></div>
+                    <div className="h-10 w-32 bg-surface-200 dark:bg-surface-600 rounded-lg animate-pulse"></div>
+                    <div className="h-10 w-36 bg-surface-200 dark:bg-surface-600 rounded-lg animate-pulse"></div>
                   </div>
                 </div>
               </div>
@@ -355,11 +385,11 @@ export default function TemplatesPage() {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-4"></div>
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4"></div>
-                  <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+                <div key={i} className="forge-card p-6">
+                  <div className="h-2 bg-surface-200 dark:bg-surface-200 rounded-full animate-pulse mb-4"></div>
+                  <div className="h-6 bg-surface-200 dark:bg-surface-200 rounded animate-pulse mb-2"></div>
+                  <div className="h-4 bg-surface-200 dark:bg-surface-200 rounded animate-pulse mb-4"></div>
+                  <div className="h-10 bg-surface-200 dark:bg-surface-200 rounded-lg animate-pulse"></div>
                 </div>
               ))}
             </div>
@@ -371,20 +401,23 @@ export default function TemplatesPage() {
 
   if (hasError) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="min-h-screen app-bg py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
+          <div className="forge-card p-8 text-center">
             <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl">
-              <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
+              <h2 className="text-xl font-display font-bold tracking-wide text-red-600 dark:text-red-400 mb-2">
                 Error Loading Templates
               </h2>
               <p className="text-red-500 dark:text-red-300 mb-4">{String(hasError)}</p>
-              <button
+              <motion.button
                 onClick={() => refetch()}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                transition={springSnappy}
                 className="btn btn-danger"
               >
                 Try Again
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>
@@ -393,27 +426,40 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+    <div className="min-h-screen app-bg py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Enhanced Header */}
         <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 px-8 py-8 text-white">
+          <div className="forge-card overflow-hidden">
+            <div className="greeting-gradient px-8 py-8 text-white">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2">Workout Templates 💪</h1>
-                  <p className="text-blue-100">
+                  <h1 className="text-3xl font-display font-bold tracking-wide uppercase mb-2">Workout Templates</h1>
+                  <p className="text-forge-100">
                     Create, organize, and start your perfect workouts
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button
+                  <motion.button
+                    onClick={() => router.push('/session/log')}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={springSnappy}
+                    className="btn bg-white/80 text-surface-700 hover:bg-white flex items-center gap-2"
+                  >
+                    <ClockIcon className="w-5 h-5" />
+                    Log Past Workout
+                  </motion.button>
+                  <motion.button
                     onClick={() => router.push('/template/create')}
-                    className="btn btn-primary bg-white text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={springSnappy}
+                    className="btn btn-primary bg-white text-forge-600 hover:bg-forge-50 flex items-center gap-2"
                   >
                     <PlusCircleIcon className="w-5 h-5" />
                     Create Template
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             </div>
@@ -422,17 +468,19 @@ export default function TemplatesPage() {
 
         {/* Search Section */}
         <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <div className="forge-card p-6">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                <MagnifyingGlassIcon className="h-5 w-5 text-surface-600" />
               </div>
-              <input
+              <motion.input
                 type="text"
                 placeholder="Search your workout templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200"
+                whileFocus={prefersReducedMotion ? {} : { scale: 1.02, boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.25)' }}
+                transition={springSnappy}
+                className="form-input !pl-10 !py-3"
               />
             </div>
           </div>
@@ -442,13 +490,13 @@ export default function TemplatesPage() {
         {scheduledSessions && scheduledSessions.length > 0 && (
           <section className="mb-10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <ClockIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-forge-100 dark:bg-forge-900/30 rounded-xl">
+                <ClockIcon className="w-6 h-6 text-forge-600 dark:text-forge-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
                 Scheduled Sessions
               </h2>
-              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400 rounded-full text-sm font-medium">
                 {scheduledSessions.length} ready
               </span>
             </div>
@@ -457,21 +505,21 @@ export default function TemplatesPage() {
               {scheduledSessions.map((session, index) => (
                 <motion.div
                   key={session.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+                  initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+                  transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : index * 0.1 }}
+                  className="forge-card overflow-hidden"
                 >
-                  <div className="h-2 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                  <div className="h-2 greeting-gradient-subtle"></div>
                   <div className="p-6">
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-2">
                           {templates?.find(
                             (t: WorkoutTemplate) => t.id === session.workoutTemplateId,
                           )?.name || 'Unknown Template'}
                         </h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2 text-sm text-surface-500 dark:text-surface-600">
                           <CalendarDaysIcon className="w-4 h-4" />
                           <span>
                             Scheduled for {session.scheduledAt
@@ -487,9 +535,10 @@ export default function TemplatesPage() {
                             session.workoutTemplateId,
                           )
                         }
-                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors flex items-center gap-2 font-semibold"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        className="btn btn-primary !py-3 flex items-center gap-2"
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        transition={springSnappy}
                         aria-label="Start scheduled session"
                       >
                         <PlayCircleIcon className="w-5 h-5" />
@@ -509,18 +558,18 @@ export default function TemplatesPage() {
             <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
               <StarIconSolid className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
               Favorite Templates
             </h2>
           </div>
 
           {favoriteTemplates.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
-              <StarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 mb-2">
+            <div className="forge-card p-8 text-center">
+              <StarIcon className="w-16 h-16 text-surface-600 mx-auto mb-4" />
+              <p className="text-surface-500 dark:text-surface-600 mb-2">
                 No favorite templates yet
               </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500">
+              <p className="text-sm text-surface-600 dark:text-surface-500">
                 Mark templates as favorites to see them here for quick access
               </p>
             </div>
@@ -529,85 +578,101 @@ export default function TemplatesPage() {
               {favoriteTemplates.map((template, index) => (
                 <motion.div
                   key={template.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+                  transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : index * 0.1 }}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.02, y: -3 }}
+                  className="forge-card rounded-lg shadow-lg overflow-hidden flex flex-col"
                 >
-                  <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                        {template.name}
-                      </h3>
-                      <button
+                  <div className="h-1.5 greeting-gradient-subtle"></div>
+                  <div className="p-4 pb-3 flex flex-col flex-1">
+                    {/* Header: name + favorite + tags */}
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-display font-bold tracking-wide text-surface-800 dark:text-white truncate">
+                          {template.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(template.difficulty)}`}>
+                            {template.difficulty}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getWorkoutTypeColor(template.workoutType)}`}>
+                            {template.workoutType}
+                          </span>
+                        </div>
+                      </div>
+                      <motion.button
                         onClick={() => handleToggleFavorite(template.id)}
-                        className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.85 }}
+                        transition={springSnappy}
+                        className="p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors shrink-0"
                       >
-                        <StarIconSolid className="w-5 h-5" />
-                      </button>
+                        <StarIconSolid className="w-4 h-4" />
+                      </motion.button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Exercises</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">
-                          {countUniqueExercises(template)}
-                        </p>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Sets</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">
-                          {getTotalSetsCount(template)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {template.totalVolume > 0 && (
-                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
-                        <p className="text-sm text-purple-600 dark:text-purple-400 mb-1">Total Volume</p>
-                        <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
-                          {formatVolume(template.totalVolume, profile?.useMetric)}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(template.difficulty)}`}>
-                        {template.difficulty}
+                    {/* Compact stats row */}
+                    <div className="flex items-center gap-2 text-sm mb-3">
+                      <span className="text-surface-500 dark:text-surface-600">
+                        <span className="font-display font-bold text-surface-800 dark:text-white">{countUniqueExercises(template)}</span> exercises
                       </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getWorkoutTypeColor(template.workoutType)}`}>
-                        {template.workoutType}
+                      <span className="text-surface-400 dark:text-surface-500">&middot;</span>
+                      <span className="text-surface-500 dark:text-surface-600">
+                        <span className="font-display font-bold text-surface-800 dark:text-white">{getTotalSetsCount(template)}</span> sets
                       </span>
+                      {template.totalVolume > 0 && (
+                        <>
+                          <span className="text-surface-400 dark:text-surface-500">&middot;</span>
+                          <span className="text-forge-600 dark:text-forge-400 font-medium">
+                            {formatVolume(template.totalVolume, profile?.useMetric)}
+                          </span>
+                        </>
+                      )}
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => router.push(`/template/${template.id}`)}
-                        className="flex-1 btn btn-secondary text-sm"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => handleScheduleTemplate(template.id, template.name)}
-                        className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm flex items-center gap-1"
-                      >
-                        <CalendarDaysIcon className="w-4 h-4" />
-                        Schedule
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTemplate(template.id, template.name)}
-                        className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors text-sm flex items-center gap-1"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                      <button
+                    {/* Actions - pushed to bottom */}
+                    <div className="mt-auto pt-3 border-t border-surface-200 dark:border-surface-300/50 space-y-2">
+                      <motion.button
                         onClick={() => router.push(`/session/active/${template.id}`)}
-                        className="flex-1 btn btn-primary text-sm flex items-center justify-center gap-1"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={springSnappy}
+                        className="w-full btn btn-primary text-sm flex items-center justify-center gap-2 py-2.5"
                       >
                         <PlayCircleIcon className="w-4 h-4" />
-                        Start
-                      </button>
+                        Start Workout
+                      </motion.button>
+                      <div className="flex gap-2">
+                        <motion.button
+                          onClick={() => router.push(`/template/${template.id}`)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={springSnappy}
+                          className="flex-1 btn btn-secondary text-xs py-2"
+                        >
+                          Details
+                        </motion.button>
+                        <motion.button
+                          onClick={() => handleScheduleTemplate(template.id, template.name)}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={springSnappy}
+                          className="flex-1 px-2 py-2 bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400 rounded-lg hover:bg-forge-200 dark:hover:bg-forge-900/50 transition-colors text-xs flex items-center justify-center gap-1"
+                        >
+                          <CalendarDaysIcon className="w-3.5 h-3.5" />
+                          Schedule
+                        </motion.button>
+                        <motion.button
+                          onClick={() => handleDeleteTemplate(template.id, template.name)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          transition={springSnappy}
+                          className="px-2.5 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </motion.button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -619,86 +684,93 @@ export default function TemplatesPage() {
         {/* All Templates Section */}
         <section className="mb-10">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <QuestionMarkCircleIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-forge-100 dark:bg-forge-900/30 rounded-xl">
+              <QuestionMarkCircleIcon className="w-6 h-6 text-forge-600 dark:text-forge-400" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
               All Templates
             </h2>
           </div>
 
           {unscheduledTemplates.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
-              <PlusCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 mb-2">
+            <div className="forge-card p-8 text-center">
+              <PlusCircleIcon className="w-16 h-16 text-surface-600 mx-auto mb-4" />
+              <p className="text-surface-500 dark:text-surface-600 mb-2">
                 No templates created yet
               </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
+              <p className="text-sm text-surface-600 dark:text-surface-500 mb-4">
                 Create your first workout template to get started
               </p>
-              <button
+              <motion.button
                 onClick={() => router.push('/template/create')}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                transition={springSnappy}
                 className="btn btn-primary inline-flex items-center gap-2"
               >
                 <PlusCircleIcon className="w-5 h-5" />
                 Create Your First Template
-              </button>
+              </motion.button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {unscheduledTemplates.map((template, index) => (
                 <motion.div
                   key={template.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
+                  initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+                  transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : index * 0.05 }}
+                  className="forge-card rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
                 >
-                  <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
-                          <QuestionMarkCircleIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <div className="h-1.5 greeting-gradient-subtle"></div>
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-4">
+                      {/* Left: info */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="p-2.5 bg-forge-50 dark:bg-forge-900/30 rounded-lg shrink-0">
+                          <QuestionMarkCircleIcon className="w-5 h-5 text-forge-600 dark:text-forge-400" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-display font-bold tracking-wide text-surface-800 dark:text-white truncate">
                             {template.name}
                           </h3>
-                          <div className="flex flex-wrap items-center gap-3 text-sm">
-                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {countUniqueExercises(template)} exercises
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {getTotalSetsCount(template)} sets
-                              </span>
-                            </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-sm">
+                            <span className="text-surface-500 dark:text-surface-600">
+                              <span className="font-display font-bold text-surface-700 dark:text-surface-800">{countUniqueExercises(template)}</span> exercises
+                            </span>
+                            <span className="text-surface-400 dark:text-surface-500">&middot;</span>
+                            <span className="text-surface-500 dark:text-surface-600">
+                              <span className="font-display font-bold text-surface-700 dark:text-surface-800">{getTotalSetsCount(template)}</span> sets
+                            </span>
                             {template.totalVolume > 0 && (
-                              <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded-lg">
-                                <span className="text-purple-600 dark:text-purple-400">
+                              <>
+                                <span className="text-surface-400 dark:text-surface-500">&middot;</span>
+                                <span className="text-forge-600 dark:text-forge-400 font-medium">
                                   {formatVolume(template.totalVolume, profile?.useMetric)}
                                 </span>
-                              </div>
+                              </>
                             )}
-                            <span className={`px-3 py-1 rounded-lg text-xs font-medium ${getDifficultyColor(template.difficulty)}`}>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(template.difficulty)}`}>
                               {template.difficulty}
                             </span>
-                            <span className={`px-3 py-1 rounded-lg text-xs font-medium ${getWorkoutTypeColor(template.workoutType)}`}>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getWorkoutTypeColor(template.workoutType)}`}>
                               {template.workoutType}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
+
+                      {/* Right: actions with proper spacing */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <motion.button
                           onClick={() => handleToggleFavorite(template.id)}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          transition={springSnappy}
                           className={`p-2 rounded-lg transition-colors ${
                             template.favorite
                               ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-amber-500'
+                              : 'bg-surface-100 dark:bg-surface-200 text-surface-600 hover:text-amber-500'
                           }`}
                         >
                           {template.favorite ? (
@@ -706,33 +778,51 @@ export default function TemplatesPage() {
                           ) : (
                             <StarIcon className="w-5 h-5" />
                           )}
-                        </button>
-                        <button
+                        </motion.button>
+
+                        <div className="w-px h-6 bg-surface-200 dark:bg-surface-300/50"></div>
+
+                        <motion.button
                           onClick={() => router.push(`/template/${template.id}`)}
-                          className="btn btn-secondary text-sm"
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={springSnappy}
+                          className="btn btn-secondary text-sm py-2"
                         >
-                          View Details
-                        </button>
-                        <button
+                          Details
+                        </motion.button>
+                        <motion.button
                           onClick={() => handleScheduleTemplate(template.id, template.name)}
-                          className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm flex items-center gap-1"
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={springSnappy}
+                          className="px-3 py-2 bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400 rounded-lg hover:bg-forge-200 dark:hover:bg-forge-900/50 transition-colors text-sm flex items-center gap-1.5"
                         >
                           <CalendarDaysIcon className="w-4 h-4" />
                           Schedule
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                           onClick={() => handleDeleteTemplate(template.id, template.name)}
-                          className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors text-sm flex items-center gap-1"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          transition={springSnappy}
+                          className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                         >
                           <TrashIcon className="w-4 h-4" />
-                        </button>
-                        <button
+                        </motion.button>
+
+                        <div className="w-px h-6 bg-surface-200 dark:bg-surface-300/50"></div>
+
+                        <motion.button
                           onClick={() => router.push(`/session/active/${template.id}`)}
-                          className="btn btn-primary text-sm flex items-center gap-1"
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={springSnappy}
+                          className="btn btn-primary text-sm flex items-center gap-1.5 py-2"
                         >
                           <PlayCircleIcon className="w-4 h-4" />
                           Start
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
                   </div>

@@ -1,27 +1,42 @@
-import Link from 'next/link';
-import pkg from '../../package.json';
-import { FaHeart } from 'react-icons/fa';
+'use client';
 
-const versionText = `v${pkg.version}`;
+import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
+import pkg from '../../package.json';
 
 export function Footer() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <footer className="bg-slate-800 dark:bg-gray-950 text-gray-300 py-4 px-8">
-      <div className="flex flex-col items-center justify-center space-y-1">
-        <p className="text-xs">
-          © {new Date().getFullYear()} Eternal Fitness. All rights reserved.
+    <motion.footer
+      initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+      whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ type: 'spring', stiffness: 200, damping: 25, delay: 0.1 }}
+      className="relative z-10 border-t border-surface-200/60 dark:border-surface-300/40 bg-white/80 dark:bg-surface-50/80 backdrop-blur-sm py-6"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-surface-500 dark:text-surface-600">
+        <p className="font-display tracking-wide">
+          &copy; {new Date().getFullYear()} ETERNAL FITNESS
         </p>
-        <p className="text-xs flex items-center justify-center">
-          {'Built with'}
-          <FaHeart size={12} className="mx-1" />
-          {'by'}
-          <Link href="https://github.com/zenatron" className="ml-1 text-accent">
-            {'zenatron'}
+        <p className="flex items-center gap-2">
+          <span>Built by</span>
+          <Link
+            href="https://github.com/zenatron"
+            className="text-forge-600 dark:text-forge-400 hover:underline transition-colors font-semibold"
+          >
+            zenatron
           </Link>
-          <span className="mx-2">•</span>
-          <span>{versionText}</span>
+          <span className="text-surface-300 dark:text-surface-500">|</span>
+          <motion.span
+            className="font-mono text-xs text-forge-500/60"
+            whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          >
+            v{pkg.version}
+          </motion.span>
         </p>
       </div>
-    </footer>
+    </motion.footer>
   );
 }

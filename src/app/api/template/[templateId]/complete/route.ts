@@ -77,10 +77,10 @@ export async function POST(
       if (!template.workoutData) throw new Error('TemplateDataMissing');
 
       const completionTime = new Date();
-      const sessionTotalVolume = template.totalVolume;
+      const plannedVolume = template.totalVolume;
       const totalSets = getTotalSetsCount(template as WorkoutTemplate);
 
-      let actualTotalVolume = sessionTotalVolume;
+      let actualTotalVolume = plannedVolume;
       let completedSets = totalSets;
       let skippedSets = 0;
 
@@ -90,7 +90,7 @@ export async function POST(
         skippedSets = Object.values(performance).reduce((total, ep) => total + ep.sets.filter(s => s.skipped).length, 0);
       }
 
-      const adherenceScore = totalSets > 0 ? Math.round(((completedSets + skippedSets) / totalSets) * 100) : 100;
+      const adherenceScore = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 100;
 
       const performanceData = {
         templateSnapshot: template.workoutData,
@@ -132,14 +132,47 @@ export async function POST(
         }
       }
 
-      // Upsert user stats
+      // Upsert user stats with streak calculation
+      const [existingStats] = await tx
+        .select({
+          currentStreak: userStats.currentStreak,
+          longestStreak: userStats.longestStreak,
+          lastWorkoutAt: userStats.lastWorkoutAt,
+        })
+        .from(userStats)
+        .where(eq(userStats.userId, userId));
+
+      let newStreak = 1;
+      let newLongestStreak = 1;
+
+      if (existingStats) {
+        const lastWorkout = existingStats.lastWorkoutAt;
+        if (lastWorkout) {
+          const lastDate = new Date(lastWorkout);
+          const today = new Date(completionTime);
+          // Compare calendar dates (strip time)
+          lastDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+          const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 0) {
+            newStreak = Math.max(1, existingStats.currentStreak);
+          } else if (diffDays === 1) {
+            // Consecutive day - increment streak
+            newStreak = existingStats.currentStreak + 1;
+          }
+          // else diffDays > 1, streak resets to 1
+        }
+        newLongestStreak = Math.max(existingStats.longestStreak, newStreak);
+      }
+
       await tx
         .insert(userStats)
         .values({
           userId,
           totalWorkouts: 1,
-          totalVolume: sessionTotalVolume,
-          totalTrainingHours: duration ? duration / 60 : 0,
+          totalVolume: actualTotalVolume,
+          totalTrainingHours: duration ? duration / 3600 : 0,
           lastWorkoutAt: completionTime,
           currentStreak: 1,
           longestStreak: 1,
@@ -148,9 +181,11 @@ export async function POST(
           target: userStats.userId,
           set: {
             totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
-            totalVolume: sql`${userStats.totalVolume} + ${sessionTotalVolume}`,
-            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 60 : 0}`,
+            totalVolume: sql`${userStats.totalVolume} + ${actualTotalVolume}`,
+            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 3600 : 0}`,
             lastWorkoutAt: completionTime,
+            currentStreak: newStreak,
+            longestStreak: newLongestStreak,
           },
         });
 
@@ -164,15 +199,15 @@ export async function POST(
           year: currentYear,
           month: currentMonth,
           workoutsCount: 1,
-          volume: sessionTotalVolume,
-          trainingHours: duration ? duration / 60 : 0,
+          volume: actualTotalVolume,
+          trainingHours: duration ? duration / 3600 : 0,
         })
         .onConflictDoUpdate({
           target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
           set: {
             workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
-            volume: sql`${monthlyStats.volume} + ${sessionTotalVolume}`,
-            trainingHours: sql`${monthlyStats.trainingHours} + ${duration ? duration / 60 : 0}`,
+            volume: sql`${monthlyStats.volume} + ${actualTotalVolume}`,
+            trainingHours: sql`${monthlyStats.trainingHours} + ${duration ? duration / 3600 : 0}`,
           },
         });
 
@@ -183,9 +218,7 @@ export async function POST(
       const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
       await updateUniqueExercisesCount(userId, exerciseKeys);
       const achievementResult = await updateUserAchievements(userId);
-      if (achievementResult.newAchievements.length > 0) {
-        console.log(`User ${userId} unlocked ${achievementResult.newAchievements.length} new achievements`);
-      }
+
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
     }

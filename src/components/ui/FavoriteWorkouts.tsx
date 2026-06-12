@@ -8,6 +8,10 @@ import { formatVolume } from '@/utils/formatters';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { countUniqueExercises, getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
+const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
+
 export default function FavoriteWorkouts() {
   const router = useRouter();
   const { profile } = useProfile();
@@ -40,12 +44,12 @@ export default function FavoriteWorkouts() {
 
   if (templates.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
-        <StarIconSolid className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500 dark:text-gray-400 mb-2">
+      <div className="forge-card p-8 text-center">
+        <StarIconSolid className="w-16 h-16 text-surface-600 mx-auto mb-4" />
+        <p className="text-surface-500 dark:text-surface-600 mb-2">
           No favorite templates yet
         </p>
-        <p className="text-sm text-gray-400 dark:text-gray-500">
+        <p className="text-sm text-surface-600 dark:text-surface-500">
           Mark templates as favorites to see them here for quick access
         </p>
       </div>
@@ -59,66 +63,91 @@ export default function FavoriteWorkouts() {
           key={template.id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: index * 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
+          transition={{ ...springSnappy, delay: index * 0.1 }}
+          whileHover={{ scale: 1.03, y: -4 }}
+          className="forge-card overflow-hidden"
         >
-          <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+          <div className="h-2 bg-gradient-to-r from-forge-400 to-ember-500"></div>
           <div className="p-6">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
                 {template.name}
               </h3>
-              <button
+              <motion.button
                 onClick={() => handleToggleFavorite(template.id)}
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.85 }}
+                transition={springSnappy}
                 className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
               >
                 <StarIconSolid className="w-5 h-5" />
-              </button>
+              </motion.button>
             </div>
 
             {template.description && (
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+              <p className="text-surface-500 dark:text-surface-600 text-sm mb-4 line-clamp-2">
                 {template.description}
               </p>
             )}
 
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              <motion.div
+                className="text-center"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...springBouncy, delay: index * 0.1 + 0.2 }}
+              >
+                <p className="text-2xl font-display font-bold tracking-wide text-forge-600 dark:text-forge-400">
                   {countUniqueExercises(template)}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Exercises</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-xs text-surface-500 dark:text-surface-600">Exercises</p>
+              </motion.div>
+              <motion.div
+                className="text-center"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...springBouncy, delay: index * 0.1 + 0.3 }}
+              >
+                <p className="text-2xl font-display font-bold tracking-wide text-green-600 dark:text-green-400">
                   {getTotalSetsCount(template)}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Sets</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                <p className="text-xs text-surface-500 dark:text-surface-600">Sets</p>
+              </motion.div>
+              <motion.div
+                className="text-center"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ ...springBouncy, delay: index * 0.1 + 0.4 }}
+              >
+                <p className="text-2xl font-display font-bold tracking-wide text-forge-600 dark:text-forge-400">
                   {template.totalVolume && template.totalVolume > 0
                     ? formatVolume(template.totalVolume, profile?.useMetric)
                     : '-'}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Volume</p>
-              </div>
+                <p className="text-xs text-surface-500 dark:text-surface-600">Volume</p>
+              </motion.div>
             </div>
 
             <div className="flex items-center justify-between">
-              <button
+              <motion.button
                 onClick={() => router.push(`/template/${template.id}`)}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springSnappy}
+                className="btn btn-primary text-sm flex items-center gap-2"
               >
                 View Details
                 <ArrowRightIcon className="w-4 h-4" />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => router.push(`/session/active/${template.id}`)}
-                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm font-medium"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={springSnappy}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium"
               >
                 Start Now
-              </button>
+              </motion.button>
             </div>
           </div>
         </motion.div>

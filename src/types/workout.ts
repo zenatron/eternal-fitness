@@ -469,6 +469,7 @@ export type FormExercise = {
   name: string;
   muscles: string[];
   equipment: string[];
+  exerciseType?: 'strength' | 'cardio' | 'flexibility';
 };
 
 // 🧩 FORM SET — the flat shape used by the template editor UI (distinct from

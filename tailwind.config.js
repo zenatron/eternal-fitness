@@ -1,46 +1,109 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./src/**/*.{js,jsx,ts,tsx}'], // Adjust to match your project structure
+  content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
-      extend: {
-        keyframes: {
-          'gradient-move': {
-            '0%': { backgroundPosition: '0% 50%' },
-            '50%': { backgroundPosition: '100% 50%' },
-            '100%': { backgroundPosition: '0% 50%' },
-          },
-          'gradient-x': {
-            '0%, 100%': {
-              'background-size': '200% 200%',
-              'background-position': 'left center'
-            },
-            '50%': {
-              'background-size': '200% 200%',
-              'background-position': 'right center'
-            },
-          },
+    extend: {
+      fontFamily: {
+        display: ['var(--font-display)', 'sans-serif'],
+        body: ['var(--font-body)', 'sans-serif'],
+      },
+      colors: {
+        forge: {
+          50: '#fef7ee',
+          100: '#fdecd3',
+          200: '#f9d5a3',
+          300: '#f5b76a',
+          400: '#f19737',
+          500: '#ed7b16',
+          600: '#de6009',
+          700: '#b8470d',
+          800: '#933814',
+          900: '#783115',
+          950: '#411708',
         },
-        animation: {
-          'gradient-move': 'gradient-move 3s ease infinite',
-          'gradient-x': 'gradient-x 3s ease-in-out infinite',
+        ember: {
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
         },
-        colors: {
-          'apple-blue': '#007AFF',
-          'apple-green': '#34C759',
-          'apple-yellow': '#FFCC00',
-          'apple-orange': '#FF9500',
-          'apple-red': '#FF3B30',
-          // Theme colors
-          'app-bg': {
-            light: '#f9fafb', // Slightly lighter gray than gray-50
-            dark: '#111827', // Matches gray-900
-          },
-          'app-card': {
-            light: '#ffffff', // White for cards in light mode
-            dark: '#1f2937', // Gray-800 for cards in dark mode
-          },
+        surface: {
+          0: '#0a0a09',
+          50: '#111110',
+          100: '#1a1918',
+          200: '#242320',
+          300: '#2f2d2a',
+          400: '#3d3a36',
+          500: '#504c47',
+          600: '#6b665f',
+          700: '#8a847c',
+          800: '#a9a49c',
+          900: '#c9c5bf',
+          950: '#e8e6e2',
+        },
+        brand: {
+          50: '#fef7ee',
+          100: '#fdecd3',
+          200: '#f9d5a3',
+          300: '#f5b76a',
+          400: '#f19737',
+          500: '#ed7b16',
+          600: '#de6009',
+          700: '#b8470d',
+          800: '#933814',
+          900: '#783115',
         },
       },
+      keyframes: {
+        'spring-in': {
+          '0%': { opacity: '0', transform: 'scale(0.92) translateY(16px)' },
+          '60%': { opacity: '1', transform: 'scale(1.02) translateY(-2px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'spring-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(24px)' },
+          '60%': { opacity: '1', transform: 'translateY(-4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'spring-in-down': {
+          '0%': { opacity: '0', transform: 'translateY(-16px)' },
+          '60%': { opacity: '1', transform: 'translateY(3px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'spring-in-left': {
+          '0%': { opacity: '0', transform: 'translateX(-24px)' },
+          '60%': { opacity: '1', transform: 'translateX(4px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'spring-in-right': {
+          '0%': { opacity: '0', transform: 'translateX(24px)' },
+          '60%': { opacity: '1', transform: 'translateX(-4px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        'pulse-energy': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'ember-pulse': {
+          '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.05)' },
+        },
+      },
+      animation: {
+        'spring-in': 'spring-in 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        'spring-in-up': 'spring-in-up 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        'spring-in-down': 'spring-in-down 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        'spring-in-left': 'spring-in-left 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        'spring-in-right': 'spring-in-right 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both',
+        'pulse-energy': 'pulse-energy 2s ease-in-out infinite',
+        shimmer: 'shimmer 2s ease-in-out infinite',
+        'ember-pulse': 'ember-pulse 3s ease-in-out infinite',
+      },
+    },
   },
   darkMode: 'class',
   plugins: [],

@@ -1,3 +1,6 @@
+'use client';
+
+import { motion, useReducedMotion } from 'framer-motion';
 import { ClockIcon, ScaleIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
@@ -8,7 +11,12 @@ interface RecentActivityProps {
   onViewAll?: () => void;
 }
 
+const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
+
 export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const noMotion = prefersReducedMotion ?? false;
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -23,21 +31,18 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
     const date = new Date(dateString);
     const now = new Date();
 
-    // Compare dates by setting time to midnight to avoid time-of-day issues
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const diffTime = nowOnly.getTime() - dateOnly.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // Format time
     const timeString = date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
 
-    // Format date based on recency
     let dateLabel = '';
     if (diffDays === 0) {
       dateLabel = 'Today';
@@ -58,45 +63,60 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
 
   if (!stats.recentSessions || stats.recentSessions.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+      <motion.div
+        initial={noMotion ? {} : { opacity: 0, y: 20 }}
+        animate={noMotion ? {} : { opacity: 1, y: 0 }}
+        transition={springGentle}
+        className="forge-card p-8"
+      >
+        <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-3">
+          <ClockIcon className="w-6 h-6 text-blue-500" />
           Recent Activity
         </h3>
         <div className="text-center py-8">
-          <ClockIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">
+          <ClockIcon className="w-16 h-16 text-surface-600 mx-auto mb-4" />
+          <p className="text-surface-500 dark:text-surface-600">
             No recent workouts found. Start your fitness journey today!
           </p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+    <motion.div
+      initial={noMotion ? {} : { opacity: 0, y: 20 }}
+      animate={noMotion ? {} : { opacity: 1, y: 0 }}
+      transition={springGentle}
+      className="forge-card p-6"
+    >
+      <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-3">
+        <ClockIcon className="w-6 h-6 text-blue-500" />
         Recent Activity
       </h3>
       <div className="space-y-4">
         {stats.recentSessions.slice(0, 4).map((session, index) => (
-          <div
+          <motion.div
             key={session.id}
-            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            initial={noMotion ? {} : { opacity: 0, x: -16 }}
+            animate={noMotion ? {} : { opacity: 1, x: 0 }}
+            transition={{ ...springSnappy, delay: noMotion ? 0 : index * 0.07 }}
+            className="flex items-center justify-between p-4 bg-surface-950 dark:bg-surface-200/50 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
           >
             <div className="flex-1">
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-1">
+              <h4 className="font-display font-bold text-surface-800 dark:text-white mb-1">
                 {session.templateName}
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-surface-500 dark:text-surface-600">
                 {formatDateTime(session.completedAt)}
               </p>
             </div>
             <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+              <div className="flex items-center gap-1 text-forge-600 dark:text-forge-400">
                 <ClockIcon className="w-4 h-4" />
                 <span>{formatDuration(session.duration)}</span>
               </div>
-              <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+              <div className="flex items-center gap-1 text-forge-600 dark:text-forge-400">
                 <ScaleIcon className="w-4 h-4" />
                 <span>{formatVolume(session.totalVolume, useMetric)}</span>
               </div>
@@ -105,22 +125,27 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
                 <span>{session.totalSets} sets</span>
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
       {stats.recentSessions.length > 0 && onViewAll && (
-        <div className="mt-4 text-center">
+        <motion.div
+          className="mt-4 text-center"
+          whileHover={noMotion ? {} : { scale: 1.03 }}
+          whileTap={noMotion ? {} : { scale: 0.97 }}
+          transition={springSnappy}
+        >
           <button
             onClick={onViewAll}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+            className="text-forge-600 dark:text-forge-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
           >
             View All Activity ({stats.recentSessions.length})
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
