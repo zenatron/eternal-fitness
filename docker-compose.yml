@@ -12,7 +12,7 @@ services:
       - AUTH_POCKETID_ID=${AUTH_POCKETID_ID}
       - AUTH_POCKETID_SECRET=${AUTH_POCKETID_SECRET}
       - AUTH_POCKETID_ISSUER=${AUTH_POCKETID_ISSUER}
-      - AUTH_URL=${AUTH_URL:?AUTH_URL must be set to your public app URL (e.g. https://fitness.z3n.me)}
+      - AUTH_URL=${AUTH_URL:?AUTH_URL must be set to your public app URL (e.g. https://fitness.mydomain.me)}
     depends_on:
       db:
         condition: service_healthy
