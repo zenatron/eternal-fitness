@@ -56,11 +56,19 @@ export const DEFAULT_DASHBOARD_TILES: DashboardTileConfig[] = [
     component: 'StatsCard',
   },
   {
+    id: 'level',
+    name: 'Level & XP',
+    description: 'Your current level and XP progress',
+    enabled: true,
+    order: 5,
+    component: 'LevelCard',
+  },
+  {
     id: 'quick-actions',
     name: 'Quick Actions',
     description: 'Shortcuts to common actions',
     enabled: true,
-    order: 5,
+    order: 6,
     component: 'QuickActionsCard',
   },
 ];

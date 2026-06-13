@@ -4,6 +4,7 @@ import {
   UserIcon,
   ChartBarIcon,
   ClockIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -12,6 +13,7 @@ const actions = [
   { href: '/template/create', label: 'New Template', icon: PlusIcon },
   { href: '/session/log', label: 'Log Workout', icon: ClockIcon },
   { href: '/templates', label: 'Templates', icon: ClipboardDocumentListIcon },
+  { href: '/leaderboard', label: 'Leaderboard', icon: TrophyIcon },
   { href: '/profile', label: 'Profile', icon: UserIcon },
 ];
 

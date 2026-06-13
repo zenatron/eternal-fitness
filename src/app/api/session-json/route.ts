@@ -11,6 +11,8 @@ import {
 } from '@/utils/workoutJsonUtils';
 import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { awardWorkoutXP } from '@/lib/xp';
 
 /**
  * Normalizes client-supplied performance data into full ExercisePerformance
@@ -282,12 +284,6 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       .where(eq(workoutSessions.id, scheduledSessionId))
       .returning();
 
-    try {
-      await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData);
-    } catch (error) {
-      console.error('Error processing PRs:', error);
-    }
-
     await tx
       .insert(userStats)
       .values({
@@ -316,7 +312,55 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
     return session;
   });
 
-  return successResponse(updatedSession);
+  // Process PRs outside transaction
+  let newPRs: any[] = [];
+  try {
+    const prResult = await processWorkoutSessionPRs(
+      userId,
+      updatedSession.id,
+      normalizedPerformance,
+      templateData,
+    );
+    newPRs = prResult.newPRs;
+    if (newPRs.length > 0) {
+      await db
+        .update(workoutSessions)
+        .set({ personalRecords: newPRs.length })
+        .where(eq(workoutSessions.id, updatedSession.id));
+    }
+  } catch (prError) {
+    console.error('Error processing PRs for scheduled session:', prError);
+  }
+
+  // Update achievements
+  let achievementResult = { newAchievements: [] as string[], totalAchievements: 0, pointsAwarded: 0, progress: {} as Record<string, number> };
+  try {
+    const exerciseKeys = Object.values(normalizedPerformance).map(p => p.exerciseKey);
+    await updateUniqueExercisesCount(userId, exerciseKeys);
+    achievementResult = await updateUserAchievements(userId);
+  } catch (achievementError) {
+    console.error('Error updating achievements for scheduled session:', achievementError);
+  }
+
+  // Award workout XP
+  let workoutXP = 100;
+  try {
+    workoutXP = await awardWorkoutXP(userId, { newPRs: newPRs.length });
+  } catch (xpError) {
+    console.error('Error awarding workout XP:', xpError);
+  }
+
+  const totalAwarded = achievementResult.pointsAwarded + workoutXP;
+
+  return NextResponse.json({
+    data: {
+      session: updatedSession,
+      achievements: achievementResult,
+      newPRs,
+      workoutXP,
+      totalAwarded,
+    },
+  }, { status: 200 });
 }
 
 export async function GET(request: Request) {

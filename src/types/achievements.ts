@@ -14,12 +14,12 @@ export interface Achievement {
 }
 
 export const TIER_POINTS: Record<AchievementTier, number> = {
-  bronze: 50,
-  silver: 100,
-  gold: 250,
-  platinum: 500,
-  diamond: 1000,
-  legendary: 2500,
+  bronze: 500,
+  silver: 1000,
+  gold: 2500,
+  platinum: 5000,
+  diamond: 10000,
+  legendary: 25000,
 };
 
 export interface UserAchievements {
@@ -85,7 +85,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialDescription: 'Lift 10,000 lbs total volume',
     icon: '🏋️‍♂️',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'volume_silver',
@@ -97,7 +97,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialDescription: 'Lift 100,000 lbs total volume',
     icon: '💪',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'volume_gold',
@@ -109,7 +109,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialDescription: 'Lift 1,000,000 lbs total volume',
     icon: '🏆',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'volume_platinum',
@@ -121,7 +121,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialDescription: 'Lift 10,000,000 lbs total volume',
     icon: '💎',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'volume_diamond',
@@ -133,7 +133,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialDescription: 'Lift 100,000,000 lbs total volume',
     icon: '👑',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Workouts Completed
@@ -146,7 +146,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '🎯',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'workouts_silver',
@@ -157,7 +157,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 25,
     icon: '📈',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'workouts_gold',
@@ -168,7 +168,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🔥',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'workouts_platinum',
@@ -179,7 +179,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 500,
     icon: '⚡',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'workouts_diamond',
@@ -190,7 +190,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 1000,
     icon: '🌟',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Unique Exercises
@@ -203,7 +203,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '🧭',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'exercises_silver',
@@ -214,7 +214,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 15,
     icon: '🎪',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'exercises_gold',
@@ -225,7 +225,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 30,
     icon: '🤸‍♂️',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'exercises_platinum',
@@ -236,7 +236,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 75,
     icon: '📚',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'exercises_diamond',
@@ -247,7 +247,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🏅',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Workout Hours
@@ -260,7 +260,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 10,
     icon: '⏰',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'hours_silver',
@@ -271,7 +271,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 50,
     icon: '⏳',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'hours_gold',
@@ -282,7 +282,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 200,
     icon: '🕐',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'hours_platinum',
@@ -293,7 +293,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 500,
     icon: '⌚',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'hours_diamond',
@@ -304,7 +304,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 1000,
     icon: '🕰️',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Consistency Streak
@@ -317,7 +317,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 3,
     icon: '📅',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'streak_silver',
@@ -328,7 +328,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 7,
     icon: '🗓️',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'streak_gold',
@@ -339,7 +339,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 30,
     icon: '🔗',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'streak_platinum',
@@ -350,7 +350,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🚀',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 
   // Personal Records
@@ -363,7 +363,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 25,
     icon: '📊',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'prs_silver',
@@ -374,7 +374,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 50,
     icon: '📈',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'prs_gold',
@@ -385,7 +385,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🎖️',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
 
   // Early Bird - workouts completed before 8am
@@ -398,7 +398,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '🌅',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'early_bird_silver',
@@ -409,7 +409,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 15,
     icon: '🌄',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'early_bird_gold',
@@ -420,7 +420,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 50,
     icon: '☀️',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'early_bird_platinum',
@@ -431,7 +431,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🔆',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 
   // Night Owl - workouts completed after 10pm
@@ -444,7 +444,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '🌙',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'night_owl_silver',
@@ -455,7 +455,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 15,
     icon: '🌜',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'night_owl_gold',
@@ -466,7 +466,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 50,
     icon: '🦉',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'night_owl_platinum',
@@ -477,7 +477,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🌑',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 
   // Template Mastery - completing the same template X times
@@ -490,7 +490,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '📋',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'template_mastery_silver',
@@ -501,7 +501,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 15,
     icon: '📝',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'template_mastery_gold',
@@ -512,7 +512,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 30,
     icon: '🎓',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'template_mastery_platinum',
@@ -523,7 +523,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 50,
     icon: '🏛️',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 
   // Monthly Warrior - workouts in a single calendar month
@@ -536,7 +536,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 10,
     icon: '📆',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'monthly_warrior_silver',
@@ -547,7 +547,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 15,
     icon: '🗓️',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'monthly_warrior_gold',
@@ -558,7 +558,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 20,
     icon: '💥',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'monthly_warrior_platinum',
@@ -569,7 +569,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 25,
     icon: '⚔️',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 
   // Total Distance - total distance covered across all cardio workouts
@@ -585,7 +585,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialRequirement: 10,
     icon: '🏃',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'distance_silver',
@@ -598,7 +598,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialRequirement: 50,
     icon: '🏃‍♂️',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'distance_gold',
@@ -611,7 +611,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialRequirement: 200,
     icon: '🏃‍♀️',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'distance_platinum',
@@ -624,7 +624,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialRequirement: 500,
     icon: '🥇',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'distance_diamond',
@@ -637,7 +637,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     imperialRequirement: 1000,
     icon: '🌍',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Cardio Sessions - total number of completed cardio workout sessions
@@ -650,7 +650,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '❤️',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'cardio_sessions_silver',
@@ -661,7 +661,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 25,
     icon: '💓',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'cardio_sessions_gold',
@@ -672,7 +672,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 75,
     icon: '💗',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'cardio_sessions_platinum',
@@ -683,7 +683,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 150,
     icon: '💖',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
   {
     id: 'cardio_sessions_diamond',
@@ -694,7 +694,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 300,
     icon: '🫀',
     color: 'text-purple-500',
-    points: 1000,
+    points: 10000,
   },
 
   // Cardio Duration - total time spent on cardio exercises (requirement in hours)
@@ -707,7 +707,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 5,
     icon: '⏱️',
     color: 'text-amber-600',
-    points: 50,
+    points: 500,
   },
   {
     id: 'cardio_duration_silver',
@@ -718,7 +718,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 25,
     icon: '⏲️',
     color: 'text-gray-500',
-    points: 100,
+    points: 1000,
   },
   {
     id: 'cardio_duration_gold',
@@ -729,7 +729,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 100,
     icon: '🕐',
     color: 'text-yellow-500',
-    points: 250,
+    points: 2500,
   },
   {
     id: 'cardio_duration_platinum',
@@ -740,7 +740,7 @@ export const ACHIEVEMENT_DEFINITIONS: Achievement[] = [
     requirement: 250,
     icon: '⌛',
     color: 'text-blue-400',
-    points: 500,
+    points: 5000,
   },
 ];
 
@@ -755,7 +755,7 @@ export function localizeAchievement(achievement: Achievement | { description: st
 }
 
 export const TIER_COLORS = {
-  bronze: 'from-amber-400 to-amber-600',
+  bronze: 'from-amber-700 to-amber-900',
   silver: 'from-gray-400 to-gray-600', 
   gold: 'from-yellow-400 to-yellow-600',
   platinum: 'from-blue-400 to-blue-600',

@@ -127,6 +127,7 @@ export default function LogPastWorkoutPage() {
     newAchievementIds: string[];
     newPRs: Array<{ exerciseName: string; type: string; value: number }>;
     pointsAwarded: number;
+    totalAwarded: number;
     progress: Record<string, number>;
   } | null>(null);
 
@@ -336,6 +337,7 @@ export default function LogPastWorkoutPage() {
       newAchievementIds: result?.achievements?.newAchievements || [],
       newPRs: result?.newPRs || [],
       pointsAwarded: result?.achievements?.pointsAwarded || 0,
+      totalAwarded: result?.totalAwarded || result?.achievements?.pointsAwarded || 0,
       progress: result?.achievements?.progress || {},
     });
     setShowVictory(true);

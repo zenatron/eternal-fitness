@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import Link from 'next/link';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
@@ -181,6 +182,18 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
               );
             })}
           </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-300">
+          <Link
+            href="/progress"
+            className="text-sm font-display font-semibold text-forge-500 dark:text-forge-400 hover:text-forge-600 dark:hover:text-forge-300 transition-colors inline-flex items-center gap-1"
+          >
+            View Full Progress
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
       </div>
     </motion.div>

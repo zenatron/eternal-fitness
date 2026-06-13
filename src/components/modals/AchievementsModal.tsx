@@ -221,7 +221,7 @@ export function AchievementsModal({
                                 ? 'text-green-600 dark:text-green-400'
                                 : 'text-surface-500 dark:text-surface-600'
                             }`}>
-                              {achievement.progress.toLocaleString()} / {localized.requirement.toLocaleString()}
+                              {Number(achievement.progress.toFixed(2)).toLocaleString()} / {Number(localized.requirement.toFixed(2)).toLocaleString()}
                             </span>
                           </div>
                           <div className="bg-surface-200 dark:bg-surface-600 rounded-full h-3 overflow-hidden">

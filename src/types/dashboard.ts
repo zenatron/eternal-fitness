@@ -47,4 +47,6 @@ export interface DashboardData {
   recentActivity: ActivityEntry[];
   upcomingWorkouts: WorkoutSession[];
   stats: StatsData;
+  totalPoints: number;
+  level: number;
 }

@@ -10,6 +10,7 @@ import {
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
+import { awardWorkoutXP } from '@/lib/xp';
 import { z } from 'zod';
 
 const successResponse = (data: unknown, status = 200) => {
@@ -198,7 +199,24 @@ export async function POST(request: NextRequest) {
       console.error('Error updating achievements:', achievementError);
     }
 
-    return successResponse({ session, message: 'Workout completed successfully', achievements: achievementResult, newPRs });
+    // Award workout XP
+    let workoutXP = 100;
+    try {
+      workoutXP = await awardWorkoutXP(userId, { newPRs: newPRs.length });
+    } catch (xpError) {
+      console.error('Error awarding workout XP:', xpError);
+    }
+
+    const totalAwarded = achievementResult.pointsAwarded + workoutXP;
+
+    return successResponse({
+      session,
+      message: 'Workout completed successfully',
+      achievements: achievementResult,
+      newPRs,
+      workoutXP,
+      totalAwarded,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);

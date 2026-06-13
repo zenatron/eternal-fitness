@@ -82,6 +82,7 @@ export default function ActiveSessionPage({
     newAchievementIds: string[];
     newPRs: Array<{ exerciseName: string; type: string; value: number }>;
     pointsAwarded: number;
+    totalAwarded: number;
     progress: Record<string, number>;
   } | null>(null);
 
@@ -207,6 +208,7 @@ export default function ActiveSessionPage({
         newAchievementIds: result?.achievements?.newAchievements || [],
         newPRs: result?.newPRs || [],
         pointsAwarded: result?.achievements?.pointsAwarded || 0,
+        totalAwarded: result?.totalAwarded || result?.achievements?.pointsAwarded || 0,
         progress: result?.achievements?.progress || {},
       });
       setShowVictory(true);
@@ -235,10 +237,34 @@ export default function ActiveSessionPage({
           }),
         });
         if (!response.ok) throw new Error('Failed to complete scheduled session');
-        setSaveMessage('Scheduled session completed successfully!');
+        const result = await response.json();
+        const sessionData = result.data;
+
         setWorkoutCompleted(true);
         endWorkout();
-        router.push('/profile');
+
+        const perfData = sessionData?.session?.performanceData?.performance;
+        const totalDistance = perfData
+          ? Object.values(perfData).reduce((t: number, ep: any) => {
+              return t + (ep.sets || []).reduce((st: number, s: any) => st + (s.actualDistance || 0), 0);
+            }, 0)
+          : 0;
+
+        setVictoryData({
+          workoutName: template?.name || 'Workout',
+          durationMinutes: finalDurationMinutes,
+          totalVolume: sessionData?.session?.totalVolume || 0,
+          totalSets: sessionData?.session?.totalSets || 0,
+          totalExercises: sessionData?.session?.totalExercises || 0,
+          totalDistance,
+          newAchievementIds: sessionData?.achievements?.newAchievements || [],
+          newPRs: sessionData?.newPRs || [],
+          pointsAwarded: sessionData?.achievements?.pointsAwarded || 0,
+          totalAwarded: sessionData?.totalAwarded || sessionData?.achievements?.pointsAwarded || 0,
+          progress: sessionData?.achievements?.progress || {},
+        });
+        setShowVictory(true);
+        return;
       } catch (error) {
         setSaveMessage(`Error: ${error instanceof Error ? error.message : 'Failed to complete scheduled session'}`);
         setIsSaving(false);

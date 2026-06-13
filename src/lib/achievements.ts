@@ -1,4 +1,4 @@
-import { ACHIEVEMENT_DEFINITIONS, UserAchievements, AchievementCategory, localizeAchievement } from '@/types/achievements';
+import { ACHIEVEMENT_DEFINITIONS, UserAchievements, AchievementCategory, localizeAchievement, TIER_POINTS } from '@/types/achievements';
 import { db } from '@/lib/db';
 import { userStats, workoutSessions, users, monthlyStats, workoutTemplates } from '@/lib/db/schema';
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
@@ -159,7 +159,7 @@ export function checkUnlockedAchievements(
 function calculatePointsForAchievements(achievementIds: string[]): number {
   return achievementIds.reduce((total, id) => {
     const def = ACHIEVEMENT_DEFINITIONS.find(a => a.id === id);
-    return total + (def?.points || 0);
+    return total + (TIER_POINTS[def?.tier as keyof typeof TIER_POINTS] || def?.points || 0);
   }, 0);
 }
 

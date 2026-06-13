@@ -171,7 +171,7 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
                           <div className="flex justify-between text-sm">
                             <span className="text-surface-500 dark:text-surface-600">Progress</span>
                             <span className="font-medium text-surface-600 dark:text-surface-800">
-                              {achievement.progress.toLocaleString()} / {localized.requirement.toLocaleString()}
+                              {Number(achievement.progress.toFixed(2)).toLocaleString()} / {Number(localized.requirement.toFixed(2)).toLocaleString()}
                             </span>
                           </div>
                           <div className="bg-surface-200 dark:bg-surface-200 rounded-full h-2 overflow-hidden">

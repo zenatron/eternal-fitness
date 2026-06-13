@@ -8,6 +8,7 @@ import { exercises as staticExercisesData } from '@/lib/exercises';
 import { createWorkoutTemplate, calculateTemplateVolume } from '@/utils/workoutJsonUtils';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { awardWorkoutXP } from '@/lib/xp';
 import { WorkoutType, Difficulty, ExercisePerformance, SetType } from '@/types/workout';
 
 const errorResponse = (message: string, status = 500, details?: unknown) => {
@@ -357,6 +358,12 @@ export async function POST(request: Request) {
           templateData,
         );
         newPRs = prResult.newPRs;
+        if (newPRs.length > 0) {
+          await db
+            .update(workoutSessions)
+            .set({ personalRecords: newPRs.length })
+            .where(eq(workoutSessions.id, newSession.id));
+        }
       } catch (prError) {
         console.error('Error processing PRs for logged session:', prError);
       }
@@ -372,7 +379,25 @@ export async function POST(request: Request) {
       console.error('Error updating achievements for logged session:', achievementError);
     }
 
-    return NextResponse.json({ data: { session: newSession, achievements: achievementResult, newPRs } }, { status: 201 });
+    // Award workout XP
+    let workoutXP = 100;
+    try {
+      workoutXP = await awardWorkoutXP(userId, { newPRs: newPRs.length });
+    } catch (xpError) {
+      console.error('Error awarding workout XP:', xpError);
+    }
+
+    const totalAwarded = achievementResult.pointsAwarded + workoutXP;
+
+    return NextResponse.json({
+      data: {
+        session: newSession,
+        achievements: achievementResult,
+        newPRs,
+        workoutXP,
+        totalAwarded,
+      },
+    }, { status: 201 });
   } catch (error: any) {
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404);

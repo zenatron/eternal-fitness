@@ -2,9 +2,10 @@
 
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { ACHIEVEMENT_DEFINITIONS, TIER_COLORS, TIER_NAMES, localizeAchievement } from '@/types/achievements';
+import { ACHIEVEMENT_DEFINITIONS, TIER_COLORS, TIER_NAMES, TIER_POINTS, localizeAchievement } from '@/types/achievements';
 import { formatVolume } from '@/utils/formatters';
 import { formatPRValue } from '@/utils/prFormatting';
+import { getLevel, getLevelProgress } from '@/utils/levels';
 
 const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
@@ -19,6 +20,7 @@ interface VictoryData {
   totalDistance: number;
   newAchievementIds: string[];
   pointsAwarded: number;
+  totalAwarded: number;
   progress: Record<string, number>;
   newPRs: Array<{
     exerciseName: string;
@@ -299,7 +301,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
             transition={{ ...springSnappy, delay: delay + 0.3 }}
             className="text-xs font-bold text-amber-600 dark:text-amber-400"
           >
-            +{achievement.points} XP
+            +{TIER_POINTS[achievement.tier as keyof typeof TIER_POINTS] || achievement.points} XP
           </motion.span>
         )}
       </div>
@@ -442,7 +444,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   </p>
                 </motion.div>
 
-                <ScrollingXP target={data.pointsAwarded} />
+                <ScrollingXP target={data.totalAwarded || data.pointsAwarded || 0} />
 
                 <motion.div
                   initial={prefersReducedMotion ? {} : { opacity: 0 }}

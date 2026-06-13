@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { users, userStats, monthlyStats, workoutSessions } from '@/lib/db/schema';
 import { eq, and, isNotNull, isNull, gte, desc, asc, or } from 'drizzle-orm';
 import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils';
+import { getLevel } from '@/utils/levels';
 
 function calculateStreak(sessionDates: Date[]): number {
   if (!sessionDates.length) return 0;
@@ -199,6 +200,8 @@ export async function GET() {
         },
       },
       upcomingWorkouts,
+      totalPoints: user.points || 0,
+      level: getLevel(user.points || 0),
     };
 
     return NextResponse.json(dashboardData);

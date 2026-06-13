@@ -9,6 +9,7 @@ import { ProgressCard } from './ProgressCard';
 import { RecentActivityCard } from './RecentActivityCard';
 import { StatsCard } from './StatsCard';
 import { QuickActionsCard } from './QuickActionsCard';
+import LevelCard from './LevelCard';
 import { DashboardSkeletonLoader } from './DashboardSkeletonLoader';
 import { useDashboardData } from '@/lib/hooks/useDashboardData';
 import { UpcomingWorkoutsCard } from './UpcomingWorkoutsCard';
@@ -278,6 +279,8 @@ export default function Dashboard() {
         return <StatsCard data={data.stats} />;
       case 'QuickActionsCard':
         return <QuickActionsCard />;
+      case 'LevelCard':
+        return <LevelCard totalPoints={data.totalPoints} />;
       default:
         return null;
     }

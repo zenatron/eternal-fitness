@@ -26,6 +26,7 @@ import { RecentActivity } from '@/components/ui/profile/RecentActivity';
 import { PersonalRecords } from '@/components/ui/profile/PersonalRecords';
 import { TopExercises } from '@/components/ui/profile/TopExercises';
 import { Achievements } from '@/components/ui/profile/Achievements';
+import { getLevel, getLevelTitle, getLevelProgress } from '@/utils/levels';
 
 import { PersonalRecordsModal } from '@/components/modals/PersonalRecordsModal';
 import { TopExercisesModal } from '@/components/modals/TopExercisesModal';
@@ -36,6 +37,7 @@ import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 import { motion, useReducedMotion } from 'framer-motion';
 
 const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
 const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 const staggerContainer = {
@@ -50,6 +52,77 @@ const fadeUpItem = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: springSnappy },
 };
+
+function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points: number; totalWorkouts: number; prefersReducedMotion: boolean }) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const level = getLevel(points);
+  const p = getLevelProgress(points);
+  const title = getLevelTitle(level);
+  const levelRange = p.nextLevelXP - p.currentLevelXP;
+
+  return (
+    <div className="perspective-[600px]" style={{ perspective: '600px' }}>
+      <motion.div
+        className="relative w-[200px] h-[110px] cursor-pointer"
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+        onClick={() => setIsFlipped(!isFlipped)}
+        style={{ transformStyle: 'preserve-3d' }}
+      >
+        {/* Front */}
+        <div
+          className="absolute inset-0 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 flex flex-col justify-center"
+          style={{ backfaceVisibility: 'hidden' }}
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forge-500 via-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-forge-500/25 shrink-0">
+              <span className="text-lg font-display font-black text-white">{level}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-forge-100 font-display uppercase tracking-wider">Level {level}</p>
+              <p className="text-sm font-display font-bold text-white truncate">{title}</p>
+            </div>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/15 overflow-hidden mb-1">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-white to-forge-200"
+              initial={prefersReducedMotion ? {} : { width: 0 }}
+              animate={prefersReducedMotion ? {} : { width: `${p.percent}%` }}
+              transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-forge-100/80 font-display uppercase tracking-wider tabular-nums">
+            <span>{levelRange > 0 ? `${p.progressInLevel.toLocaleString()} / ${levelRange.toLocaleString()} XP` : 'MAX'}</span>
+            <span>{level === 100 ? 'MAX' : `${(p.nextLevelXP - points).toLocaleString()} to ${level + 1}`}</span>
+          </div>
+        </div>
+
+        {/* Back */}
+        <div
+          className="absolute inset-0 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 flex flex-col justify-center"
+          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+        >
+          <p className="text-xs text-forge-100 font-display uppercase tracking-wider mb-1">Level {level} · {title}</p>
+          <div className="space-y-1 text-xs text-white font-display">
+            <div className="flex justify-between">
+              <span className="text-forge-100">Total XP</span>
+              <span className="font-bold tabular-nums">{points.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-forge-100">Level Progress</span>
+              <span className="font-bold tabular-nums">{p.percent}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-forge-100">Next Level</span>
+              <span className="font-bold tabular-nums">{level === 100 ? '—' : `${(p.nextLevelXP - points).toLocaleString()} XP`}</span>
+            </div>
+          </div>
+          <p className="text-[9px] text-forge-100/60 text-center mt-2">tap to flip back</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 function ProfileContent() {
   const router = useRouter();
@@ -210,17 +283,9 @@ function ProfileContent() {
                   )}
                 </div>
 
-                {/* Points + Settings side by side */}
+                {/* Level + XP — flip card */}
                 <div className="flex items-center gap-3 shrink-0">
-                  <motion.div
-                    className="bg-white/10 rounded-xl px-5 py-3 backdrop-blur-sm text-center"
-                    whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-                    transition={springSnappy}
-                  >
-                    <TrophyIcon className="w-7 h-7 text-yellow-300 mx-auto mb-1" />
-                    <p className="text-xs text-forge-100">Points</p>
-                    <p className="text-xl font-display font-bold tracking-wide">{profile?.points || 0}</p>
-                  </motion.div>
+                  <FlipLevelCard points={profile?.points || 0} totalWorkouts={stats?.totalWorkouts || 0} prefersReducedMotion={prefersReducedMotion ?? false} />
 
                   <motion.div
                     whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
@@ -321,9 +386,9 @@ function ProfileContent() {
           </motion.div>
         )}
 
-        {/* Content Grid */}
+        {/* Content Grid — bento-box columns layout */}
         <motion.div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+          className="columns-1 lg:columns-2 gap-6 mb-8 [&>*]:break-inside-avoid [&>*]:mb-6"
           variants={staggerContainer}
           initial={prefersReducedMotion ? {} : 'hidden'}
           animate={prefersReducedMotion ? {} : 'visible'}
@@ -355,6 +420,11 @@ function ProfileContent() {
               />
             </motion.div>
           )}
+          {stats && (
+            <motion.div variants={fadeUpItem}>
+              <MonthlyProgress stats={stats} useMetric={profile?.useMetric || false} />
+            </motion.div>
+          )}
           {achievements && !achievementsLoading && (
             <motion.div variants={fadeUpItem}>
               <Achievements
@@ -364,11 +434,6 @@ function ProfileContent() {
                 useMetric={profile?.useMetric || false}
                 onViewAll={() => openModal('achievements')}
               />
-            </motion.div>
-          )}
-          {stats && (
-            <motion.div variants={fadeUpItem}>
-              <MonthlyProgress stats={stats} useMetric={profile?.useMetric || false} />
             </motion.div>
           )}
         </motion.div>
