@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { workoutTemplates, workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
 import { eq, and, sql, desc, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
+import { performedSetsVolume } from '@/lib/volume';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import { createWorkoutTemplate, calculateTemplateVolume } from '@/utils/workoutJsonUtils';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
@@ -85,8 +86,15 @@ function buildPerformanceFromTemplate(templateData: any): { [exerciseId: string]
       actualRpe: s.targetRpe,
       completed: true,
     }));
-    const totalVolume = sets.reduce((t: number, s: any) => t + (s.actualReps * s.actualWeight), 0);
-    perf[ex.id] = { exerciseKey: ex.exerciseKey, sets, totalVolume };
+    // Per-side comes from the template exercise; absent means ×1, so templates
+    // built before this existed keep their previous volume.
+    const totalVolume = performedSetsVolume(sets, ex.perSide);
+    perf[ex.id] = {
+      exerciseKey: ex.exerciseKey,
+      perSide: ex.perSide,
+      sets,
+      totalVolume,
+    };
   }
   return perf;
 }

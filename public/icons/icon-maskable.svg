@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+
+  <defs>
+    <linearGradient id="molten" x1="96" y1="170" x2="416" y2="342" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f5b76a" />
+      <stop offset="0.35" stop-color="#ed7b16" />
+      <stop offset="0.72" stop-color="#de6009" />
+      <stop offset="1" stop-color="#dc2626" />
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1a1918" />
+      <stop offset="1" stop-color="#0a0a09" />
+    </linearGradient>
+    <radialGradient id="heat" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ed7b16" stop-opacity="0.45" />
+      <stop offset="0.55" stop-color="#de6009" stop-opacity="0.14" />
+      <stop offset="1" stop-color="#de6009" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)" />
+  <g transform="translate(256 256) scale(0.62) translate(-256 -256)">
+
+  <g fill="#f19737">
+    <circle cx="150" cy="118" r="7" opacity="0.55" />
+    <circle cx="342" cy="96" r="5" opacity="0.4" />
+    <circle cx="262" cy="132" r="4" opacity="0.3" />
+    <circle cx="196" cy="404" r="5" opacity="0.35" />
+    <circle cx="330" cy="392" r="7" opacity="0.5" />
+  </g>
+
+    <circle cx="256" cy="256" r="150" fill="url(#heat)" />
+    <g fill="url(#molten)">
+      <!-- bar -->
+      <rect x="96" y="240" width="320" height="32" rx="16" />
+      <!-- inner plates -->
+      <rect x="150" y="178" width="38" height="156" rx="12" />
+      <rect x="324" y="178" width="38" height="156" rx="12" />
+      <!-- outer plates -->
+      <rect x="112" y="202" width="30" height="108" rx="10" />
+      <rect x="370" y="202" width="30" height="108" rx="10" />
+      <!-- sleeve caps -->
+      <rect x="90" y="226" width="14" height="60" rx="7" />
+      <rect x="408" y="226" width="14" height="60" rx="7" />
+    </g>
+  </g>
+</svg>

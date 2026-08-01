@@ -34,6 +34,13 @@ const springGentle = {
 
 function Greeting({ firstName }: { firstName: string }) {
   const prefersReducedMotion = useReducedMotion();
+  /**
+   * Formatted on both server and client, which disagree: the container runs in
+   * UTC while the browser uses the viewer's timezone, so either side of
+   * midnight they produce different dates and React reports a hydration
+   * mismatch. The client value is the correct one, so the server's is allowed
+   * to be replaced silently rather than warned about.
+   */
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -114,7 +121,8 @@ function Greeting({ firstName }: { firstName: string }) {
               WELCOME BACK, {firstName.toUpperCase()}
             </motion.h1>
             <motion.p
-              className="text-forge-100 mt-1"
+              className="text-accent-100 mt-1"
+              suppressHydrationWarning
               initial={
                 prefersReducedMotion
                   ? {}
@@ -130,8 +138,12 @@ function Greeting({ firstName }: { firstName: string }) {
               {dateStr}
             </motion.p>
           </div>
+          {/* Uppercase Oswald with wide tracking is a lot of horizontal space.
+              On a phone these two labels wrapped mid-phrase ("START / WORKOUT"),
+              so the primary action is given the full width and the secondary
+              actions share the row beneath it. */}
           <motion.div
-            className="flex items-center gap-3"
+            className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3"
             initial={
               prefersReducedMotion
                 ? {}
@@ -146,28 +158,31 @@ function Greeting({ firstName }: { firstName: string }) {
           >
             <Link
               href="/templates"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-forge-700 text-sm font-display font-bold tracking-wide uppercase rounded-lg hover:bg-forge-50 transition-colors shadow-sm"
+              className="inline-flex min-h-[46px] items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-white px-4 text-sm font-display font-bold uppercase tracking-wide text-accent-700 shadow-sm transition-colors hover:bg-accent-50 tap-control"
             >
-              <PlayIcon className="w-4 h-4" />
+              <PlayIcon className="w-4 h-4 shrink-0" />
               Start Workout
             </Link>
-            <Link
-              href="/template/create"
-              className="inline-flex items-center gap-2 px-4 py-2.5 border border-white/30 text-white text-sm font-display font-semibold tracking-wide uppercase rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <PlusIcon className="w-4 h-4" />
-              New Template
-            </Link>
-            <button
-              onClick={() => {
-                const event = new CustomEvent('open-dashboard-settings');
-                window.dispatchEvent(event);
-              }}
-              className="p-2.5 border border-white/30 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-              title="Dashboard Settings"
-            >
-              <Cog6ToothIcon className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <Link
+                href="/template/create"
+                className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/30 px-4 text-sm font-display font-semibold uppercase tracking-wide text-white transition-colors hover:bg-white/10 sm:flex-none tap-control"
+              >
+                <PlusIcon className="w-4 h-4 shrink-0" />
+                New Template
+              </Link>
+              <button
+                onClick={() => {
+                  const event = new CustomEvent('open-dashboard-settings');
+                  window.dispatchEvent(event);
+                }}
+                className="touch-target flex shrink-0 items-center justify-center rounded-lg border border-white/30 text-white/80 transition-colors hover:bg-white/10 hover:text-white tap-control"
+                aria-label="Dashboard settings"
+              >
+                <Cog6ToothIcon className="w-5 h-5" />
+              </button>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -238,7 +253,7 @@ export default function Dashboard() {
         className="flex flex-col items-center justify-center min-h-[60vh] px-4"
       >
         <div className="forge-card p-8 max-w-md text-center">
-          <h2 className="text-lg font-display font-bold text-ember-500 mb-2 tracking-wide uppercase">
+          <h2 className="text-lg font-display font-bold text-danger-500 mb-2 tracking-wide uppercase">
             Error Loading Dashboard
           </h2>
           <p className="text-surface-500 dark:text-surface-600 text-sm mb-4">

@@ -1,3 +1,13 @@
+/**
+ * Builds a colour scale that reads from CSS custom properties, preserving
+ * Tailwind's alpha-modifier syntax. See the `colors` block below.
+ */
+const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+const varScale = (name) =>
+  Object.fromEntries(
+    SHADES.map((shade) => [shade, `rgb(var(--${name}-${shade}) / <alpha-value>)`])
+  );
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
@@ -8,25 +18,36 @@ module.exports = {
         body: ['var(--font-body)', 'sans-serif'],
       },
       colors: {
-        forge: {
-          50: '#fef7ee',
-          100: '#fdecd3',
-          200: '#f9d5a3',
-          300: '#f5b76a',
-          400: '#f19737',
-          500: '#ed7b16',
-          600: '#de6009',
-          700: '#b8470d',
-          800: '#933814',
-          900: '#783115',
-          950: '#411708',
-        },
-        ember: {
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-        },
+        /*
+         * Accent and status colours resolve through CSS custom properties so a
+         * theme can be swapped by setting [data-accent] on <html> — no class
+         * rewriting, no duplicated utilities, no JS re-render.
+         *
+         * The `<alpha-value>` placeholder is what keeps Tailwind's slash-opacity
+         * syntax working (`bg-accent-500/20`); without it every colour would be
+         * fully opaque. That is why the variables hold bare `R G B` channel
+         * triplets rather than finished `rgb()` strings.
+         *
+         * Definitions live in globals.css.
+         */
+        accent: varScale('accent'),
+
+        // Status colours. Deliberately NOT themeable: these carry meaning, and
+        // a success badge that turned purple with the accent would stop
+        // communicating anything.
+        success: varScale('success'),
+        danger: varScale('danger'),
+        warning: varScale('warning'),
+        // Gold: trophies, PRs, achievement tiers. See globals.css.
+        award: varScale('award'),
+        info: varScale('info'),
+
+        /*
+         * Surfaces are a fixed, deliberately inverted scale: 0 is near-black and
+         * 950 is cream, so `surface-50` is a *dark* value usable as light-mode
+         * text. Not themeable — tinting every background per theme was
+         * considered and rejected as too broad a blast radius.
+         */
         surface: {
           0: '#0a0a09',
           50: '#111110',
@@ -40,18 +61,6 @@ module.exports = {
           800: '#a9a49c',
           900: '#c9c5bf',
           950: '#e8e6e2',
-        },
-        brand: {
-          50: '#fef7ee',
-          100: '#fdecd3',
-          200: '#f9d5a3',
-          300: '#f5b76a',
-          400: '#f19737',
-          500: '#ed7b16',
-          600: '#de6009',
-          700: '#b8470d',
-          800: '#933814',
-          900: '#783115',
         },
       },
       keyframes: {

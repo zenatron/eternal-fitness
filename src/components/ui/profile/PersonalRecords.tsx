@@ -4,7 +4,8 @@ import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { TrophyIcon, ScaleIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
-import { formatPRValue } from '@/utils/prFormatting';
+import { formatPRValue, prTypeFromApi } from '@/utils/prFormatting';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
 interface PersonalRecordsProps {
   stats: UserStatsData;
@@ -12,9 +13,6 @@ interface PersonalRecordsProps {
   onViewAll?: () => void;
 }
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecordsProps) {
   const prefersReducedMotion = useReducedMotion();
@@ -37,8 +35,8 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
         transition={springGentle}
         className="forge-card p-8"
       >
-        <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2">
-          <TrophyIcon className="w-6 h-6 text-yellow-500" />
+        <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2">
+          <TrophyIcon className="w-6 h-6 text-award-500" />
           Personal Records
         </h3>
         <div className="text-center py-8">
@@ -59,7 +57,7 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
       className="forge-card p-6"
     >
       <motion.h3
-        className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2"
+        className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2"
         initial={noMotion ? {} : { scale: 0 }}
         animate={noMotion ? {} : { scale: 1 }}
         transition={{ ...springBouncy, delay: noMotion ? 0 : 0.2 }}
@@ -71,7 +69,7 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
           }}
           transition={{ duration: 0.6, delay: noMotion ? 0 : 0.4, ease: 'easeInOut' }}
         >
-          <TrophyIcon className="w-6 h-6 text-yellow-500" />
+          <TrophyIcon className="w-6 h-6 text-award-500" />
         </motion.span>
         Personal Records
       </motion.h3>
@@ -82,16 +80,19 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
             initial={noMotion ? {} : { opacity: 0, x: -20, scale: 0.9 }}
             animate={noMotion ? {} : { opacity: 1, x: 0, scale: 1 }}
             transition={{ ...springBouncy, delay: noMotion ? 0 : index * 0.08 }}
-            className="flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800"
+            className="flex items-center justify-between p-4 bg-gradient-to-r from-award-50 to-award-100 dark:from-award-900/20 dark:to-award-900/20 rounded-xl border border-award-200 dark:border-award-800"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                <ScaleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              <div className="p-2 bg-award-100 dark:bg-award-900/30 rounded-lg">
+                <ScaleIcon className="w-5 h-5 text-award-600 dark:text-award-400" />
               </div>
               <div>
-                <h4 className="font-display font-bold text-surface-800 dark:text-white">
+                <Link
+                  href={`/exercise/${encodeURIComponent(record.exerciseName)}`}
+                  className="font-display font-bold text-surface-50 hover:text-accent-600 dark:text-white dark:hover:text-accent-400"
+                >
                   {record.exerciseName}
-                </h4>
+                </Link>
                 <p className="text-sm text-surface-500 dark:text-surface-600">
                   {record.type === 'weight' ? 'Max Weight' : 
                    record.type === 'volume' ? 'Max Volume' :
@@ -100,8 +101,8 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-display font-bold text-yellow-600 dark:text-yellow-400">
-                {formatPRValue(record.value, record.type === 'weight' ? 'maxWeight' : record.type === 'volume' ? 'maxVolume' : record.type === 'duration' ? 'maxDuration' : 'maxDistance', useMetric)}
+              <p className="text-lg font-display font-bold text-award-600 dark:text-award-400">
+                {formatPRValue(record.value, prTypeFromApi(record.type), useMetric)}
               </p>
               <p className="text-xs text-surface-500 dark:text-surface-600">
                 {formatDate(record.achievedAt)}
@@ -119,7 +120,7 @@ export function PersonalRecords({ stats, useMetric, onViewAll }: PersonalRecords
         >
           <Link
             href="/personal-records"
-            className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+            className="text-award-600 dark:text-award-400 hover:text-award-700 dark:hover:text-award-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
           >
             View All Records ({stats.personalRecords.length})
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

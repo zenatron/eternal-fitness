@@ -1,9 +1,10 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { BoltIcon, ScaleIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { BoltIcon, ScaleIcon, CalendarDaysIcon, FireIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
-import { formatVolume } from '@/utils/formatters';
+import { formatVolume, formatWeight } from '@/utils/formatters';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
 interface TopExercisesProps {
   stats: UserStatsData;
@@ -11,18 +12,10 @@ interface TopExercisesProps {
   onViewAll?: () => void;
 }
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps) {
   const prefersReducedMotion = useReducedMotion();
   const noMotion = prefersReducedMotion ?? false;
-
-  const formatWeight = (weight: number) => {
-    const unit = useMetric ? 'kg' : 'lbs';
-    return `${weight.toFixed(1)} ${unit}`;
-  };
 
   if (!stats.topExercises || stats.topExercises.length === 0) {
     return (
@@ -32,8 +25,8 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
         transition={springGentle}
         className="forge-card p-8"
       >
-        <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2">
-          <BoltIcon className="w-6 h-6 text-blue-500" />
+        <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2">
+          <BoltIcon className="w-6 h-6 text-accent-500" />
           Top Exercises
         </h3>
         <div className="text-center py-8">
@@ -46,7 +39,8 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
     );
   }
 
-  const maxVolume = Math.max(...stats.topExercises.map(ex => ex.totalVolume));
+  const topFour = stats.topExercises.slice(0, 4);
+  const maxVolume = Math.max(...topFour.map(ex => ex.totalVolume));
 
   return (
     <motion.div
@@ -55,13 +49,14 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
       transition={springGentle}
       className="forge-card p-6"
     >
-      <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2">
-        <BoltIcon className="w-6 h-6 text-blue-500" />
+      <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2">
+        <BoltIcon className="w-6 h-6 text-accent-500" />
         Top Exercises
       </h3>
-      <div className="space-y-4">
-        {stats.topExercises.slice(0, 4).map((exercise, index) => {
-          const volumePercentage = (exercise.totalVolume / maxVolume) * 100;
+      <div className="space-y-3">
+        {topFour.map((exercise, index) => {
+          // Guard against an all-zero dataset so we never render a NaN width.
+          const volumePercentage = maxVolume > 0 ? (exercise.totalVolume / maxVolume) * 100 : 0;
 
           return (
             <motion.div
@@ -69,54 +64,65 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
               initial={noMotion ? {} : { opacity: 0, x: -16 }}
               animate={noMotion ? {} : { opacity: 1, x: 0 }}
               transition={{ ...springSnappy, delay: noMotion ? 0 : index * 0.07 }}
-              className="relative p-4 bg-surface-950 dark:bg-surface-200/50 rounded-xl hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors overflow-hidden"
+              className="relative p-4 bg-surface-950 dark:bg-surface-200/50 rounded-xl hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors overflow-hidden"
             >
-              {/* Progress bar background */}
+              {/* Volume progress bar background */}
               <div className="absolute inset-0 rounded-xl overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-forge-800/30"
+                  className="h-full bg-gradient-to-r from-accent-100/70 to-accent-200/50 dark:from-accent-900/30 dark:to-accent-800/20"
                   initial={noMotion ? {} : { width: '0%' }}
                   animate={noMotion ? {} : { width: `${volumePercentage}%` }}
                   transition={{ ...springSnappy, delay: noMotion ? 0 : 0.3 + index * 0.1 }}
                 />
               </div>
 
-              {/* Content */}
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="relative">
+                {/* Name + rank */}
+                <div className="flex items-center gap-3 mb-3">
                   <motion.div
-                    className="flex items-center justify-center w-8 h-8 bg-forge-100 dark:bg-forge-900/30 rounded-lg"
+                    className="flex items-center justify-center w-8 h-8 bg-accent-100 dark:bg-accent-900/40 rounded-lg shrink-0"
                     initial={noMotion ? {} : { scale: 0 }}
                     animate={noMotion ? {} : { scale: 1 }}
                     transition={{ ...springBouncy, delay: noMotion ? 0 : 0.4 + index * 0.1 }}
                   >
-                    <span className="text-sm font-bold text-forge-600 dark:text-forge-400">
+                    <span className="text-sm font-display font-bold text-accent-600 dark:text-accent-400 tabular">
                       #{index + 1}
                     </span>
                   </motion.div>
-                  <div>
-                    <h4 className="font-display font-bold text-surface-800 dark:text-white">
-                      {exercise.name}
-                    </h4>
-                    <div className="flex items-center gap-4 text-sm text-surface-500 dark:text-surface-600">
-                      <div className="flex items-center gap-1">
-                        <CalendarDaysIcon className="w-4 h-4" />
-                        <span>{exercise.sessionCount} sessions</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ScaleIcon className="w-4 h-4" />
-                        <span>Max: {formatWeight(exercise.maxWeight)}</span>
-                      </div>
-                    </div>
-                  </div>
+                  <h4 className="font-display font-bold text-surface-50 dark:text-white leading-tight">
+                    {exercise.name}
+                  </h4>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-display font-bold text-forge-600 dark:text-forge-400">
-                    {formatVolume(exercise.totalVolume, useMetric)}
-                  </p>
-                  <p className="text-xs text-surface-500 dark:text-surface-600">
-                    Total Volume
-                  </p>
+
+                {/* Metric strip */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg px-2.5 py-2 text-center backdrop-blur-sm">
+                    <CalendarDaysIcon className="w-3.5 h-3.5 text-surface-500 dark:text-surface-600 mx-auto mb-1" />
+                    <p className="text-sm font-display font-bold text-surface-50 dark:text-white tabular leading-none">
+                      {exercise.sessionCount.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-surface-500 dark:text-surface-600 uppercase tracking-wider mt-1">
+                      Sessions
+                    </p>
+                  </div>
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg px-2.5 py-2 text-center backdrop-blur-sm">
+                    <ScaleIcon className="w-3.5 h-3.5 text-surface-500 dark:text-surface-600 mx-auto mb-1" />
+                    <p className="text-sm font-display font-bold text-surface-50 dark:text-white tabular leading-none">
+                      {formatWeight(exercise.maxWeight, useMetric)}
+                    </p>
+                    <p className="text-[10px] text-surface-500 dark:text-surface-600 uppercase tracking-wider mt-1">
+                      Max
+                    </p>
+                  </div>
+                  <div className="bg-accent-100/70 dark:bg-accent-900/30 rounded-lg px-2.5 py-2 text-center backdrop-blur-sm">
+                    <FireIcon className="w-3.5 h-3.5 text-accent-600 dark:text-accent-400 mx-auto mb-1" />
+                    <p className="text-sm font-display font-bold text-accent-600 dark:text-accent-400 tabular leading-none">
+                      {formatVolume(exercise.totalVolume, useMetric)}
+                    </p>
+                    <p className="text-[10px] text-accent-600/80 dark:text-accent-400/80 uppercase tracking-wider mt-1">
+                      Volume
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -132,7 +138,7 @@ export function TopExercises({ stats, useMetric, onViewAll }: TopExercisesProps)
         >
           <button
             onClick={onViewAll}
-            className="text-forge-600 dark:text-forge-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
+            className="text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
           >
             View All Exercises ({stats.topExercises.length})
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

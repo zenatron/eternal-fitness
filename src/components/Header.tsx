@@ -7,9 +7,6 @@ import { useState, useRef, useEffect } from 'react';
 import {
   AnimatePresence,
   motion,
-  useScroll,
-  useTransform,
-  useMotionValueEvent,
   useReducedMotion,
 } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
@@ -42,30 +39,17 @@ export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [visible, setVisible] = useState(true);
   const { data: session } = useSession();
   const prefersReducedMotion = useReducedMotion();
   const headerRef = useRef<HTMLDivElement>(null);
-  const lastScrollY = useRef(0);
 
-  const { scrollY } = useScroll();
-
-  const headerHeight = useTransform(scrollY, [0, 80], ['4rem', '3.25rem']);
-  const headerShadow = useTransform(scrollY, [0, 80], [
-    '0 1px 0 0 rgba(237, 123, 22, 0.05)',
-    '0 4px 20px rgba(0,0,0,0.3), 0 0 1px rgba(237, 123, 22, 0.1)',
-  ]);
-  const logoScale = useTransform(scrollY, [0, 80], [1, 0.85]);
-
-  useMotionValueEvent(scrollY, 'change', (latest) => {
-    if (Math.abs(latest - lastScrollY.current) < 5) return;
-    if (latest > lastScrollY.current && latest > 120) {
-      setVisible(false);
-    } else {
-      setVisible(true);
-    }
-    lastScrollY.current = latest;
-  });
+  /*
+   * The shrink-on-scroll effect is gone: it was driven by `window.scrollY`, and
+   * the window no longer scrolls now that AppShell owns a single inner scroll
+   * container. Rather than plumb the container ref through just to shrink the
+   * bar by 12px, the header is a fixed 4rem — which is the conventional
+   * behaviour for an installed app and one less thing to desynchronise.
+   */
 
   useEffect(() => {
     setMenuOpen(false);
@@ -80,25 +64,16 @@ export function Header() {
   return (
     <motion.header
       ref={headerRef}
-      style={{
-        height: prefersReducedMotion ? '4rem' : headerHeight,
-        boxShadow: prefersReducedMotion ? undefined : headerShadow,
-      }}
-      animate={{
-        y: visible ? 0 : -80,
-        opacity: visible ? 1 : 0,
-      }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="sticky top-0 z-40 border-b border-surface-200/80 dark:border-surface-300/50 bg-white/95 dark:bg-surface-50/95 backdrop-blur-sm"
+      style={{ height: '4rem' }}
+      // Sticky positioning, the safe-area inset and hide-on-scroll all live on
+      // AppChrome now, so this is just the bar itself.
+      className="border-b border-surface-200/80 dark:border-surface-300/50 bg-white/95 dark:bg-surface-50/95 backdrop-blur-sm"
     >
       <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <motion.div
-            style={{
-              scale: prefersReducedMotion ? 1 : logoScale,
-            }}
-            className="w-8 h-8 rounded-lg bg-forge-500 flex items-center justify-center relative overflow-hidden"
+            className="w-8 h-8 rounded-lg bg-accent-500 flex items-center justify-center relative overflow-hidden"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             transition={springTransition}
@@ -135,16 +110,13 @@ export function Header() {
             </motion.svg>
             {!prefersReducedMotion && (
               <motion.div
-                className="absolute inset-0 rounded-lg bg-forge-400/30"
+                className="absolute inset-0 rounded-lg bg-accent-400/30"
                 animate={{ scale: [1, 1.3, 1], opacity: [0, 0.3, 0] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
           </motion.div>
           <motion.span
-            style={{
-              scale: prefersReducedMotion ? 1 : logoScale,
-            }}
             className="text-lg font-display font-bold text-surface-50 dark:text-white origin-left tracking-wide"
           >
             ETERNAL FITNESS
@@ -165,7 +137,7 @@ export function Header() {
                   <span
                     className={
                       isActive
-                        ? 'text-forge-500 dark:text-forge-400'
+                        ? 'text-accent-500 dark:text-accent-400'
                         : 'text-surface-500 dark:text-surface-700 hover:text-surface-800 dark:hover:text-white'
                     }
                   >
@@ -174,7 +146,7 @@ export function Header() {
                   {isActive && (
                     <motion.div
                       layoutId="nav-active"
-                      className="absolute inset-0 bg-forge-50 dark:bg-forge-950/40 rounded-lg -z-10"
+                      className="absolute inset-0 bg-accent-50 dark:bg-accent-950/40 rounded-lg -z-10"
                       transition={springTransition}
                     />
                   )}
@@ -186,25 +158,18 @@ export function Header() {
             <div className="relative ml-2">
               <motion.button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-surface-200 dark:border-surface-400 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-surface-200 dark:border-surface-400 hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 transition={springTransition}
               >
                 <motion.span
-                  className="w-7 h-7 rounded-full bg-forge-500 flex items-center justify-center text-white text-xs font-display font-bold"
-                  animate={
+                  className="w-7 h-7 rounded-full bg-accent-500 flex items-center justify-center text-white text-xs font-display font-bold"
+                  style={
                     prefersReducedMotion
-                      ? {}
-                      : {
-                          boxShadow: [
-                            '0 0 0 0 rgba(237, 123, 22, 0.4)',
-                            '0 0 0 4px rgba(237, 123, 22, 0)',
-                            '0 0 0 0 rgba(237, 123, 22, 0)',
-                          ],
-                        }
+                      ? undefined
+                      : { animation: 'pulse-glow 2s ease-out infinite' }
                   }
-                  transition={{ duration: 2, repeat: Infinity }}
                 >
                   {initial}
                 </motion.span>
@@ -228,7 +193,7 @@ export function Header() {
                       className="absolute right-0 top-full mt-2 w-56 forge-card shadow-lg z-20 py-1 overflow-hidden origin-top-right"
                     >
                       <div className="px-4 py-2.5 border-b border-surface-100 dark:border-surface-300">
-                        <p className="text-sm font-semibold text-surface-800 dark:text-white truncate">
+                        <p className="text-sm font-semibold text-surface-50 dark:text-white truncate">
                           {session.user?.name || session.user?.email}
                         </p>
                         <p className="text-xs text-surface-500 dark:text-surface-600 truncate">
@@ -254,7 +219,7 @@ export function Header() {
                       <div className="border-t border-surface-100 dark:border-surface-300 pt-1 mt-1">
                         <button
                           onClick={() => signOut({ callbackUrl: '/login' })}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-ember-500 dark:text-ember-400 hover:bg-red-50 dark:hover:bg-ember-500/10 transition-colors w-full"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-danger-500 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors w-full"
                         >
                           <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
                           Sign Out
@@ -275,7 +240,7 @@ export function Header() {
         {/* Mobile hamburger */}
         <motion.button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden p-2 -mr-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+          className="md:hidden p-2 -mr-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
           whileTap={{ scale: 0.9 }}
           aria-label="Toggle menu"
         >
@@ -304,7 +269,7 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+                    className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -312,7 +277,7 @@ export function Header() {
               <Link
                 href="/profile/edit"
                 onClick={() => setMenuOpen(false)}
-                className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+                className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
               >
                 Settings
               </Link>
@@ -322,7 +287,7 @@ export function Header() {
                     setMenuOpen(false);
                     signOut({ callbackUrl: '/login' });
                   }}
-                  className="block w-full text-left px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-ember-500 dark:text-ember-400 rounded-lg hover:bg-red-50 dark:hover:bg-ember-500/10 transition-colors"
+                  className="block w-full text-left px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-danger-500 dark:text-danger-400 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors"
                 >
                   Sign Out
                 </button>

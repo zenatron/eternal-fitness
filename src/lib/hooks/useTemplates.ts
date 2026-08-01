@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { WorkoutTemplate } from '@/types/workout';
 
 // 🚀 FETCH JSON-BASED TEMPLATES
@@ -25,7 +26,7 @@ const fetchTemplates = async (): Promise<WorkoutTemplate[]> => {
  */
 export function useTemplates() {
   return useQuery<WorkoutTemplate[], Error>({
-    queryKey: ['json-templates'],
+    queryKey: queryKeys.templates,
     queryFn: fetchTemplates,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

@@ -14,6 +14,21 @@ const providers: any[] = [
     issuer: process.env.AUTH_POCKETID_ISSUER,
     clientId: process.env.AUTH_POCKETID_ID,
     clientSecret: process.env.AUTH_POCKETID_SECRET,
+    /**
+     * `state` must be listed explicitly.
+     *
+     * Auth.js v5 defaults `checks` to `["pkce"]` and only appends `"state"`
+     * when `redirectProxyUrl` is configured (see
+     * @auth/core/lib/utils/providers.js `normalizeOAuth`). Without this the
+     * authorization request carries no `state` parameter at all, and PocketID
+     * rejects it with `invalid_state` — surfacing confusingly as a
+     * CallbackRouteError about a missing `iss`, because Auth.js then tries to
+     * validate the provider's error redirect.
+     *
+     * PKCE alone satisfies the modern OAuth spec, but PocketID enforces state
+     * as well, so both are required here.
+     */
+    checks: ["pkce", "state"],
     authorization: {
       params: { scope: "openid profile email" },
     },
@@ -51,6 +66,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sub = profile.sub as string;
         token.email = (profile.email as string) ?? undefined;
         token.name = profile.name as string | undefined;
+        // Standard OIDC claim; PocketID sends it when the user has an avatar.
+        // Kept on the token so /api/profile can persist it without a second
+        // round-trip to the userinfo endpoint.
+        token.picture = (profile.picture as string) ?? undefined;
       }
       if (account?.provider === "dev-bypass" && user) {
         token.sub = user.id as string;
@@ -64,6 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
+        session.user.image = (token.picture as string | undefined) ?? null;
       }
       return session;
     },

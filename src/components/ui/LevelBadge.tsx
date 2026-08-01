@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { getLevel, getLevelProgress, getLevelTitle } from '@/utils/levels';
+import { springSnappy } from '@/lib/motion';
 
 interface LevelBadgeProps {
   points: number;
@@ -11,7 +12,6 @@ interface LevelBadgeProps {
   className?: string;
 }
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 
 const sizeClasses = {
   sm: {
@@ -42,14 +42,14 @@ export default function LevelBadge({ points, size = 'md', showProgress = true, s
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={springSnappy}
-      className={`inline-flex flex-col items-center justify-center rounded-xl bg-gradient-to-br from-forge-500 via-orange-500 to-amber-500 text-white font-display shadow-lg shadow-forge-500/20 ${s.container} ${className}`}
+      className={`inline-flex flex-col items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 text-white font-display shadow-lg shadow-accent-500/20 ${s.container} ${className}`}
     >
       <div className="flex items-center gap-1.5">
         <span className={`font-black tracking-tighter leading-none ${s.level}`}>
           {level}
         </span>
         {showTitle && (
-          <span className="font-semibold uppercase tracking-wider leading-tight text-forge-100 opacity-90">
+          <span className="font-semibold uppercase tracking-wider leading-tight text-accent-100 opacity-90">
             {title}
           </span>
         )}

@@ -2,14 +2,14 @@
 
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { readAccentHue } from '@/utils/accentHue';
 import { ACHIEVEMENT_DEFINITIONS, TIER_COLORS, TIER_NAMES, TIER_POINTS, localizeAchievement } from '@/types/achievements';
 import { formatVolume } from '@/utils/formatters';
-import { formatPRValue } from '@/utils/prFormatting';
-import { getLevel, getLevelProgress } from '@/utils/levels';
+import { formatPRValue, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
+import type { PRType } from '@/types/personalRecords';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 interface VictoryData {
   workoutName: string;
@@ -55,6 +55,9 @@ function SparkCanvas({ isActive }: { isActive: boolean }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Sampled once per open: the theme cannot change while the popup is up.
+    const baseHue = readAccentHue();
+
     let animationId: number;
     let particles: Array<{
       x: number;
@@ -67,17 +70,26 @@ function SparkCanvas({ isActive }: { isActive: boolean }) {
       hue: number;
     }> = [];
 
+    // Backing store is scaled by DPR but the context is scaled back down, so
+    // every coordinate below stays in CSS pixels while the sparks render sharp
+    // on a retina screen. Capped at 2: a 3x phone gains nothing visible here and
+    // triples the fill cost of 240 gradient-filled particles.
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener('resize', resize);
 
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-
     const spawnBurst = () => {
+      // Read the centre per burst rather than once on mount: rotating the phone
+      // between bursts otherwise keeps spawning them at the old centre.
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
       for (let i = 0; i < 80; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = 1 + Math.random() * 4;
@@ -89,13 +101,14 @@ function SparkCanvas({ isActive }: { isActive: boolean }) {
           life: 0,
           maxLife: 60 + Math.random() * 120,
           radius: 2 + Math.random() * 3,
-          hue: 25 + Math.random() * 40,
+          hue: baseHue - 5 + Math.random() * 40,
         });
       }
     };
 
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // CSS pixels, matching the context transform set in resize().
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
       particles = particles.filter(p => p.life < p.maxLife);
 
@@ -147,11 +160,10 @@ function SparkCanvas({ isActive }: { isActive: boolean }) {
   if (prefersReducedMotion) return null;
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-50"
-      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}
-    />
+    // No z-index: it sits between the backdrop and the panel purely by DOM
+    // order, so the sparks halo out from behind the card instead of drifting
+    // across the stats and making them unreadable.
+    <canvas ref={canvasRef} aria-hidden="true" className="fixed inset-0 pointer-events-none" />
   );
 }
 
@@ -182,10 +194,10 @@ function ScrollingXP({ target }: { target: number }) {
       className="flex items-center justify-center gap-2 my-4"
     >
       <span className="text-2xl">⭐</span>
-      <span className="text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 tabular-nums">
+      <span className="text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-award-400 via-award-300 to-award-500 tabular-nums">
         +{display}
       </span>
-      <span className="text-lg font-display font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider">
+      <span className="text-lg font-display font-bold text-award-500 dark:text-award-400 uppercase tracking-wider">
         XP
       </span>
     </motion.div>
@@ -200,45 +212,36 @@ function HighlightPill({ label, value, delay }: { label: string; value: string; 
       transition={{ ...springBouncy, delay }}
       className="flex flex-col items-center px-5 py-3 rounded-2xl bg-surface-950 dark:bg-surface-200/60 backdrop-blur-sm border border-surface-200/60 dark:border-surface-300/40"
     >
-      <span className="text-2xl font-display font-black text-surface-800 dark:text-white">{value}</span>
+      <span className="text-2xl font-display font-black text-surface-50 dark:text-white">{value}</span>
       <span className="text-xs font-medium text-surface-600 dark:text-surface-600 uppercase tracking-wider mt-1">{label}</span>
     </motion.div>
   );
 }
 
 function RecordCard({ pr, formattedValue, delay }: { pr: { exerciseName: string; type: string; value: number }; formattedValue: string; delay: number }) {
-  const typeLabel = {
-    maxWeight: 'Max Weight',
-    maxVolume: 'Max Volume',
-    maxDuration: 'Max Duration',
-    maxDistance: 'Max Distance',
-  }[pr.type] || pr.type;
-
-  const icon = {
-    maxWeight: '🏋️',
-    maxVolume: '📊',
-    maxDuration: '⏱️',
-    maxDistance: '📍',
-  }[pr.type] || '🏆';
+  // Shared with the PR list views, so a new record type does not need adding
+  // here as well.
+  const typeLabel = PR_TYPE_LABELS[pr.type as PRType] ?? pr.type;
+  const icon = PR_TYPE_ICONS[pr.type as PRType] ?? '🏆';
 
   return (
     <motion.div
       initial={{ opacity: 0, x: -20, scale: 0.9 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       transition={{ ...springBouncy, delay }}
-      className="relative p-3 rounded-xl border-2 border-forge-400/40 dark:border-forge-500/30 bg-gradient-to-br from-forge-50/80 to-amber-50/60 dark:from-forge-900/20 dark:to-amber-900/10"
+      className="relative p-3 rounded-xl border-2 border-award-400/40 dark:border-award-500/30 bg-gradient-to-br from-award-50/80 to-award-100/60 dark:from-award-900/20 dark:to-award-900/10"
     >
       <div className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
         <div className="flex-1 min-w-0">
-          <span className="font-display font-bold text-surface-800 dark:text-white text-sm tracking-wide">
+          <span className="font-display font-bold text-surface-50 dark:text-white text-sm tracking-wide">
             {pr.exerciseName}
           </span>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-forge-500 text-white">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent-500 text-white">
               {typeLabel}
             </span>
-            <span className="text-xs font-semibold text-forge-600 dark:text-forge-400">
+            <span className="text-xs font-semibold text-accent-600 dark:text-accent-400">
               {formattedValue}
             </span>
           </div>
@@ -247,7 +250,7 @@ function RecordCard({ pr, formattedValue, delay }: { pr: { exerciseName: string;
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ ...springSnappy, delay: delay + 0.2 }}
-          className="text-xs font-bold text-forge-600 dark:text-forge-400 uppercase tracking-wider"
+          className="text-xs font-bold text-award-600 dark:text-award-400 uppercase tracking-wider"
         >
           NEW PR
         </motion.span>
@@ -257,7 +260,7 @@ function RecordCard({ pr, formattedValue, delay }: { pr: { exerciseName: string;
 }
 
 function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement: any; delay: number; isNew?: boolean; useMetric: boolean }) {
-  const tierGradient = TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS] || 'from-amber-400 to-amber-600';
+  const tierGradient = TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS] || 'from-award-400 to-award-600';
   const tierName = TIER_NAMES[achievement.tier as keyof typeof TIER_NAMES] || achievement.tier;
   const localized = useMemo(() => localizeAchievement(achievement, useMetric), [achievement, useMetric]);
 
@@ -268,7 +271,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
       transition={{ ...springBouncy, delay }}
       className={`relative p-4 rounded-xl border-2 overflow-hidden ${
         isNew
-          ? 'border-amber-400/60 dark:border-amber-500/50 bg-gradient-to-br from-amber-50/80 to-yellow-50/60 dark:from-amber-900/30 dark:to-yellow-900/20'
+          ? 'border-award-400/60 dark:border-award-500/50 bg-gradient-to-br from-award-50/80 to-award-100/60 dark:from-award-900/30 dark:to-award-900/20'
           : 'border-surface-200 dark:border-surface-300/30 bg-surface-950/60 dark:bg-surface-200/30'
       }`}
     >
@@ -283,7 +286,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
         <span className="text-2xl">{achievement.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-surface-800 dark:text-white text-sm tracking-wide">
+            <span className="font-display font-bold text-surface-50 dark:text-white text-sm tracking-wide">
               {achievement.name}
             </span>
             <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r ${tierGradient} text-white`}>
@@ -299,7 +302,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ ...springSnappy, delay: delay + 0.3 }}
-            className="text-xs font-bold text-amber-600 dark:text-amber-400"
+            className="text-xs font-bold text-award-600 dark:text-award-400"
           >
             +{TIER_POINTS[achievement.tier as keyof typeof TIER_POINTS] || achievement.points} XP
           </motion.span>
@@ -310,7 +313,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
 }
 
 function ProgressBar({ achievement, delay }: { achievement: any; delay: number }) {
-  const tierGradient = TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS] || 'from-amber-400 to-amber-600';
+  const tierGradient = TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS] || 'from-award-400 to-award-600';
 
   return (
     <motion.div
@@ -328,7 +331,7 @@ function ProgressBar({ achievement, delay }: { achievement: any; delay: number }
           {Math.round(achievement.progressPercentage || 0)}%
         </span>
       </div>
-      <div className="h-2 rounded-full bg-surface-200 dark:bg-surface-300/40 overflow-hidden">
+      <div className="h-2 rounded-full bg-surface-900 dark:bg-surface-300/40 overflow-hidden">
         <motion.div
           className={`h-full rounded-full bg-gradient-to-r ${tierGradient}`}
           initial={{ width: 0 }}
@@ -389,41 +392,71 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
   const formattedPRs = useMemo(() => {
     return data.newPRs.map(pr => ({
       ...pr,
-      formattedValue: formatPRValue(pr.value, pr.type as any, data.useMetric),
+      formattedValue: formatPRValue(pr.value, pr.type as PRType, data.useMetric),
     }));
   }, [data.newPRs, data.useMetric]);
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
+        /*
+         * Rendered through Headless UI's Dialog so it portals to <body>.
+         *
+         * As a plain `fixed inset-0 z-50` div it was a descendant of AppShell's
+         * <main>, which is `relative z-10` — a stacking context. That scoped the
+         * z-50 *inside* the z-10 layer, so the header and the bottom nav (both
+         * z-40, and siblings of <main> rather than children) painted straight
+         * over it. On a phone the nav covered the bottom ~86px of the card,
+         * which is exactly where the Continue button sat.
+         *
+         * Dialog also brings the focus trap, Escape handling and aria-modal
+         * that the hand-rolled version never had. Same fix, and the same
+         * reasoning, as ModalShell.
+         */
+        <Dialog static open={isOpen} onClose={onContinue} className="relative z-[70]">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm"
-            onClick={onContinue}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm"
+            aria-hidden="true"
           />
 
           <SparkCanvas isActive={isOpen} />
 
-          <motion.div
-            initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.85, y: 40 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
-            exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.9, y: 20 }}
-            transition={springBouncy}
-            className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-surface-100 shadow-2xl border border-surface-200 dark:border-surface-300"
+          {/* The panel deliberately spans the whole viewport, so there is no
+              "outside" for Headless UI to detect a click on. A stray tap on the
+              backdrop used to fire onContinue — which navigates to /profile and
+              loses the summary for good. Escape still dismisses. */}
+          <DialogPanel
+            as="div"
+            className="fixed inset-0 flex items-center justify-center"
+            // Insets folded into the padding rather than a flat p-4: on a
+            // notched phone the card could otherwise centre itself into the
+            // home-indicator strip.
+            style={{
+              paddingTop: 'calc(1rem + var(--safe-top))',
+              paddingBottom: 'calc(1rem + var(--safe-bottom))',
+              paddingLeft: 'calc(1rem + var(--safe-left))',
+              paddingRight: 'calc(1rem + var(--safe-right))',
+            }}
           >
-            <div className="relative overflow-hidden rounded-3xl">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 opacity-10 dark:opacity-[0.07]" />
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-surface-100" />
+            <motion.div
+              initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.85, y: 40 }}
+              animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
+              exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.9, y: 20 }}
+              transition={springBouncy}
+              // max-h-full, not max-h-[90vh]: `vh` resolves against the largest
+              // viewport, so with browser chrome showing the card was sized
+              // taller than the space it actually had. The flex column keeps the
+              // Continue button pinned while only the summary scrolls.
+              className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-100 shadow-2xl border border-surface-200 dark:border-surface-300"
+            >
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 opacity-10 dark:opacity-[0.07]" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-surface-100" />
 
+              <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="relative px-6 sm:px-8 pt-8 pb-4">
                 <motion.div
                   initial={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
@@ -431,14 +464,15 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   transition={{ ...springGentle, delay: 0.1 }}
                   className="text-center"
                 >
-                  <motion.h2
+                  <DialogTitle
+                    as={motion.h2}
                     initial={prefersReducedMotion ? {} : { scale: 0.5, opacity: 0 }}
                     animate={prefersReducedMotion ? {} : { scale: 1, opacity: 1 }}
                     transition={{ ...springBouncy, delay: 0.2 }}
-                    className="text-3xl sm:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 tracking-wide uppercase"
+                    className="text-3xl sm:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-accent-500 via-accent-600 to-accent-700 tracking-wide uppercase"
                   >
                     Workout Complete!
-                  </motion.h2>
+                  </DialogTitle>
                   <p className="text-surface-600 dark:text-surface-500 text-sm mt-1 font-display tracking-wide">
                     {data.workoutName}
                   </p>
@@ -468,13 +502,13 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">🏆</span>
-                      <h3 className="text-sm font-display font-bold text-surface-800 dark:text-white uppercase tracking-wider">
+                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
                         New Personal Records
                       </h3>
                       <motion.span
                         animate={prefersReducedMotion ? {} : { scale: [1, 1.15, 1] }}
                         transition={{ repeat: Infinity, duration: 1.5, delay: 0.5 }}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-forge-500 text-white rounded-full"
+                        className="px-2 py-0.5 text-[10px] font-bold bg-accent-500 text-white rounded-full"
                       >
                         {data.newPRs.length} NEW
                       </motion.span>
@@ -494,13 +528,13 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">🎉</span>
-                      <h3 className="text-sm font-display font-bold text-surface-800 dark:text-white uppercase tracking-wider">
+                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
                         New Achievements
                       </h3>
                       <motion.span
                         animate={prefersReducedMotion ? {} : { scale: [1, 1.15, 1] }}
                         transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-green-500 text-white rounded-full"
+                        className="px-2 py-0.5 text-[10px] font-bold bg-success-500 text-white rounded-full"
                       >
                         {newAchievements.length} NEW
                       </motion.span>
@@ -520,7 +554,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">📊</span>
-                      <h3 className="text-sm font-display font-bold text-surface-800 dark:text-white uppercase tracking-wider">
+                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
                         Almost There
                       </h3>
                     </div>
@@ -530,21 +564,24 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   </motion.div>
                 )}
               </div>
+              </div>
 
-              <div className="relative px-6 sm:px-8 pb-8 pt-3">
+              {/* Outside the scroll region, so however many PRs and
+                  achievements land at once the primary action stays on screen. */}
+              <div className="relative shrink-0 border-t border-surface-200/60 bg-white px-6 pb-6 pt-4 dark:border-surface-300/40 dark:bg-surface-100 sm:px-8">
                 <motion.button
                   initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
                   animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
                   transition={{ delay: 1.5 }}
                   onClick={onContinue}
-                  className="w-full py-3.5 font-display font-bold text-white text-base uppercase tracking-widest rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:via-orange-600 hover:to-rose-600 shadow-lg shadow-amber-500/25 transition-all active:scale-[0.98]"
+                  className="tap-control w-full py-3.5 font-display font-bold text-white text-base uppercase tracking-widest rounded-2xl bg-gradient-to-r from-accent-700 to-accent-800 hover:from-accent-800 hover:to-accent-900 shadow-lg shadow-accent-900/25 transition-all active:scale-[0.98]"
                 >
                   Continue
                 </motion.button>
               </div>
-            </div>
-          </motion.div>
-        </motion.div>
+            </motion.div>
+          </DialogPanel>
+        </Dialog>
       )}
     </AnimatePresence>
   );

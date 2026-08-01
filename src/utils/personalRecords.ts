@@ -1,15 +1,18 @@
-import { UserPersonalRecords, PRUpdate, PRComparison } from '@/types/personalRecords';
+import { UserPersonalRecords, PRUpdate, PRType } from '@/types/personalRecords';
 import { PerformedSet, ExercisePerformance, WorkoutSessionData } from '@/types/workout';
 import { db } from '@/lib/db';
 import { userStats } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { formatPRValue } from '@/utils/prFormatting';
+import { bestOneRepMax } from '@/utils/oneRepMax';
+import { volumeMultiplier } from '@/lib/volume';
 
 export function detectPersonalRecords(
   exerciseName: string,
   performedSets: PerformedSet[],
   currentPRs: UserPersonalRecords,
   sessionId: string,
+  perSide?: boolean,
 ): PRUpdate[] {
   const newPRs: PRUpdate[] = [];
   const exercisePR = currentPRs[exerciseName];
@@ -34,12 +37,38 @@ export function detectPersonalRecords(
       newPRs.push({ exerciseName, type: 'maxWeight', value: maxWeight, reps: repsAtMaxWeight, sessionId });
     }
 
-    const totalVolume = strengthSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
-    const avgWeight = totalVolume / strengthSets.reduce((total, set) => total + (set.actualReps || 0), 0);
+    // Apply the per-side (dumbbell/unilateral) multiplier so volume PRs match
+    // the session volume the user sees elsewhere (lib/volume).
+    const rawVolume = strengthSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
+    const totalReps = strengthSets.reduce((total, set) => total + (set.actualReps || 0), 0);
+    const totalVolume = rawVolume * volumeMultiplier(perSide);
+    const avgWeight = totalReps > 0 ? rawVolume / totalReps : 0;
 
     const currentMaxVolume = exercisePR?.maxVolume?.value || 0;
     if (totalVolume > currentMaxVolume) {
       newPRs.push({ exerciseName, type: 'maxVolume', value: totalVolume, sets: strengthSets.length, avgWeight, sessionId });
+    }
+
+    /*
+     * Estimated 1RM. Independent of the maxWeight record above: a set can beat
+     * your best estimate without touching your heaviest single, which is
+     * exactly the progress a max-weight-only log misses.
+     *
+     * bestOneRepMax returns null for high-rep work, where the formulas stop
+     * being predictive - no record is claimed in that case rather than a
+     * flattering one.
+     */
+    const best = bestOneRepMax(strengthSets);
+    const currentMaxE1RM = exercisePR?.maxOneRepMax?.value || 0;
+    if (best && best.oneRepMax > currentMaxE1RM) {
+      newPRs.push({
+        exerciseName,
+        type: 'maxOneRepMax',
+        value: best.oneRepMax,
+        weight: best.weight,
+        reps: best.reps,
+        sessionId,
+      });
     }
   }
 
@@ -69,7 +98,15 @@ export function updatePersonalRecords(currentPRs: UserPersonalRecords, newPRs: P
 
     const now = new Date().toISOString();
 
-    if (pr.type === 'maxWeight') {
+    if (pr.type === 'maxOneRepMax') {
+      updatedPRs[pr.exerciseName].maxOneRepMax = {
+        value: pr.value,
+        weight: pr.weight ?? pr.value,
+        reps: pr.reps ?? 1,
+        achievedAt: now,
+        sessionId: pr.sessionId,
+      };
+    } else if (pr.type === 'maxWeight') {
       updatedPRs[pr.exerciseName].maxWeight = {
         value: pr.value,
         reps: pr.reps || 1,
@@ -102,86 +139,30 @@ export function updatePersonalRecords(currentPRs: UserPersonalRecords, newPRs: P
   return updatedPRs;
 }
 
-export function compareToPRs(
-  exerciseName: string,
-  performedSets: PerformedSet[],
-  currentPRs: UserPersonalRecords,
-): PRComparison[] {
-  const comparisons: PRComparison[] = [];
-  const exercisePR = currentPRs[exerciseName];
-
-  if (!exercisePR) return [];
-
-  const completedSets = performedSets.filter(set => set.completed);
-  if (completedSets.length === 0) return comparisons;
-
-  const strengthSets = completedSets.filter(set => set.actualWeight && set.actualReps);
-  const cardioSets = completedSets.filter(set => set.actualDuration || set.actualDistance);
-
-  if (strengthSets.length > 0) {
-    const maxWeight = Math.max(...strengthSets.map(set => set.actualWeight || 0));
-    const currentMaxWeight = exercisePR.maxWeight?.value || 0;
-
-    if (maxWeight > currentMaxWeight) {
-      const improvement = maxWeight - currentMaxWeight;
-      const improvementPercent = currentMaxWeight > 0 ? (improvement / currentMaxWeight) * 100 : 100;
-      comparisons.push({ isNewPR: true, type: 'maxWeight', improvement, improvementPercent, previousBest: currentMaxWeight });
-    }
-
-    const totalVolume = strengthSets.reduce((total, set) => total + ((set.actualWeight || 0) * (set.actualReps || 0)), 0);
-    const currentMaxVolume = exercisePR.maxVolume?.value || 0;
-
-    if (totalVolume > currentMaxVolume) {
-      const improvement = totalVolume - currentMaxVolume;
-      const improvementPercent = currentMaxVolume > 0 ? (improvement / currentMaxVolume) * 100 : 100;
-      comparisons.push({ isNewPR: true, type: 'maxVolume', improvement, improvementPercent, previousBest: currentMaxVolume });
-    }
-  }
-
-  if (cardioSets.length > 0) {
-    const totalDuration = cardioSets.reduce((total, set) => total + (set.actualDuration || 0), 0);
-    const currentMaxDuration = exercisePR.maxDuration?.value || 0;
-
-    if (totalDuration > currentMaxDuration) {
-      const improvement = totalDuration - currentMaxDuration;
-      const improvementPercent = currentMaxDuration > 0 ? (improvement / currentMaxDuration) * 100 : 100;
-      comparisons.push({ isNewPR: true, type: 'maxDuration', improvement, improvementPercent, previousBest: currentMaxDuration });
-    }
-
-    const totalDistance = cardioSets.reduce((total, set) => total + (set.actualDistance || 0), 0);
-    const currentMaxDistance = exercisePR.maxDistance?.value || 0;
-
-    if (totalDistance > currentMaxDistance) {
-      const improvement = totalDistance - currentMaxDistance;
-      const improvementPercent = currentMaxDistance > 0 ? (improvement / currentMaxDistance) * 100 : 100;
-      comparisons.push({ isNewPR: true, type: 'maxDistance', improvement, improvementPercent, previousBest: currentMaxDistance });
-    }
-  }
-
-  return comparisons;
+export interface TopPR {
+  exerciseName: string;
+  type: PRType;
+  value: number;
+  achievedAt: string;
+  reps?: number;
+  sets?: number;
+  weight?: number;
 }
 
 export function getTopPRs(
   personalRecords: UserPersonalRecords,
   limit: number = 10,
-): Array<{
-  exerciseName: string;
-  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
-  value: number;
-  achievedAt: string;
-  reps?: number;
-  sets?: number;
-}> {
-  const allPRs: Array<{
-    exerciseName: string;
-    type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
-    value: number;
-    achievedAt: string;
-    reps?: number;
-    sets?: number;
-  }> = [];
+): Array<TopPR> {
+  const allPRs: TopPR[] = [];
 
   Object.entries(personalRecords).forEach(([exerciseName, exercisePR]) => {
+    if (exercisePR.maxOneRepMax) {
+      allPRs.push({
+        exerciseName, type: 'maxOneRepMax', value: exercisePR.maxOneRepMax.value,
+        achievedAt: exercisePR.maxOneRepMax.achievedAt, reps: exercisePR.maxOneRepMax.reps,
+        weight: exercisePR.maxOneRepMax.weight,
+      });
+    }
     if (exercisePR.maxWeight) {
       allPRs.push({
         exerciseName, type: 'maxWeight', value: exercisePR.maxWeight.value,
@@ -213,36 +194,6 @@ export function getTopPRs(
 
 export { formatPRValue };
 
-export async function processSessionPRs(
-  userId: string,
-  sessionId: string,
-  performanceData: WorkoutSessionData,
-): Promise<{ newPRs: PRUpdate[]; updatedUserPRs: UserPersonalRecords }> {
-  const currentPRs = await getUserPRs(userId);
-  const allNewPRs: PRUpdate[] = [];
-
-  Object.entries(performanceData.performance).forEach(([exerciseId, exercisePerformance]) => {
-    const exerciseFromTemplate = performanceData.templateSnapshot.exercises.find(
-      ex => ex.exerciseKey === exercisePerformance.exerciseKey,
-    );
-    const exerciseName = exerciseFromTemplate?.name || exercisePerformance.exerciseKey || exerciseId;
-    const newPRs = detectPersonalRecords(exerciseName, exercisePerformance.sets, currentPRs, sessionId);
-    allNewPRs.push(...newPRs);
-  });
-
-  const updatedPRs = updatePersonalRecords(currentPRs, allNewPRs);
-
-  await db
-    .insert(userStats)
-    .values({ userId, personalRecords: updatedPRs })
-    .onConflictDoUpdate({
-      target: userStats.userId,
-      set: { personalRecords: updatedPRs },
-    });
-
-  return { newPRs: allNewPRs, updatedUserPRs: updatedPRs };
-}
-
 export async function getUserPRs(userId: string): Promise<UserPersonalRecords> {
   const [stats] = await db
     .select({ personalRecords: userStats.personalRecords })
@@ -263,7 +214,7 @@ export function detectSessionPRs(
   Object.entries(performanceData).forEach(([exerciseId, exercisePerformance]) => {
     const exerciseFromTemplate = templateData.exercises.find(ex => ex.exerciseKey === exercisePerformance.exerciseKey);
     const exerciseName = exerciseFromTemplate?.name || exercisePerformance.exerciseKey || exerciseId;
-    const newPRs = detectPersonalRecords(exerciseName, exercisePerformance.sets, currentPRs, sessionId);
+    const newPRs = detectPersonalRecords(exerciseName, exercisePerformance.sets, currentPRs, sessionId, exerciseFromTemplate?.perSide);
     allNewPRs.push(...newPRs);
   });
 

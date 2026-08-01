@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -11,11 +12,9 @@ import {
   ArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { formatPRValue } from '@/utils/prFormatting';
+import { formatPRValue, prTypeFromApi, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
+import { springSnappy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 interface PRRecord {
   exerciseKey: string;
@@ -26,21 +25,15 @@ interface PRRecord {
 }
 
 type SortOption = 'date' | 'value' | 'exercise';
-type TypeFilter = 'all' | 'weight' | 'volume' | 'duration' | 'distance';
+/** API type names, in presentation order. Drives both the filter and the list. */
+const FILTER_TYPES = ['weight', 'oneRepMax', 'volume', 'duration', 'distance'] as const;
 
-const TYPE_LABELS: Record<string, string> = {
-  weight: 'Max Weight',
-  volume: 'Max Volume',
-  duration: 'Max Duration',
-  distance: 'Max Distance',
-};
+type TypeFilter = 'all' | (typeof FILTER_TYPES)[number];
 
-const TYPE_ICONS: Record<string, string> = {
-  weight: '🏋️',
-  volume: '📊',
-  duration: '⏱️',
-  distance: '📍',
-};
+// Labels and icons come from the shared PR maps rather than a local copy, so a
+// new record type shows up here without a second edit.
+const label = (apiType: string) => PR_TYPE_LABELS[prTypeFromApi(apiType)];
+const icon = (apiType: string) => PR_TYPE_ICONS[prTypeFromApi(apiType)];
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -105,7 +98,7 @@ export default function PersonalRecordsPage() {
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="min-h-screen app-bg py-8 px-4"
+      className="app-bg py-8 px-4"
     >
       <div className="max-w-4xl mx-auto">
         <div className="forge-card overflow-hidden mb-6">
@@ -126,7 +119,7 @@ export default function PersonalRecordsPage() {
                   <TrophyIcon className="w-8 h-8" />
                   Personal Records
                 </h1>
-                <p className="text-forge-100 text-sm mt-1">
+                <p className="text-accent-100 text-sm mt-1">
                   {records.length} record{records.length !== 1 ? 's' : ''} set across all exercises
                 </p>
               </div>
@@ -152,10 +145,11 @@ export default function PersonalRecordsPage() {
               className="form-select !py-2 w-full sm:w-44"
             >
               <option value="all">All Types</option>
-              <option value="weight">Max Weight</option>
-              <option value="volume">Max Volume</option>
-              <option value="duration">Max Duration</option>
-              <option value="distance">Max Distance</option>
+              {FILTER_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {label(t)}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -164,7 +158,7 @@ export default function PersonalRecordsPage() {
               onClick={() => toggleSort('date')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'date' 
-                  ? 'bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400' 
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -174,7 +168,7 @@ export default function PersonalRecordsPage() {
               onClick={() => toggleSort('value')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'value' 
-                  ? 'bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400' 
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -184,7 +178,7 @@ export default function PersonalRecordsPage() {
               onClick={() => toggleSort('exercise')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'exercise' 
-                  ? 'bg-forge-100 dark:bg-forge-900/30 text-forge-600 dark:text-forge-400' 
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -217,17 +211,20 @@ export default function PersonalRecordsPage() {
                 initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
                 animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
                 transition={{ ...springSnappy, delay: i * 0.03 }}
-                className="forge-card p-5 flex items-center justify-between hover:border-forge-400/30 dark:hover:border-forge-500/20"
+                className="forge-card p-5 flex items-center justify-between hover:border-accent-400/30 dark:hover:border-accent-500/20"
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl">{TYPE_ICONS[record.type] || '🏆'}</span>
+                  <span className="text-2xl">{icon(record.type)}</span>
                   <div>
-                    <h3 className="font-display font-bold text-surface-800 dark:text-white text-sm tracking-wide">
+                    <Link
+                      href={`/exercise/${encodeURIComponent(record.exerciseName)}`}
+                      className="font-display font-bold text-surface-50 hover:text-accent-600 dark:text-white dark:hover:text-accent-400 text-sm tracking-wide"
+                    >
                       {record.exerciseName}
-                    </h3>
+                    </Link>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-forge-500 text-white">
-                        {TYPE_LABELS[record.type] || record.type}
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent-500 text-white">
+                        {label(record.type)}
                       </span>
                       <span className="text-xs text-surface-500">
                         {formatDate(record.achievedAt)}
@@ -236,8 +233,8 @@ export default function PersonalRecordsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-display font-black text-forge-600 dark:text-forge-400">
-                    {formatPRValue(record.value, record.type === 'weight' ? 'maxWeight' : record.type === 'volume' ? 'maxVolume' : record.type === 'duration' ? 'maxDuration' : 'maxDistance', useMetric)}
+                  <p className="text-lg font-display font-black text-accent-600 dark:text-accent-400">
+                    {formatPRValue(record.value, prTypeFromApi(record.type), useMetric)}
                   </p>
                 </div>
               </motion.div>

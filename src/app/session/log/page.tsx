@@ -21,9 +21,8 @@ import { exercises as exerciseLibrary } from '@/lib/exercises';
 import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
 import { WorkoutTemplate } from '@/types/workout';
+import { springSnappy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 type Step = 'choose' | 'details' | 'performance';
 
@@ -75,11 +74,11 @@ function DurationField({ value, onChange, placeholder = '45:00', className = '' 
           }
         }}
         onFocus={() => setIsFocused(true)}
-        className={`form-input ${isInvalid ? '!border-red-400 dark:!border-red-500 !focus:ring-red-500/10' : ''} ${className}`}
+        className={`form-input ${isInvalid ? '!border-danger-400 dark:!border-danger-500 !focus:ring-danger-500/10' : ''} ${className}`}
         placeholder={placeholder}
       />
       {textValue.trim() !== '' && (
-        <span className={`form-hint ${isInvalid ? '!text-red-400' : ''}`}>
+        <span className={`form-hint ${isInvalid ? '!text-danger-400' : ''}`}>
           {isInvalid ? 'Invalid format — try 1:30:00, 45:00, 30m, or 5400' : `= ${formatDurationHuman(parsed!)}`}
         </span>
       )}
@@ -350,7 +349,7 @@ export default function LogPastWorkoutPage() {
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="min-h-screen app-bg py-8 px-4"
+      className="app-bg py-8 px-4"
     >
       <div className="max-w-3xl mx-auto">
         {/* Header — matches template create page pattern */}
@@ -381,7 +380,7 @@ export default function LogPastWorkoutPage() {
                   <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase">
                     Log Past Workout
                   </h1>
-                  <p className="text-forge-100 text-sm mt-1">
+                  <p className="text-accent-100 text-sm mt-1">
                     {step === 'choose' && 'Select a template or log an ad-hoc workout'}
                     {step === 'details' && 'Enter when and how long your workout was'}
                     {step === 'performance' && 'Record what you actually did'}
@@ -403,18 +402,18 @@ export default function LogPastWorkoutPage() {
                     disabled={i > stepIndex}
                     className={`flex items-center gap-2 text-sm font-display font-semibold tracking-wide uppercase transition-colors ${
                       i === stepIndex
-                        ? 'text-forge-600 dark:text-forge-400'
+                        ? 'text-accent-600 dark:text-accent-400'
                         : i < stepIndex
-                        ? 'text-green-600 dark:text-green-400 cursor-pointer hover:text-green-500'
+                        ? 'text-success-600 dark:text-success-400 cursor-pointer hover:text-success-500'
                         : 'text-surface-400 dark:text-surface-500'
                     }`}
                   >
                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                       i === stepIndex
-                        ? 'bg-forge-500 text-white'
+                        ? 'bg-accent-500 text-white'
                         : i < stepIndex
-                        ? 'bg-green-500 text-white'
-                        : 'bg-surface-200 dark:bg-surface-400 text-surface-500'
+                        ? 'bg-success-500 text-white'
+                        : 'bg-surface-900 dark:bg-surface-400 text-surface-500'
                     }`}>
                       {i < stepIndex ? '✓' : i + 1}
                     </span>
@@ -422,7 +421,7 @@ export default function LogPastWorkoutPage() {
                   </button>
                   {i < 2 && (
                     <div className={`w-8 h-px ${
-                      i < stepIndex ? 'bg-green-400' : 'bg-surface-200 dark:bg-surface-400'
+                      i < stepIndex ? 'bg-success-400' : 'bg-surface-900 dark:bg-surface-400'
                     }`} />
                   )}
                 </div>
@@ -468,9 +467,9 @@ export default function LogPastWorkoutPage() {
                       whileHover={prefersReducedMotion ? {} : { scale: 1.01 }}
                       whileTap={prefersReducedMotion ? {} : { scale: 0.99 }}
                       transition={springSnappy}
-                      className="w-full text-left forge-card heat-glow p-5 hover:border-forge-400/40 dark:hover:border-forge-500/40"
+                      className="w-full text-left forge-card heat-glow p-5 hover:border-accent-400/40 dark:hover:border-accent-500/40"
                     >
-                      <div className="font-display font-bold text-surface-800 dark:text-white tracking-wide">
+                      <div className="font-display font-bold text-surface-50 dark:text-white tracking-wide">
                         {template.name}
                       </div>
                       <div className="text-sm text-surface-500 dark:text-surface-600 mt-1 flex items-center gap-3">
@@ -487,7 +486,7 @@ export default function LogPastWorkoutPage() {
 
               <button
                 onClick={handleAdHoc}
-                className="w-full p-5 forge-card border-2 !border-dashed hover:!border-forge-400/60 dark:hover:!border-forge-500/40 text-surface-500 dark:text-surface-600 hover:text-forge-600 dark:hover:text-forge-400 transition-colors flex items-center justify-center gap-2 font-display font-semibold tracking-wide uppercase text-sm"
+                className="w-full p-5 forge-card border-2 !border-dashed hover:!border-accent-400/60 dark:hover:!border-accent-500/40 text-surface-500 dark:text-surface-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors flex items-center justify-center gap-2 font-display font-semibold tracking-wide uppercase text-sm"
               >
                 <PlusIcon className="w-5 h-5" />
                 Log Ad-Hoc Workout
@@ -614,21 +613,21 @@ export default function LogPastWorkoutPage() {
                           onClick={() => setExpandedExercise(isExpanded ? null : exercise.id)}
                         >
                           <div className="flex items-center gap-3">
-                            <span className={`w-2 h-2 rounded-full ${isCardio ? 'bg-blue-500' : 'bg-forge-500'}`} />
+                            <span className={`w-2 h-2 rounded-full ${isCardio ? 'bg-info-500' : 'bg-accent-500'}`} />
                             <div>
-                              <span className="font-display font-bold text-surface-800 dark:text-white text-sm tracking-wide">
+                              <span className="font-display font-bold text-surface-50 dark:text-white text-sm tracking-wide">
                                 {exercise.name}
                               </span>
                               <span className="ml-3 text-xs text-surface-500 dark:text-surface-600">
                                 {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
                                 {!isCardio && exVolume > 0 && ` · ${formatVolume(exVolume, useMetric)}`}
-                                {isCardio && <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] uppercase font-semibold">cardio</span>}
+                                {isCardio && <span className="ml-1 px-1.5 py-0.5 bg-info-100 dark:bg-info-900/30 text-info-600 dark:text-info-400 rounded text-[10px] uppercase font-semibold">cardio</span>}
                               </span>
                             </div>
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); removeExercise(exercise.id); }}
-                            className="p-1.5 text-surface-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="p-1.5 text-surface-400 hover:text-danger-500 transition-colors rounded-lg hover:bg-danger-50 dark:hover:bg-danger-900/20"
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
@@ -649,7 +648,7 @@ export default function LogPastWorkoutPage() {
                                     key={set.id}
                                     className={`p-4 rounded-lg border transition-colors ${
                                       set.completed
-                                        ? 'border-green-200 dark:border-green-800/40 bg-green-50/50 dark:bg-green-900/10'
+                                        ? 'border-success-200 dark:border-success-800/40 bg-success-50/50 dark:bg-success-900/10'
                                         : 'border-surface-200 dark:border-surface-400 bg-surface-950/50 dark:bg-surface-200/20'
                                     }`}
                                   >
@@ -661,14 +660,14 @@ export default function LogPastWorkoutPage() {
                                             type="checkbox"
                                             checked={set.completed}
                                             onChange={(e) => updateSet(exercise.id, set.id, { completed: e.target.checked })}
-                                            className="rounded border-surface-300 text-forge-500 focus:ring-forge-500 w-3.5 h-3.5"
+                                            className="rounded border-surface-300 text-accent-500 focus:ring-accent-500 w-3.5 h-3.5"
                                           />
                                           <span className="font-display uppercase tracking-wider text-[10px] font-semibold">Done</span>
                                         </label>
                                         {exercise.sets.length > 1 && (
                                           <button
                                             onClick={() => removeSet(exercise.id, set.id)}
-                                            className="p-1 text-surface-400 hover:text-red-500 transition-colors"
+                                            className="p-1 text-surface-400 hover:text-danger-500 transition-colors"
                                           >
                                             <TrashIcon className="w-3.5 h-3.5" />
                                           </button>
@@ -739,7 +738,7 @@ export default function LogPastWorkoutPage() {
                                 ))}
                                 <button
                                   onClick={() => addSet(exercise.id)}
-                                  className="w-full py-2.5 text-xs font-display font-semibold tracking-wide uppercase text-forge-500 dark:text-forge-400 hover:bg-forge-50 dark:hover:bg-forge-900/20 rounded-lg transition-colors"
+                                  className="w-full py-2.5 text-xs font-display font-semibold tracking-wide uppercase text-accent-500 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 rounded-lg transition-colors"
                                 >
                                   + Add Set
                                 </button>
@@ -772,13 +771,13 @@ export default function LogPastWorkoutPage() {
                             <button
                               key={key}
                               onClick={() => addExercise(key, ex.name)}
-                              className="w-full text-left px-4 py-3 text-sm rounded-lg hover:bg-surface-100 dark:hover:bg-surface-200/50 transition-colors flex items-center justify-between"
+                              className="w-full text-left px-4 py-3 text-sm rounded-lg hover:bg-surface-900 dark:hover:bg-surface-200/50 transition-colors flex items-center justify-between"
                             >
-                              <span className="text-surface-800 dark:text-white font-medium">{ex.name}</span>
+                              <span className="text-surface-50 dark:text-white font-medium">{ex.name}</span>
                               <span className="flex items-center gap-2">
                                 <span className="text-xs text-surface-500">{ex.muscles.slice(0, 2).join(', ')}</span>
                                 {exType === 'cardio' && (
-                                  <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] uppercase font-semibold">cardio</span>
+                                  <span className="px-1.5 py-0.5 bg-info-100 dark:bg-info-900/30 text-info-600 dark:text-info-400 rounded text-[10px] uppercase font-semibold">cardio</span>
                                 )}
                               </span>
                             </button>
@@ -795,7 +794,7 @@ export default function LogPastWorkoutPage() {
                   ) : (
                     <button
                       onClick={() => setShowExercisePicker(true)}
-                      className="w-full py-4 form-section !border-2 !border-dashed hover:!border-forge-400/60 dark:hover:!border-forge-500/40 text-surface-500 dark:text-surface-600 hover:text-forge-600 dark:hover:text-forge-400 transition-colors flex items-center justify-center gap-2 font-display font-semibold tracking-wide uppercase text-sm"
+                      className="w-full py-4 form-section !border-2 !border-dashed hover:!border-accent-400/60 dark:hover:!border-accent-500/40 text-surface-500 dark:text-surface-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors flex items-center justify-center gap-2 font-display font-semibold tracking-wide uppercase text-sm"
                     >
                       <PlusIcon className="w-4 h-4" />
                       Add Exercise
@@ -805,13 +804,13 @@ export default function LogPastWorkoutPage() {
                   {/* Summary */}
                   <div className="form-section flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
                     <span className="text-surface-500 dark:text-surface-600">
-                      Volume: <strong className="text-surface-800 dark:text-white">{formatVolume(totalVolume, useMetric)}</strong>
+                      Volume: <strong className="text-surface-50 dark:text-white">{formatVolume(totalVolume, useMetric)}</strong>
                     </span>
                     <span className="text-surface-500 dark:text-surface-600">
-                      Exercises: <strong className="text-surface-800 dark:text-white">{exercises.length}</strong>
+                      Exercises: <strong className="text-surface-50 dark:text-white">{exercises.length}</strong>
                     </span>
                     <span className="text-surface-500 dark:text-surface-600">
-                      Sets: <strong className="text-surface-800 dark:text-white">{exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).length, 0)}</strong>
+                      Sets: <strong className="text-surface-50 dark:text-white">{exercises.reduce((t, ex) => t + ex.sets.filter(s => s.completed).length, 0)}</strong>
                     </span>
                   </div>
 
@@ -831,7 +830,7 @@ export default function LogPastWorkoutPage() {
 
                   {logWorkout.isError && (
                     <div className="form-error">
-                      <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                      <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
                         <span className="text-white text-xs font-bold">!</span>
                       </div>
                       {logWorkout.error?.message || 'Failed to log workout'}

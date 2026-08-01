@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { XMarkIcon, TrophyIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { TrophyIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { TIER_COLORS, TIER_NAMES, CATEGORY_NAMES, AchievementCategory, localizeAchievement } from '@/types/achievements';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 interface AchievementData {
   id: string;
@@ -68,50 +67,28 @@ export function AchievementsModal({
   const categories = Object.keys(achievements) as AchievementCategory[];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={springBouncy}
-        className="forge-card shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-surface-200 dark:border-surface-400">
-          <div className="flex items-center gap-3">
-            <TrophyIcon className="w-8 h-8 text-yellow-500" />
-            <div>
-              <h2 className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
-                Achievements
-              </h2>
-              <p className="text-surface-500 dark:text-surface-600">
-                {unlockedCount} of {totalCount} achievements unlocked
-              </p>
-            </div>
-          </div>
-          <motion.button
-            onClick={onClose}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            transition={springSnappy}
-            className="p-2 hover:bg-surface-100 dark:hover:bg-surface-200 rounded-lg transition-colors"
-          >
-            <XMarkIcon className="w-6 h-6 text-surface-500" />
-          </motion.button>
+    <ModalShell
+      isOpen
+      onClose={onClose}
+      title="Achievements"
+      subtitle={`${unlockedCount} of ${totalCount} unlocked`}
+      maxWidth="max-w-5xl"
+      icon={
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-award-100 dark:bg-award-900/30">
+          <TrophyIcon className="h-5 w-5 text-award-500" />
         </div>
-
-        {/* Filters */}
-        <div className="p-6 border-b border-surface-200 dark:border-surface-400">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2">
+      }
+    >
+        {/* Filters — full-width selects on mobile; the row could not fit two
+            dropdowns and a count side by side on a phone. */}
+        <div className="mb-4 border-b border-surface-900 pb-4 dark:border-surface-300">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="hidden items-center gap-2 sm:flex">
               <FunnelIcon className="w-5 h-5 text-surface-500" />
-              <span className="text-sm font-medium text-surface-600 dark:text-surface-800">
-                Filters:
-              </span>
             </div>
             
             {/* Category Filter */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
+            <motion.div className="flex-1 sm:flex-none" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value as AchievementCategory | 'all')}
@@ -127,7 +104,7 @@ export function AchievementsModal({
             </motion.div>
 
             {/* Status Filter */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
+            <motion.div className="flex-1 sm:flex-none" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
               <select
                 value={filterUnlocked}
                 onChange={(e) => setFilterUnlocked(e.target.value as 'all' | 'unlocked' | 'locked')}
@@ -139,15 +116,15 @@ export function AchievementsModal({
               </select>
             </motion.div>
 
-            <div className="ml-auto text-sm text-surface-500 dark:text-surface-600">
-              Showing {filteredAchievements.length} achievements
+            <div className="text-xs text-surface-500 dark:text-surface-600 sm:ml-auto sm:text-sm">
+              {filteredAchievements.length} shown
             </div>
           </div>
         </div>
 
         {/* Achievement Grid */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {filteredAchievements.map((achievement, index) => (
               <motion.div
                 key={achievement.id}
@@ -155,7 +132,7 @@ export function AchievementsModal({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...springSnappy, delay: index * 0.05 }}
                 className={`bg-surface-950 dark:bg-surface-200 rounded-xl shadow-lg overflow-hidden ${
-                  achievement.isUnlocked ? 'ring-2 ring-yellow-400' : ''
+                  achievement.isUnlocked ? 'ring-2 ring-award-400' : ''
                 }`}
               >
                 <motion.div
@@ -184,7 +161,7 @@ export function AchievementsModal({
                       <div>
                         <h4 className={`font-bold text-lg ${
                           achievement.isUnlocked 
-                            ? 'text-surface-800 dark:text-white' 
+                            ? 'text-surface-50 dark:text-white' 
                             : 'text-surface-500 dark:text-surface-600'
                         }`}>
                           {achievement.name}
@@ -200,7 +177,7 @@ export function AchievementsModal({
                         animate={{ scale: 1, rotate: 0 }}
                         transition={{ ...springBouncy, delay: index * 0.05 + 0.2 }}
                       >
-                        <TrophyIcon className="w-8 h-8 text-yellow-500" />
+                        <TrophyIcon className="w-8 h-8 text-award-500" />
                       </motion.div>
                     )}
                   </div>
@@ -218,18 +195,18 @@ export function AchievementsModal({
                             <span className="text-surface-500 dark:text-surface-600">Progress</span>
                             <span className={`font-medium ${
                               achievement.isUnlocked
-                                ? 'text-green-600 dark:text-green-400'
+                                ? 'text-success-600 dark:text-success-400'
                                 : 'text-surface-500 dark:text-surface-600'
                             }`}>
                               {Number(achievement.progress.toFixed(2)).toLocaleString()} / {Number(localized.requirement.toFixed(2)).toLocaleString()}
                             </span>
                           </div>
-                          <div className="bg-surface-200 dark:bg-surface-600 rounded-full h-3 overflow-hidden">
+                          <div className="bg-surface-900 dark:bg-surface-300/60 rounded-full h-3 overflow-hidden">
                             <motion.div
                               className={`h-3 rounded-full ${
                                 achievement.isUnlocked
-                                  ? 'bg-gradient-to-r from-green-400 to-green-600'
-                                  : 'bg-gradient-to-r from-blue-400 to-blue-600'
+                                  ? 'bg-gradient-to-r from-success-400 to-success-600'
+                                  : 'bg-gradient-to-r from-info-400 to-info-600'
                               }`}
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.min(100, progressPct)}%` }}
@@ -240,8 +217,8 @@ export function AchievementsModal({
                             <motion.span
                               className={`text-lg font-display font-bold ${
                                 achievement.isUnlocked
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : 'text-forge-600 dark:text-forge-400'
+                                  ? 'text-success-600 dark:text-success-400'
+                                  : 'text-accent-600 dark:text-accent-400'
                               }`}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
@@ -276,7 +253,6 @@ export function AchievementsModal({
             </div>
           )}
         </div>
-      </motion.div>
-    </div>
+    </ModalShell>
   );
 }

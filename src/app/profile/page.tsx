@@ -17,8 +17,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { signOut } from 'next-auth/react';
+import { NotificationSettings } from '@/components/pwa/NotificationSettings';
+import { AvatarUploader } from '@/components/ui/profile/AvatarUploader';
 import SavedWorkouts from '@/components/ui/FavoriteWorkouts';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { useHasMounted } from '@/lib/hooks/useHasMounted';
 import { useUserStats } from '@/lib/hooks/useUserStats';
 
 import { StatsOverview } from '@/components/ui/profile/StatsOverview';
@@ -28,17 +31,34 @@ import { TopExercises } from '@/components/ui/profile/TopExercises';
 import { Achievements } from '@/components/ui/profile/Achievements';
 import { getLevel, getLevelTitle, getLevelProgress } from '@/utils/levels';
 
-import { PersonalRecordsModal } from '@/components/modals/PersonalRecordsModal';
-import { TopExercisesModal } from '@/components/modals/TopExercisesModal';
-import { RecentActivityModal } from '@/components/modals/RecentActivityModal';
-import { AchievementsModal } from '@/components/modals/AchievementsModal';
+import dynamic from 'next/dynamic';
+import { springSnappy, springGentle } from '@/lib/motion';
+
+/**
+ * These four modals are only reachable behind a tap on a stat card, and each
+ * pulls in its own tables and charts. Splitting them out cuts what the profile
+ * page has to download before it can render anything.
+ */
+const PersonalRecordsModal = dynamic(
+  () => import('@/components/modals/PersonalRecordsModal').then((m) => m.PersonalRecordsModal),
+  { ssr: false }
+);
+const TopExercisesModal = dynamic(
+  () => import('@/components/modals/TopExercisesModal').then((m) => m.TopExercisesModal),
+  { ssr: false }
+);
+const RecentActivityModal = dynamic(
+  () => import('@/components/modals/RecentActivityModal').then((m) => m.RecentActivityModal),
+  { ssr: false }
+);
+const AchievementsModal = dynamic(
+  () => import('@/components/modals/AchievementsModal').then((m) => m.AchievementsModal),
+  { ssr: false }
+);
 import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
 import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
 import { motion, useReducedMotion } from 'framer-motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
@@ -75,25 +95,35 @@ function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points
           style={{ backfaceVisibility: 'hidden' }}
         >
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-forge-500 via-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-forge-500/25 shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/25 shrink-0">
               <span className="text-lg font-display font-black text-white">{level}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-forge-100 font-display uppercase tracking-wider">Level {level}</p>
+              <p className="text-xs text-accent-100 font-display uppercase tracking-wider">Level {level}</p>
               <p className="text-sm font-display font-bold text-white truncate">{title}</p>
             </div>
           </div>
           <div className="h-1.5 rounded-full bg-white/15 overflow-hidden mb-1">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-white to-forge-200"
+              className="h-full rounded-full bg-gradient-to-r from-white to-accent-200"
               initial={prefersReducedMotion ? {} : { width: 0 }}
               animate={prefersReducedMotion ? {} : { width: `${p.percent}%` }}
               transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
             />
           </div>
-          <div className="flex justify-between text-[10px] text-forge-100/80 font-display uppercase tracking-wider tabular-nums">
-            <span>{levelRange > 0 ? `${p.progressInLevel.toLocaleString()} / ${levelRange.toLocaleString()} XP` : 'MAX'}</span>
-            <span>{level === 100 ? 'MAX' : `${(p.nextLevelXP - points).toLocaleString()} to ${level + 1}`}</span>
+          {/* Uppercased, "725 to 18" read as a nonsense range. Naming the unit
+              and the level makes it parseable at a glance. */}
+          <div className="flex justify-between gap-2 text-[10px] text-accent-100/80 font-display uppercase tracking-wider tabular-nums">
+            <span className="whitespace-nowrap">
+              {levelRange > 0
+                ? `${p.progressInLevel.toLocaleString()} / ${levelRange.toLocaleString()} XP`
+                : 'MAX'}
+            </span>
+            <span className="whitespace-nowrap">
+              {level === 100
+                ? 'MAX'
+                : `${(p.nextLevelXP - points).toLocaleString()} XP → LV ${level + 1}`}
+            </span>
           </div>
         </div>
 
@@ -102,22 +132,22 @@ function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points
           className="absolute inset-0 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 flex flex-col justify-center"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <p className="text-xs text-forge-100 font-display uppercase tracking-wider mb-1">Level {level} · {title}</p>
+          <p className="text-xs text-accent-100 font-display uppercase tracking-wider mb-1">Level {level} · {title}</p>
           <div className="space-y-1 text-xs text-white font-display">
             <div className="flex justify-between">
-              <span className="text-forge-100">Total XP</span>
+              <span className="text-accent-100">Total XP</span>
               <span className="font-bold tabular-nums">{points.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-forge-100">Level Progress</span>
+              <span className="text-accent-100">Level Progress</span>
               <span className="font-bold tabular-nums">{p.percent}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-forge-100">Next Level</span>
+              <span className="text-accent-100">Next Level</span>
               <span className="font-bold tabular-nums">{level === 100 ? '—' : `${(p.nextLevelXP - points).toLocaleString()} XP`}</span>
             </div>
           </div>
-          <p className="text-[9px] text-forge-100/60 text-center mt-2">tap to flip back</p>
+          <p className="text-[9px] text-accent-100/60 text-center mt-2">tap to flip back</p>
         </div>
       </motion.div>
     </div>
@@ -127,6 +157,7 @@ function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points
 function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasMounted = useHasMounted();
   const { profile, isLoading, error } = useProfile();
   const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
   const prefersReducedMotion = useReducedMotion();
@@ -201,16 +232,27 @@ function ProfileContent() {
       : isHeight ? 'in' : 'lbs';
   };
 
-  if (isLoading || statsLoading || profile === null) {
+  /*
+   * Two separate problems were folded into this guard:
+   *
+   *  - `profile === null` missed `undefined`. During SSR no query runs, so
+   *    React Query reports isLoading false (it is isPending && isFetching, and
+   *    nothing is fetching) with data undefined — so the guard fell through and
+   *    the server rendered the profile card with an empty name.
+   *  - The persisted IndexedDB cache can be restored before this Suspense
+   *    boundary hydrates, so the client had real data while the server HTML was
+   *    a skeleton. `useHasMounted` forces the first client render to match.
+   */
+  if (!hasMounted || isLoading || statsLoading || !profile) {
     return <ProfileSkeleton />;
   }
 
   if (error || statsError) {
     return (
-      <div className="min-h-screen py-8 px-4">
+      <div className="py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="form-error">
-            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+            <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold">!</span>
             </div>
             {String(error || statsError)}
@@ -225,7 +267,7 @@ function ProfileContent() {
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="min-h-screen py-8 px-4"
+      className="py-8 px-4"
     >
       <div className="max-w-7xl mx-auto">
         {/* Back link */}
@@ -237,7 +279,7 @@ function ProfileContent() {
         >
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-surface-500 dark:text-surface-600 hover:text-forge-600 dark:hover:text-forge-400 transition-colors font-medium"
+            className="inline-flex items-center gap-2 text-sm text-surface-500 dark:text-surface-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors font-medium"
           >
             <ArrowLeftIcon className="w-4 h-4" />
             Back to Dashboard
@@ -251,94 +293,104 @@ function ProfileContent() {
           transition={springGentle}
           className="forge-card overflow-hidden mb-8"
         >
-          <div className="greeting-gradient px-6 sm:px-8 py-10 text-white relative overflow-hidden">
+          {/* Hero.
+              Avatar, name, level card and settings all shared one row, so on a
+              phone the level card was squeezed against the name and the stat
+              pills wrapped into a ragged block. Now: identity row, then the
+              level card full-width, then the body stats as a tidy grid. */}
+          <div className="greeting-gradient relative overflow-hidden px-5 py-6 text-white sm:px-8 sm:py-8">
             <div className="relative">
-              {/* Top row: avatar + name + actions */}
-              <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-                <motion.div
-                  className="relative shrink-0"
-                  animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0 0 rgba(237, 123, 22, 0)', '0 0 12px 4px rgba(237, 123, 22, 0.3)', '0 0 0 0 rgba(237, 123, 22, 0)'] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <div className="w-20 h-20 rounded-full bg-white/15 flex items-center justify-center">
-                    <UserCircleIcon className="w-12 h-12" />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-forge-500 rounded-full border-2 border-white dark:border-surface-0" />
-                </motion.div>
+              <div className="flex items-start gap-4">
+                <AvatarUploader
+                  avatarUrl={profile?.avatarUrl}
+                  imageUrl={profile?.image}
+                  name={profile?.name}
+                  email={profile?.email}
+                  size={80}
+                />
 
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-wide uppercase truncate">{profile?.name}</h1>
-                  <p className="text-forge-100 text-sm mt-1">
-                    Member since{' '}
-                    {new Date(profile?.joinDate || '').toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <h1 className="truncate font-display text-2xl font-bold uppercase tracking-wide sm:text-3xl">
+                    {profile?.name}
+                  </h1>
                   {stats && (
-                    <p className="text-forge-200 text-xs mt-2">
-                      {stats.totalWorkouts} workouts &middot; {stats.currentStreak} day streak
+                    <p className="mt-1 truncate text-sm text-accent-100 tabular">
+                      {stats.totalWorkouts} workouts · {stats.currentStreak}d streak
                     </p>
                   )}
+                  <p className="mt-0.5 text-xs text-accent-200">
+                    {`Member since ${new Date(profile?.joinDate || '').toLocaleDateString(
+                      'en-US',
+                      { month: 'short', year: 'numeric' }
+                    )}`}
+                  </p>
                 </div>
 
-                {/* Level + XP — flip card */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <FlipLevelCard points={profile?.points || 0} totalWorkouts={stats?.totalWorkouts || 0} prefersReducedMotion={prefersReducedMotion ?? false} />
-
-                  <motion.div
-                    whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                    whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                    transition={springSnappy}
+                <motion.div
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
+                  transition={springSnappy}
+                  className="shrink-0"
+                >
+                  <Link
+                    href="/profile/edit"
+                    className="touch-target flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-colors hover:bg-white/20 tap-control"
+                    aria-label="Edit profile"
                   >
-                    <Link
-                      href="/profile/edit"
-                      className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors backdrop-blur-sm inline-flex"
-                      aria-label="Edit Profile"
-                    >
-                      <Cog6ToothIcon className="w-5 h-5" />
-                    </Link>
-                  </motion.div>
-                </div>
+                    <Cog6ToothIcon className="h-5 w-5" />
+                  </Link>
+                </motion.div>
               </div>
 
-              {/* Stats pills */}
-              <motion.div
-                className="flex flex-wrap gap-2 mt-6"
-                variants={staggerContainer}
-                initial={prefersReducedMotion ? {} : 'hidden'}
-                animate={prefersReducedMotion ? {} : 'visible'}
-              >
-                {profile?.age && (
-                  <motion.div variants={fadeUpItem} className="bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm text-sm flex items-center gap-1.5">
-                    <span className="text-forge-100">Age:</span>
-                    <span className="font-medium">{profile.age} yrs</span>
-                  </motion.div>
-                )}
-                {profile?.weight && (
-                  <motion.div variants={fadeUpItem} className="bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm text-sm flex items-center gap-1.5">
-                    <ScaleIcon className="w-3.5 h-3.5 text-forge-100" />
-                    <span className="font-medium">
-                      {getDisplayValue(profile.weight)} {getUnitLabel(false)}
-                    </span>
-                  </motion.div>
-                )}
-                {profile?.height && (
-                  <motion.div variants={fadeUpItem} className="bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm text-sm flex items-center gap-1.5">
-                    <SparklesIcon className="w-3.5 h-3.5 text-forge-100" />
-                    <span className="font-medium">
-                      {getDisplayValue(profile.height)} {getUnitLabel(true)}
-                    </span>
-                  </motion.div>
-                )}
-                {profile?.gender && (
-                  <motion.div variants={fadeUpItem} className="bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm text-sm flex items-center gap-1.5">
-                    <span className="text-forge-100">Gender:</span>
-                    <span className="font-medium capitalize">{profile.gender}</span>
-                  </motion.div>
-                )}
-              </motion.div>
+              <div className="mt-5">
+                <FlipLevelCard
+                  points={profile?.points || 0}
+                  totalWorkouts={stats?.totalWorkouts || 0}
+                  prefersReducedMotion={prefersReducedMotion ?? false}
+                />
+              </div>
+
+              {/* Body stats as an even grid rather than free-wrapping pills. */}
+              {(profile?.age || profile?.weight || profile?.height || profile?.gender || profile?.weightGoal) && (
+                <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {profile?.age ? (
+                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
+                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Age</dt>
+                      <dd className="font-display text-sm font-bold tabular">{profile.age} yrs</dd>
+                    </div>
+                  ) : null}
+                  {profile?.weight ? (
+                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
+                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Weight</dt>
+                      <dd className="font-display text-sm font-bold tabular">
+                        {getDisplayValue(profile.weight)} {getUnitLabel(false)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {profile?.weightGoal ? (
+                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm ring-1 ring-inset ring-white/20">
+                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Goal</dt>
+                      <dd className="font-display text-sm font-bold tabular">
+                        {getDisplayValue(profile.weightGoal)} {getUnitLabel(false)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {profile?.height ? (
+                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
+                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Height</dt>
+                      <dd className="font-display text-sm font-bold tabular">
+                        {getDisplayValue(profile.height)} {getUnitLabel(true)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {profile?.gender ? (
+                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
+                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Gender</dt>
+                      <dd className="font-display text-sm font-bold capitalize">{profile.gender}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              )}
             </div>
           </div>
 
@@ -373,6 +425,17 @@ function ProfileContent() {
           </div>
         </motion.div>
 
+        {/* Notification opt-in — renders nothing when push is unavailable
+            (unsupported browser, or no VAPID keys configured). */}
+        <motion.div
+          className="mb-8"
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
+          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          transition={{ ...springGentle, delay: 0.05 }}
+        >
+          <NotificationSettings />
+        </motion.div>
+
         {/* Stats Overview */}
         {stats && (
           <motion.div
@@ -381,7 +444,7 @@ function ProfileContent() {
             animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
             transition={{ ...springGentle, delay: 0.1 }}
           >
-            <h2 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-5">Your Statistics</h2>
+            <h2 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-5">Your Statistics</h2>
             <StatsOverview stats={stats} useMetric={profile?.useMetric || false} />
           </motion.div>
         )}
@@ -445,7 +508,7 @@ function ProfileContent() {
           animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           transition={{ ...springGentle, delay: 0.2 }}
         >
-          <h2 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-5">Favorite Templates</h2>
+          <h2 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-5">Favorite Templates</h2>
           <SavedWorkouts />
         </motion.div>
       </div>

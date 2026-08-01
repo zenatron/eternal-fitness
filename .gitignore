@@ -383,3 +383,7 @@ gradle-app.setting
 
 # Drizzle
 /drizzle/meta/
+# Serwist build output (generated from src/app/sw.ts at build time)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js

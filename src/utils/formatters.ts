@@ -16,3 +16,15 @@ export const formatVolume = (
   }
   return `${Math.round(volume).toString()} ${unit}`;
 };
+
+// Format a single weight value (e.g. max weight lifted) with the user's unit.
+export const formatWeight = (
+  weight: number | null | undefined,
+  useMetric: boolean | undefined,
+) => {
+  if (weight === null || weight === undefined || isNaN(weight)) {
+    return '-';
+  }
+  const unit = useMetric ? 'kg' : 'lbs';
+  return `${weight.toFixed(1)} ${unit}`;
+};

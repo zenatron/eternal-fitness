@@ -24,14 +24,14 @@ export default function LevelCard({ totalPoints }: LevelCardProps) {
         transition={{ ...springBouncy, delay: 0.1 }}
         className="mb-3"
       >
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-forge-500 via-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-forge-500/20 mx-auto">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/20 mx-auto">
           <span className="text-2xl font-display font-black text-white">
             {progress.currentLevel}
           </span>
         </div>
       </motion.div>
 
-      <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-1">
+      <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-1">
         Level {progress.currentLevel}
       </h3>
       <p className="text-xs text-surface-500 dark:text-surface-600 font-display uppercase tracking-wider mb-3">
@@ -43,9 +43,9 @@ export default function LevelCard({ totalPoints }: LevelCardProps) {
           <span>{totalPoints.toLocaleString()} XP</span>
           <span>{progress.nextLevelXP.toLocaleString()} XP</span>
         </div>
-        <div className="h-2.5 rounded-full bg-surface-200 dark:bg-surface-300/40 overflow-hidden">
+        <div className="h-2.5 rounded-full bg-surface-900 dark:bg-surface-300/40 overflow-hidden">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-forge-500 to-amber-500"
+            className="h-full rounded-full bg-gradient-to-r from-accent-500 to-accent-600"
             initial={{ width: 0 }}
             animate={{ width: `${progress.percent}%` }}
             transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}

@@ -10,6 +10,11 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# No build args: the image carries no environment-specific configuration. The
+# VAPID public key is served to the browser at runtime by GET /api/push/subscribe
+# rather than inlined here, so the same image runs against any environment and
+# rotating the keypair is a restart rather than a rebuild.
 RUN bun run build
 
 FROM base AS runner

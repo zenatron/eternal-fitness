@@ -29,12 +29,15 @@ export function StatsGrid({
   columns = 2,
   className = '',
 }: StatsGridProps) {
+  // The requested column count is the *widescreen* one. At phone width four
+  // ~70px cells cannot hold a formatted volume like "12.5k lb" at text-xl, so
+  // anything denser than two columns halves below `sm`.
   const gridClassName =
     columns === 2
       ? 'grid-cols-2'
       : columns === 3
       ? 'grid-cols-3'
-      : 'grid-cols-4';
+      : 'grid-cols-2 sm:grid-cols-4';
 
   return (
     <div className={`grid ${gridClassName} gap-2 ${className}`}>

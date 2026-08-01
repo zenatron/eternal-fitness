@@ -2,16 +2,14 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 
 export default function NotFound() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen app-bg">
+    <div className="flex flex-col items-center justify-center min-h-page app-bg">
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 16, scale: 0.97 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
@@ -19,7 +17,7 @@ export default function NotFound() {
         className="w-full max-w-lg forge-card p-8 space-y-8 text-center"
       >
         <motion.h1
-          className="text-8xl font-display font-black text-forge-500"
+          className="text-8xl font-display font-black text-accent-500"
           initial={prefersReducedMotion ? {} : { scale: 0, rotate: -15 }}
           animate={prefersReducedMotion ? {} : { scale: 1, rotate: 0 }}
           transition={{ ...springBouncy, delay: 0.05 }}

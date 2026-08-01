@@ -1,6 +1,7 @@
 // 🚀 JSON WORKOUT UTILITIES
 // Comprehensive utilities for working with JSON-based workout data
 
+import { performedSetsVolume, targetSetVolume } from '@/lib/volume';
 import {
   WorkoutTemplateData,
   WorkoutSessionData,
@@ -40,6 +41,7 @@ export function createWorkoutTemplate(
     }>;
     instructions?: string;
     restBetweenSets?: number;
+    perSide?: boolean;
   }>,
   options: {
     description?: string;
@@ -54,6 +56,7 @@ export function createWorkoutTemplate(
     name: ex.name,
     muscles: ex.muscles,
     equipment: ex.equipment,
+    perSide: ex.perSide,
     sets: ex.sets.map((set, setIndex) => ({
       id: `set-${setIndex + 1}`,
       type: set.type || SetType.STANDARD,
@@ -93,11 +96,10 @@ export function createWorkoutTemplate(
  */
 export function calculateTemplateVolume(exercises: WorkoutExercise[]): number {
   return exercises.reduce((total, exercise) => {
-    const exerciseVolume = exercise.sets.reduce((setTotal, set) => {
-      const reps = typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0;
-      const weight = set.targetWeight || 0;
-      return setTotal + (reps * weight);
-    }, 0);
+    const exerciseVolume = exercise.sets.reduce(
+      (setTotal, set) => setTotal + targetSetVolume(set, exercise.perSide),
+      0
+    );
     return total + exerciseVolume;
   }, 0);
 }
@@ -225,13 +227,8 @@ export function calculateSessionMetrics(
 /**
  * Calculates volume for a single exercise performance
  */
-export function calculateExerciseVolume(sets: PerformedSet[]): number {
-  return sets.reduce((total, set) => {
-    if (!set.completed) return total;
-    const reps = set.actualReps || 0;
-    const weight = set.actualWeight || 0;
-    return total + (reps * weight);
-  }, 0);
+export function calculateExerciseVolume(sets: PerformedSet[], perSide?: boolean): number {
+  return performedSetsVolume(sets, perSide);
 }
 
 /**
@@ -264,12 +261,7 @@ export function convertExerciseProgressToPerformance(
       restTime: setProgress.restTime,
     }));
 
-    const totalVolume = performedSets.reduce((total, set) => {
-      if (set.completed && set.actualReps && set.actualWeight) {
-        return total + (set.actualReps * set.actualWeight);
-      }
-      return total;
-    }, 0);
+    const totalVolume = performedSetsVolume(performedSets, exercise.perSide);
 
     const completedSets = performedSets.filter(set => set.completed);
     const averageRpe = completedSets.length > 0
@@ -278,6 +270,7 @@ export function convertExerciseProgressToPerformance(
 
     performance[progress.exerciseId] = {
       exerciseKey: exercise.exerciseKey,
+      perSide: exercise.perSide,
       sets: performedSets,
       exerciseNotes: progress.exerciseNotes,
       totalVolume,
@@ -286,67 +279,6 @@ export function convertExerciseProgressToPerformance(
   });
 
   return performance;
-}
-
-/**
- * Detects personal records in a workout session
- */
-export function detectPersonalRecords(
-  exerciseKey: string,
-  exerciseName: string,
-  currentSets: PerformedSet[],
-  historicalBests: {
-    maxWeight?: number;
-    maxReps?: number;
-    maxVolume?: number;
-  }
-): LegacyPersonalRecord[] {
-  const records: LegacyPersonalRecord[] = [];
-  const currentDate = new Date().toISOString();
-
-  // Check for weight PR
-  const maxWeight = Math.max(...currentSets.map(s => s.actualWeight || 0));
-  if (maxWeight > 0 && (!historicalBests.maxWeight || maxWeight > historicalBests.maxWeight)) {
-    records.push({
-      exerciseKey,
-      exerciseName,
-      type: 'weight',
-      value: maxWeight,
-      previousBest: historicalBests.maxWeight,
-      improvement: historicalBests.maxWeight ? maxWeight - historicalBests.maxWeight : maxWeight,
-      date: currentDate,
-    });
-  }
-
-  // Check for reps PR (at same or higher weight)
-  const maxReps = Math.max(...currentSets.map(s => s.actualReps || 0));
-  if (maxReps > 0 && (!historicalBests.maxReps || maxReps > historicalBests.maxReps)) {
-    records.push({
-      exerciseKey,
-      exerciseName,
-      type: 'reps',
-      value: maxReps,
-      previousBest: historicalBests.maxReps,
-      improvement: historicalBests.maxReps ? maxReps - historicalBests.maxReps : maxReps,
-      date: currentDate,
-    });
-  }
-
-  // Check for volume PR
-  const currentVolume = calculateExerciseVolume(currentSets);
-  if (currentVolume > 0 && (!historicalBests.maxVolume || currentVolume > historicalBests.maxVolume)) {
-    records.push({
-      exerciseKey,
-      exerciseName,
-      type: 'volume',
-      value: currentVolume,
-      previousBest: historicalBests.maxVolume,
-      improvement: historicalBests.maxVolume ? currentVolume - historicalBests.maxVolume : currentVolume,
-      date: currentDate,
-    });
-  }
-
-  return records;
 }
 
 // ============================================================================

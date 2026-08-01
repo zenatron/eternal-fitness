@@ -11,14 +11,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
+import { springBouncy } from '@/lib/motion';
 
 interface StatsOverviewProps {
   stats: UserStatsData;
   useMetric: boolean;
 }
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
 
 export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
   const prefersReducedMotion = useReducedMotion();
@@ -36,49 +35,49 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
       title: 'Total Workouts',
       value: stats.totalWorkouts.toLocaleString(),
       icon: TrophyIcon,
-      color: 'from-forge-500 to-blue-600',
-      bgColor: 'bg-forge-50 dark:bg-forge-900/20',
-      iconColor: 'text-forge-600 dark:text-forge-400',
+      color: 'from-accent-500 to-info-600',
+      bgColor: 'bg-accent-50 dark:bg-accent-900/20',
+      iconColor: 'text-accent-600 dark:text-accent-400',
     },
     {
       title: 'Current Streak',
       value: `${stats.currentStreak} days`,
       icon: FireIcon,
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
-      iconColor: 'text-orange-600 dark:text-orange-400',
+      color: 'from-accent-500 to-accent-600',
+      bgColor: 'bg-accent-50 dark:bg-accent-900/20',
+      iconColor: 'text-accent-600 dark:text-accent-400',
     },
     {
       title: 'Training Time',
       value: formatHours(stats.totalTrainingHours),
       icon: ClockIcon,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      iconColor: 'text-green-600 dark:text-green-400',
+      color: 'from-success-500 to-success-500',
+      bgColor: 'bg-success-50 dark:bg-success-900/20',
+      iconColor: 'text-success-600 dark:text-success-400',
     },
     {
       title: 'Total Volume',
       value: formatVolume(stats.totalVolume, useMetric),
       icon: ScaleIcon,
-      color: 'from-forge-500 to-purple-600',
-      bgColor: 'bg-forge-50 dark:bg-forge-900/20',
-      iconColor: 'text-forge-600 dark:text-forge-400',
+      color: 'from-info-500 to-info-600',
+      bgColor: 'bg-accent-50 dark:bg-accent-900/20',
+      iconColor: 'text-accent-600 dark:text-accent-400',
     },
     {
       title: 'Total Sets',
       value: stats.totalSets.toLocaleString(),
       icon: BoltIcon,
-      color: 'from-yellow-500 to-amber-500',
-      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
-      iconColor: 'text-yellow-600 dark:text-yellow-400',
+      color: 'from-award-400 to-award-600',
+      bgColor: 'bg-award-50 dark:bg-award-900/20',
+      iconColor: 'text-award-600 dark:text-award-400',
     },
     {
       title: 'Active Weeks',
       value: stats.activeWeeks.toString(),
       icon: CalendarDaysIcon,
-      color: 'from-cyan-500 to-teal-500',
-      bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
-      iconColor: 'text-cyan-600 dark:text-cyan-400',
+      color: 'from-info-500 to-info-500',
+      bgColor: 'bg-info-50 dark:bg-info-900/20',
+      iconColor: 'text-info-600 dark:text-info-400',
     },
   ];
 
@@ -107,7 +106,7 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
                 <p className="text-sm font-medium text-surface-500 dark:text-surface-600 mb-1">
                   {stat.title}
                 </p>
-                <p className="text-3xl font-display font-bold tracking-wide text-surface-800 dark:text-white">
+                <p className="text-3xl font-display font-bold tracking-wide text-surface-50 dark:text-white">
                   {stat.value}
                 </p>
               </div>

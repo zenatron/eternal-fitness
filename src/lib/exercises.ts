@@ -25,16 +25,19 @@ export const exercises: ExerciseList = {
     name: 'Dumbbell Bench Press',
     muscles: ['Chest', 'Triceps', 'Front Deltoids'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Incline Dumbbell Press': {
     name: 'Incline Dumbbell Press',
     muscles: ['Upper Chest', 'Triceps', 'Front Deltoids'],
     equipment: ['Dumbbells', 'Incline Bench'],
+    perSide: true,
   },
   'Decline Dumbbell Press': {
     name: 'Decline Dumbbell Press',
     muscles: ['Chest', 'Triceps', 'Front Deltoids'],
     equipment: ['Dumbbells', 'Decline Bench'],
+    perSide: true,
   },
   'Chest Press Machine': {
     name: 'Chest Press Machine',
@@ -47,11 +50,13 @@ export const exercises: ExerciseList = {
     name: 'Dumbbell Flys',
     muscles: ['Chest', 'Front Deltoids'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Incline Dumbbell Flys': {
     name: 'Incline Dumbbell Flys',
     muscles: ['Upper Chest', 'Front Deltoids'],
     equipment: ['Dumbbells', 'Incline Bench'],
+    perSide: true,
   },
   'Cable Chest Flys': {
     name: 'Cable Chest Flys',
@@ -147,11 +152,13 @@ export const exercises: ExerciseList = {
     name: 'Dumbbell Rows',
     muscles: ['Upper Back', 'Lats', 'Biceps', 'Rear Deltoids'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Single-Arm Dumbbell Row': {
     name: 'Single-Arm Dumbbell Row',
     muscles: ['Upper Back', 'Lats', 'Biceps', 'Rear Deltoids'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Seated Cable Rows': {
     name: 'Seated Cable Rows',
@@ -182,6 +189,7 @@ export const exercises: ExerciseList = {
     name: 'Meadows Row',
     muscles: ['Back', 'Rear Deltoids'],
     equipment: ['Barbell', 'Landmine'],
+    perSide: true,
   },
   'Seal Row': {
     name: 'Seal Row',
@@ -204,16 +212,19 @@ export const exercises: ExerciseList = {
     name: 'Reverse Flys',
     muscles: ['Rear Deltoids', 'Upper Back'],
     equipment: ['Dumbbells', 'Cable Machine'],
+    perSide: true,
   },
   'Shrugs': {
     name: 'Shrugs',
     muscles: ['Traps', 'Upper Back'],
     equipment: ['Dumbbells', 'Barbell'],
+    perSide: true,
   },
   'Dumbbell Shrugs': {
     name: 'Dumbbell Shrugs',
     muscles: ['Traps', 'Upper Back'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Barbell Shrugs': {
     name: 'Barbell Shrugs',
@@ -245,16 +256,19 @@ export const exercises: ExerciseList = {
     name: 'Dumbbell Shoulder Press',
     muscles: ['Shoulders', 'Triceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Seated Dumbbell Press': {
     name: 'Seated Dumbbell Press',
     muscles: ['Shoulders', 'Triceps'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Arnold Press': {
     name: 'Arnold Press',
     muscles: ['Shoulders', 'Triceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Pike Push-Ups': {
     name: 'Pike Push-Ups',
@@ -272,11 +286,13 @@ export const exercises: ExerciseList = {
     name: 'Front Raises',
     muscles: ['Front Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Dumbbell Front Raises': {
     name: 'Dumbbell Front Raises',
     muscles: ['Front Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Barbell Front Raises': {
     name: 'Barbell Front Raises',
@@ -294,11 +310,13 @@ export const exercises: ExerciseList = {
     name: 'Lateral Raises',
     muscles: ['Side Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Dumbbell Lateral Raises': {
     name: 'Dumbbell Lateral Raises',
     muscles: ['Side Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Cable Lateral Raises': {
     name: 'Cable Lateral Raises',
@@ -321,11 +339,13 @@ export const exercises: ExerciseList = {
     name: 'Rear Delt Flys',
     muscles: ['Rear Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Bent-Over Lateral Raises': {
     name: 'Bent-Over Lateral Raises',
     muscles: ['Rear Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Cable Rear Delt Flys': {
     name: 'Cable Rear Delt Flys',
@@ -341,16 +361,19 @@ export const exercises: ExerciseList = {
     name: 'Lu Raise',
     muscles: ['Front Deltoids', 'Side Deltoids'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Landmine Press': {
     name: 'Landmine Press',
     muscles: ['Shoulders', 'Chest', 'Triceps'],
     equipment: ['Barbell', 'Landmine'],
+    perSide: true,
   },
   'Landmine Row': {
     name: 'Landmine Row',
     muscles: ['Back', 'Biceps'],
     equipment: ['Barbell', 'Landmine'],
+    perSide: true,
   },
 
   // ============================================================================
@@ -361,11 +384,13 @@ export const exercises: ExerciseList = {
     name: 'Bicep Curls',
     muscles: ['Biceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Dumbbell Bicep Curls': {
     name: 'Dumbbell Bicep Curls',
     muscles: ['Biceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Barbell Curls': {
     name: 'Barbell Curls',
@@ -381,16 +406,19 @@ export const exercises: ExerciseList = {
     name: 'Hammer Curls',
     muscles: ['Biceps', 'Forearms'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Preacher Curls': {
     name: 'Preacher Curls',
     muscles: ['Biceps'],
     equipment: ['Preacher Bench', 'Dumbbells', 'Barbell'],
+    perSide: true,
   },
   'Spider Curls': {
     name: 'Spider Curls',
     muscles: ['Biceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Cable Curls': {
     name: 'Cable Curls',
@@ -406,11 +434,13 @@ export const exercises: ExerciseList = {
     name: 'Concentration Curls',
     muscles: ['Biceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Incline Dumbbell Curls': {
     name: 'Incline Dumbbell Curls',
     muscles: ['Biceps'],
     equipment: ['Dumbbells', 'Incline Bench'],
+    perSide: true,
   },
   'Behind-the-Back Cable Curl': {
     name: 'Behind-the-Back Cable Curl',
@@ -426,16 +456,19 @@ export const exercises: ExerciseList = {
     name: 'Spider Curl',
     muscles: ['Biceps'],
     equipment: ['Dumbbells', 'Incline Bench'],
+    perSide: true,
   },
   'Concentration Curl': {
     name: 'Concentration Curl',
     muscles: ['Biceps'],
-    equipment: ['Dumbbell'],
+    equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Zottman Curl': {
     name: 'Zottman Curl',
     muscles: ['Biceps', 'Forearms'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
 
   // ============================================================================
@@ -456,11 +489,13 @@ export const exercises: ExerciseList = {
     name: 'Overhead Tricep Extension',
     muscles: ['Triceps'],
     equipment: ['Dumbbells', 'Cable Machine'],
+    perSide: true,
   },
   'Dumbbell Skull Crushers': {
     name: 'Dumbbell Skull Crushers',
     muscles: ['Triceps'],
     equipment: ['Dumbbells', 'Bench'],
+    perSide: true,
   },
   'Barbell Skull Crushers': {
     name: 'Barbell Skull Crushers',
@@ -486,6 +521,7 @@ export const exercises: ExerciseList = {
     name: 'Kickbacks',
     muscles: ['Triceps'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'JM Press': {
     name: 'JM Press',
@@ -512,11 +548,13 @@ export const exercises: ExerciseList = {
     name: 'Goblet Squats',
     muscles: ['Quadriceps', 'Glutes', 'Core'],
     equipment: ['Dumbbells', 'Kettlebell'],
+    perSide: true,
   },
   'Dumbbell Squats': {
     name: 'Dumbbell Squats',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Hack Squats': {
     name: 'Hack Squats',
@@ -537,36 +575,43 @@ export const exercises: ExerciseList = {
     name: 'Bulgarian Split Squats',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Bench', 'Dumbbells'],
+    perSide: true,
   },
   'Lunges': {
     name: 'Lunges',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Body Weight', 'Dumbbells'],
+    perSide: true,
   },
   'Dumbbell Lunges': {
     name: 'Dumbbell Lunges',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Dumbbells'],
+    perSide: true,
   },
   'Walking Lunges': {
     name: 'Walking Lunges',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings', 'Core'],
     equipment: ['Body Weight', 'Dumbbells'],
+    perSide: true,
   },
   'Reverse Lunges': {
     name: 'Reverse Lunges',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Body Weight', 'Dumbbells'],
+    perSide: true,
   },
   'Lateral Lunges': {
     name: 'Lateral Lunges',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
     equipment: ['Body Weight', 'Dumbbells'],
+    perSide: true,
   },
   'Step-Ups': {
     name: 'Step-Ups',
     muscles: ['Quadriceps', 'Glutes'],
     equipment: ['Box', 'Dumbbells'],
+    perSide: true,
   },
 
   // Quad Isolation
@@ -579,11 +624,12 @@ export const exercises: ExerciseList = {
     name: 'Single-Leg Extensions',
     muscles: ['Quadriceps'],
     equipment: ['Leg Extension Machine'],
+    perSide: true,
   },
   'Sissy Squat': {
     name: 'Sissy Squat',
     muscles: ['Quadriceps'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
   },
   'Zercher Squat': {
     name: 'Zercher Squat',
@@ -604,16 +650,19 @@ export const exercises: ExerciseList = {
     name: 'Romanian Deadlifts',
     muscles: ['Hamstrings', 'Glutes', 'Lower Back'],
     equipment: ['Barbell', 'Dumbbells'],
+    perSide: true,
   },
   'Stiff-Leg Deadlifts': {
     name: 'Stiff-Leg Deadlifts',
     muscles: ['Hamstrings', 'Glutes', 'Lower Back'],
     equipment: ['Barbell', 'Dumbbells'],
+    perSide: true,
   },
   'Single-Leg Deadlifts': {
     name: 'Single-Leg Deadlifts',
     muscles: ['Hamstrings', 'Glutes', 'Lower Back', 'Core'],
     equipment: ['Dumbbells', 'Kettlebell'],
+    perSide: true,
   },
   'Hamstring Curls': {
     name: 'Hamstring Curls',
@@ -653,7 +702,7 @@ export const exercises: ExerciseList = {
   'Nordic Hamstring Curl': {
     name: 'Nordic Hamstring Curl',
     muscles: ['Hamstrings'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
   },
 
   // ============================================================================
@@ -679,6 +728,7 @@ export const exercises: ExerciseList = {
     name: 'Single-Leg Glute Bridges',
     muscles: ['Glutes', 'Hamstrings'],
     equipment: ['Body Weight'],
+    perSide: true,
   },
   'Sumo Deadlifts': {
     name: 'Sumo Deadlifts',
@@ -724,16 +774,19 @@ export const exercises: ExerciseList = {
     name: 'Standing Calf Raises',
     muscles: ['Calves'],
     equipment: ['Calf Raise Machine', 'Dumbbells'],
+    perSide: true,
   },
   'Seated Calf Raises': {
     name: 'Seated Calf Raises',
     muscles: ['Calves'],
     equipment: ['Machine', 'Dumbbells'],
+    perSide: true,
   },
   'Single-Leg Calf Raises': {
     name: 'Single-Leg Calf Raises',
     muscles: ['Calves'],
     equipment: ['Body Weight', 'Dumbbells'],
+    perSide: true,
   },
   'Donkey Calf Raises': {
     name: 'Donkey Calf Raises',
@@ -865,11 +918,13 @@ export const exercises: ExerciseList = {
     name: 'Wrist Curls',
     muscles: ['Forearms'],
     equipment: ['Dumbbells', 'Barbell'],
+    perSide: true,
   },
   'Reverse Wrist Curls': {
     name: 'Reverse Wrist Curls',
     muscles: ['Forearms'],
     equipment: ['Dumbbells', 'Barbell'],
+    perSide: true,
   },
   'Farmer\'s Walk': {
     name: 'Farmer\'s Walk',
@@ -940,16 +995,19 @@ export const exercises: ExerciseList = {
     name: 'Thrusters',
     muscles: ['Shoulders', 'Quadriceps', 'Glutes', 'Core'],
     equipment: ['Dumbbells', 'Barbell'],
+    perSide: true,
   },
   'Turkish Get-Ups': {
     name: 'Turkish Get-Ups',
     muscles: ['Core', 'Shoulders', 'Glutes'],
     equipment: ['Kettlebell', 'Dumbbells'],
+    perSide: true,
   },
   'Clean and Press': {
     name: 'Clean and Press',
     muscles: ['Shoulders', 'Traps', 'Core', 'Quadriceps'],
     equipment: ['Barbell', 'Dumbbells'],
+    perSide: true,
   },
   'Kettlebell Swings': {
     name: 'Kettlebell Swings',
@@ -1094,37 +1152,37 @@ export const exercises: ExerciseList = {
   'Box Jumps (Cardio)': {
     name: 'Box Jumps (Cardio)',
     muscles: ['Quadriceps', 'Glutes', 'Calves'],
-    equipment: ['Plyo Box'],
+    equipment: ['Plyometric Box'],
     exerciseType: 'cardio',
   },
   'Burpees (Cardio)': {
     name: 'Burpees (Cardio)',
     muscles: ['Full Body'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
     exerciseType: 'cardio',
   },
   'Mountain Climbers (Cardio)': {
     name: 'Mountain Climbers (Cardio)',
     muscles: ['Core', 'Shoulders', 'Quadriceps'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
     exerciseType: 'cardio',
   },
   'Jumping Jacks': {
     name: 'Jumping Jacks',
     muscles: ['Full Body'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
     exerciseType: 'cardio',
   },
   'High Knees': {
     name: 'High Knees',
     muscles: ['Quadriceps', 'Hip Flexors', 'Core'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
     exerciseType: 'cardio',
   },
   'Sled Push (Cardio)': {
     name: 'Sled Push (Cardio)',
     muscles: ['Quadriceps', 'Glutes', 'Core'],
-    equipment: ['Sled'],
+    equipment: ['Prowler Sled'],
     exerciseType: 'cardio',
   },
   'Assault Bike': {
@@ -1142,7 +1200,7 @@ export const exercises: ExerciseList = {
   'Walking Lunges (Cardio)': {
     name: 'Walking Lunges (Cardio)',
     muscles: ['Quadriceps', 'Glutes', 'Hamstrings'],
-    equipment: ['Bodyweight'],
+    equipment: ['Body Weight'],
     exerciseType: 'cardio',
   },
   'Sprint Intervals': {

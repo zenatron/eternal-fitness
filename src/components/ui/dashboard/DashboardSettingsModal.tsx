@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  XMarkIcon,
   EyeIcon,
   EyeSlashIcon,
   Bars3Icon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
+import { ModalShell } from '@/components/ui/ModalShell';
 import {
   DragDropContext,
   Droppable,
@@ -26,13 +26,6 @@ interface Props {
   onSave: (config: DashboardConfig) => void;
 }
 
-const springModal = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 30,
-  mass: 0.8,
-};
-
 export default function DashboardSettingsModal({
   isOpen,
   onClose,
@@ -41,7 +34,6 @@ export default function DashboardSettingsModal({
 }: Props) {
   const [config, setConfig] = useState(currentConfig);
   const [hasChanges, setHasChanges] = useState(false);
-  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     setConfig(currentConfig);
@@ -79,143 +71,110 @@ export default function DashboardSettingsModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/50"
-          onClick={onClose}
-        />
-
-        <motion.div
-          initial={
-            prefersReducedMotion
-              ? {}
-              : { opacity: 0, scale: 0.94, y: 16 }
-          }
-          animate={
-            prefersReducedMotion
-              ? {}
-              : { opacity: 1, scale: 1, y: 0 }
-          }
-          exit={
-            prefersReducedMotion
-              ? {}
-              : { opacity: 0, scale: 0.94, y: 16 }
-          }
-          transition={springModal}
-          className="relative forge-card shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden"
-        >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-300">
-            <h2 className="text-lg font-display font-bold text-surface-800 dark:text-white tracking-wide uppercase">
-              Dashboard Settings
-            </h2>
+    /*
+     * Was a hand-rolled `fixed inset-0 z-50` div inside AppShell's `relative
+     * z-10` <main>, so the bottom nav painted over its action row; and the
+     * `if (!isOpen) return null` above the AnimatePresence meant the exit
+     * animation could never run — the modal just vanished.
+     *
+     * ModalShell portals to <body>, handles the safe area, and pins the action
+     * row outside the scroll region so Save is always reachable.
+     */
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Dashboard Settings"
+      subtitle="Drag to reorder tiles and toggle visibility"
+      maxWidth="max-w-lg"
+      icon={
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 border border-accent-500/25">
+          <Squares2X2Icon className="h-5 w-5 text-accent-500" />
+        </div>
+      }
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={() => {
+              setConfig(DEFAULT_DASHBOARD_CONFIG);
+              setHasChanges(true);
+            }}
+            className="tap-control text-sm text-surface-500 dark:text-surface-600 hover:text-surface-800 dark:hover:text-white transition-colors"
+          >
+            Reset
+          </button>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn btn-tertiary tap-control">
+              Cancel
+            </button>
             <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-surface-500 hover:text-surface-700 dark:hover:text-surface-900 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors"
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className="btn btn-primary tap-control disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <XMarkIcon className="w-5 h-5" />
+              Save
             </button>
           </div>
-
-          <div className="p-6 overflow-y-auto max-h-[60vh]">
-            <p className="text-sm text-surface-500 dark:text-surface-600 mb-4">
-              Drag to reorder tiles and toggle visibility.
-            </p>
-
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="tiles">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="space-y-2"
-                  >
-                    {config.tiles.map((tile, i) => (
-                      <Draggable key={tile.id} draggableId={tile.id} index={i}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`bg-surface-950 dark:bg-surface-200 border border-surface-200 dark:border-surface-400 rounded-lg p-3 ${
-                              snapshot.isDragging ? 'shadow-lg' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                {...provided.dragHandleProps}
-                                className="p-1 rounded hover:bg-surface-200 dark:hover:bg-surface-300 cursor-grab transition-colors"
-                              >
-                                <Bars3Icon className="w-4 h-4 text-surface-500" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-surface-800 dark:text-white">
-                                  {tile.name}
-                                </p>
-                                <p className="text-xs text-surface-500 dark:text-surface-600">
-                                  {tile.description}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => toggleTile(tile.id)}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  tile.enabled
-                                    ? 'text-forge-600 bg-forge-50 dark:bg-forge-950/30'
-                                    : 'text-surface-500 bg-surface-100 dark:bg-surface-300'
-                                }`}
-                                title={tile.enabled ? 'Hide' : 'Show'}
-                              >
-                                {tile.enabled ? (
-                                  <EyeIcon className="w-4 h-4" />
-                                ) : (
-                                  <EyeSlashIcon className="w-4 h-4" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-          </div>
-
-          <div className="flex items-center justify-between px-6 py-4 border-t border-surface-200 dark:border-surface-300 bg-surface-950 dark:bg-surface-200/50">
-            <button
-              onClick={() => {
-                setConfig(DEFAULT_DASHBOARD_CONFIG);
-                setHasChanges(true);
-              }}
-              className="text-sm text-surface-500 dark:text-surface-600 hover:text-surface-800 dark:hover:text-white transition-colors"
-            >
-              Reset to Default
-            </button>
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-display font-semibold tracking-wide uppercase border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges}
-                className="px-4 py-2 text-sm font-display font-bold tracking-wide uppercase bg-forge-500 text-white rounded-lg hover:bg-forge-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save Changes
-              </button>
+        </div>
+      }
+    >
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="tiles">
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+              {config.tiles.map((tile, i) => (
+                <Draggable key={tile.id} draggableId={tile.id} index={i}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`bg-surface-950 dark:bg-surface-200 border border-surface-200 dark:border-surface-400 rounded-lg p-3 ${
+                        snapshot.isDragging ? 'shadow-lg' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          {...provided.dragHandleProps}
+                          // 44px hit area: the 16px grip icon was close to
+                          // impossible to grab accurately with a thumb.
+                          className="touch-target flex shrink-0 items-center justify-center rounded hover:bg-surface-800 dark:hover:bg-surface-300 cursor-grab transition-colors"
+                          aria-label={`Reorder ${tile.name}`}
+                        >
+                          <Bars3Icon className="w-4 h-4 text-surface-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-surface-50 dark:text-white">
+                            {tile.name}
+                          </p>
+                          <p className="text-xs text-surface-500 dark:text-surface-600">
+                            {tile.description}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => toggleTile(tile.id)}
+                          className={`touch-target flex shrink-0 items-center justify-center rounded-lg transition-colors ${
+                            tile.enabled
+                              ? 'text-accent-600 bg-accent-50 dark:bg-accent-950/30'
+                              : 'text-surface-500 bg-surface-100 dark:bg-surface-300'
+                          }`}
+                          aria-label={`${tile.enabled ? 'Hide' : 'Show'} ${tile.name}`}
+                        >
+                          {tile.enabled ? (
+                            <EyeIcon className="w-4 h-4" />
+                          ) : (
+                            <EyeSlashIcon className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
             </div>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          )}
+        </Droppable>
+      </DragDropContext>
+    </ModalShell>
   );
 }

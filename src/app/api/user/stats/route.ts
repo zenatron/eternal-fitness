@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { userStats, workoutSessions, monthlyStats } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc, gte } from 'drizzle-orm';
+import { eq, and, isNotNull, desc, gte, sql } from 'drizzle-orm';
 import { UserPersonalRecords } from '@/types/personalRecords';
+import { exerciseDisplayName } from '@/lib/exerciseLookup';
+
+/**
+ * How far back the top-exercise breakdown looks. Bounded because this runs on
+ * every profile load; well beyond the window anyone reads meaning into.
+ */
+const TOP_EXERCISE_SESSION_LIMIT = 500;
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
@@ -89,12 +96,24 @@ export async function GET() {
       .where(and(eq(monthlyStats.userId, userId), gte(monthlyStats.createdAt, twelveMonthsAgo)))
       .orderBy(desc(monthlyStats.year), desc(monthlyStats.month));
 
+    /*
+     * Top-exercise stats are derived from the recent history only, and project
+     * just the `performance` sub-object.
+     *
+     * This previously fetched every completed session with its full
+     * `performanceData` — including a whole `templateSnapshot` per row — on
+     * every single profile page load, and grew without bound as the user
+     * trained. The snapshot was only used to look up an exercise name, which
+     * `exerciseKey` already answers.
+     */
     const allSessions = await db
       .select({
         id: workoutSessions.id,
         completedAt: workoutSessions.completedAt,
         totalVolume: workoutSessions.totalVolume,
-        performanceData: workoutSessions.performanceData,
+        performance: sql<
+          Record<string, { exerciseKey: string; totalVolume?: number; sets?: unknown[] }> | null
+        >`${workoutSessions.performanceData} -> 'performance'`,
       })
       .from(workoutSessions)
       .where(and(
@@ -102,17 +121,17 @@ export async function GET() {
         isNotNull(workoutSessions.completedAt),
         isNotNull(workoutSessions.performanceData),
       ))
-      .orderBy(desc(workoutSessions.completedAt));
+      .orderBy(desc(workoutSessions.completedAt))
+      .limit(TOP_EXERCISE_SESSION_LIMIT);
 
     const exerciseStats = new Map();
     allSessions.forEach(session => {
-      if (session.performanceData && typeof session.performanceData === 'object') {
-        const data = session.performanceData as any;
+      {
+        const data = { performance: session.performance } as any;
         if (data.performance) {
           Object.values(data.performance).forEach((exercisePerf: any) => {
             const key = exercisePerf.exerciseKey;
-            const templateExercise = data.templateSnapshot?.exercises?.find((ex: any) => ex.exerciseKey === key);
-            const name = templateExercise?.name || key;
+            const name = key ? exerciseDisplayName(key) : key;
 
             if (!exerciseStats.has(key)) {
               exerciseStats.set(key, { exerciseKey: key, name, totalVolume: 0, sessionCount: 0, maxWeight: 0 });
@@ -175,7 +194,11 @@ export async function GET() {
       currentStreak: stats?.currentStreak || 0,
       longestStreak: stats?.longestStreak || 0,
       lastWorkoutAt: stats?.lastWorkoutAt?.toISOString() || (allSessions[0]?.completedAt?.toISOString() || null),
-      activeWeeks: stats?.activeWeeks || Math.ceil(allSessions.length / 3),
+      // Was `Math.ceil(allSessions.length / 3)` when stats were missing — an
+      // invented number that had nothing to do with weeks. The real value is
+      // now maintained (see updateUniqueExercisesCount), so report 0 rather
+      // than a fabricated figure.
+      activeWeeks: stats?.activeWeeks ?? 0,
       recentSessions: recentSessions.map(s => ({
         id: s.id,
         completedAt: s.completedAt!.toISOString(),

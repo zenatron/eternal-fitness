@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Custom hook to fetch and provide user profile
@@ -10,7 +11,7 @@ export const useProfile = () => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['profile'],
+    queryKey: queryKeys.profile,
     queryFn: async () => {
       const response = await fetch('/api/profile');
 

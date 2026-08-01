@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Custom hook to fetch and provide exercise data from the API
@@ -9,7 +10,7 @@ export const useExercise = (exerciseId: string) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['exercise', exerciseId],
+    queryKey: [...queryKeys.exercise, exerciseId],
     queryFn: () =>
       fetch(`/api/exercise/${exerciseId}`).then((res) => res.json()),
   });

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { templateKey } from '@/lib/queryKeys';
 import { WorkoutTemplate } from '@/types/workout';
 
 /**
@@ -11,7 +12,7 @@ export const useTemplate = (templateId: string) => {
     error,
     refetch,
   } = useQuery<WorkoutTemplate>({
-    queryKey: ['json-template', templateId],
+    queryKey: templateKey(templateId),
     queryFn: async () => {
       const response = await fetch(`/api/template/${templateId}`);
 

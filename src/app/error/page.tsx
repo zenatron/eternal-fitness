@@ -2,16 +2,14 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 export default function ErrorPage() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div className="flex items-center justify-center min-h-screen app-bg px-4">
+    <div className="flex items-center justify-center min-h-page app-bg px-4">
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 20, scale: 0.96 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
@@ -42,7 +40,7 @@ export default function ErrorPage() {
 
           <div className="space-y-2">
             <motion.h1
-              className="text-2xl font-display font-bold text-surface-800 dark:text-white tracking-wide uppercase"
+              className="text-2xl font-display font-bold text-surface-50 dark:text-white tracking-wide uppercase"
               initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
               animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
               transition={{ ...springGentle, delay: 0.15 }}

@@ -5,6 +5,10 @@ import { users, userStats, monthlyStats, workoutSessions } from '@/lib/db/schema
 import { eq, and, isNotNull, isNull, gte, desc, asc, or } from 'drizzle-orm';
 import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils';
 import { getLevel } from '@/utils/levels';
+import { calculateWeightGoalProgress } from '@/utils/weightGoal';
+
+/** The dashboard card only ever renders a few of these. */
+const UPCOMING_WORKOUTS_LIMIT = 10;
 
 function calculateStreak(sessionDates: Date[]): number {
   if (!sessionDates.length) return 0;
@@ -70,10 +74,33 @@ export async function GET() {
     const userId = await getUserId();
     if (!userId) return new NextResponse('Unauthorized', { status: 401 });
 
-    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    // Explicit projections: `select()` with no columns pulled whole rows on
+    // every dashboard load, including the dashboardConfig, achievements and
+    // active-workout JSONB blobs that this endpoint never looks at.
+    const [user] = await db
+      .select({
+        points: users.points,
+        weight: users.weight,
+        weightGoal: users.weightGoal,
+        startingWeight: users.startingWeight,
+        useMetric: users.useMetric,
+      })
+      .from(users)
+      .where(eq(users.id, userId));
     if (!user) return new NextResponse('User not found', { status: 404 });
 
-    const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
+    const [stats] = await db
+      .select({
+        totalWorkouts: userStats.totalWorkouts,
+        totalExercises: userStats.totalExercises,
+        totalVolume: userStats.totalVolume,
+        totalTrainingHours: userStats.totalTrainingHours,
+        currentStreak: userStats.currentStreak,
+        activeWeeks: userStats.activeWeeks,
+        personalRecords: userStats.personalRecords,
+      })
+      .from(userStats)
+      .where(eq(userStats.userId, userId));
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -138,10 +165,21 @@ export async function GET() {
       currentStreak = calculateStreak(allSessionDates);
     }
 
+    // The dashboard card shows a handful of upcoming sessions, but this fetched
+    // every incomplete row a user had ever created — including long-abandoned
+    // scheduled workouts from years back — and pulled the full session row with
+    // its JSONB for each one.
     const upcomingWorkouts = await db.query.workoutSessions.findMany({
       where: and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)),
       orderBy: asc(workoutSessions.scheduledAt),
+      columns: {
+        id: true,
+        scheduledAt: true,
+        notes: true,
+        workoutTemplateId: true,
+      },
       with: { workoutTemplate: { columns: { id: true, name: true } } },
+      limit: UPCOMING_WORKOUTS_LIMIT,
     });
 
     let personalRecordsCount = 0;
@@ -164,14 +202,27 @@ export async function GET() {
       progress: {
         workoutsCompleted: stats?.totalWorkouts || 0,
         personalRecords: personalRecordsCount,
-        weightProgress: {
-          current: user.weight || 0,
-          goal: user.weightGoal || 0,
-          unit: user.useMetric ? 'kg' : 'lbs',
-          percentage: user.weightGoal && user.weight && user.weightGoal > 0
-            ? Math.min(100, Math.round((user.weight / user.weightGoal) * 100))
-            : 0,
-        },
+        weightProgress: (() => {
+          // Direction-aware, measured from the weight recorded when the goal was
+          // set. See utils/weightGoal.ts for why the old current/goal ratio was
+          // wrong for anyone trying to lose weight.
+          const progress = calculateWeightGoalProgress(
+            user.weight,
+            user.weightGoal,
+            user.startingWeight
+          );
+
+          return {
+            current: user.weight || 0,
+            goal: user.weightGoal || 0,
+            startingWeight: progress?.startingWeight ?? null,
+            unit: user.useMetric ? 'kg' : 'lbs',
+            percentage: progress?.percentage ?? 0,
+            remaining: progress?.remaining ?? 0,
+            direction: progress?.direction ?? 'maintain',
+            reached: progress?.reached ?? false,
+          };
+        })(),
       },
       recentActivity: recentSessions.map(session => {
         const unit = user.useMetric ? 'kg' : 'lbs';

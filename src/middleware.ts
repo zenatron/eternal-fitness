@@ -26,6 +26,11 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // PWA assets must stay reachable unauthenticated. The browser requests the
+    // manifest and the service worker without credentials, and it fetches the
+    // offline fallback from a context that may have no session at all — an auth
+    // redirect on any of these makes the app quietly non-installable and breaks
+    // offline boot. Icons and splash images are matched by extension below.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline|icons/|splash/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest|js\\.map)$).*)",
   ],
 };

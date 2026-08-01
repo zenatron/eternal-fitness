@@ -26,9 +26,17 @@ export function getLevelProgress(points: number): {
   const currentLevel = getLevel(points);
   const currentLevelXP = getXPForLevel(currentLevel);
   const nextLevelXP = getXPForLevel(currentLevel + 1);
-  const progressInLevel = points - currentLevelXP;
+  /*
+   * Clamped at zero. getLevel() floors a negative balance at level 1, but this
+   * function did not floor the points, so -50 points produced progressInLevel
+   * of -50 and a percent of -200 — rendering an inverted progress bar. Points
+   * should never go negative, but this is what draws the bar and it should not
+   * be the thing that turns a data problem into a visual one.
+   */
+  const progressInLevel = Math.max(0, points - currentLevelXP);
   const range = nextLevelXP - currentLevelXP;
-  const percent = range > 0 ? Math.min(100, Math.round((progressInLevel / range) * 100)) : 100;
+  const percent =
+    range > 0 ? Math.max(0, Math.min(100, Math.round((progressInLevel / range) * 100))) : 100;
   return { currentLevel, currentLevelXP, nextLevelXP, progressInLevel, percent };
 }
 

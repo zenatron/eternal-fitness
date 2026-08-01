@@ -7,9 +7,8 @@ import { UserCircleIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react
 import { signOut } from 'next-auth/react';
 import { Switch } from '@headlessui/react';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
+import { springSnappy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 const formStagger = {
   hidden: { opacity: 0 },
@@ -98,7 +97,7 @@ export default function ProfileSetup() {
   };
 
   return (
-    <div className="min-h-screen py-8 px-4">
+    <div className="py-8 px-4">
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
@@ -118,7 +117,7 @@ export default function ProfileSetup() {
               </motion.div>
               <div>
                 <h1 className="text-3xl font-display font-bold tracking-wide uppercase">Complete Your Profile</h1>
-                <p className="text-forge-100 text-sm mt-1">
+                <p className="text-accent-100 text-sm mt-1">
                   Let&apos;s personalize your fitness journey
                 </p>
               </div>
@@ -138,7 +137,7 @@ export default function ProfileSetup() {
                 }
                 transition={shakeError ? { duration: 0.5 } : springSnappy}
               >
-                <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
                   <span className="text-white text-xs font-bold">!</span>
                 </div>
                 {error}
@@ -224,8 +223,8 @@ export default function ProfileSetup() {
                     checked={formData.useMetric}
                     onChange={toggleUnit}
                     className={`${
-                      formData.useMetric ? 'bg-forge-500' : 'bg-surface-300 dark:bg-surface-600'
-                    } relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-forge-500 focus:ring-offset-2 dark:focus:ring-offset-surface-0`}
+                      formData.useMetric ? 'bg-accent-500' : 'bg-surface-900 dark:bg-surface-600'
+                    } relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 dark:focus:ring-offset-surface-0`}
                   >
                     <span className="sr-only">Use metric system</span>
                     <motion.span
@@ -239,14 +238,14 @@ export default function ProfileSetup() {
                 <div className="flex gap-3 mt-4">
                   <div className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors ${
                     !formData.useMetric
-                      ? 'bg-forge-50 dark:bg-forge-900/30 text-forge-700 dark:text-forge-300 ring-1 ring-forge-200 dark:ring-forge-800'
+                      ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
                       : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600'
                   }`}>
                     Imperial (lbs, in)
                   </div>
                   <div className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors ${
                     formData.useMetric
-                      ? 'bg-forge-50 dark:bg-forge-900/30 text-forge-700 dark:text-forge-300 ring-1 ring-forge-200 dark:ring-forge-800'
+                      ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
                       : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600'
                   }`}>
                     Metric (kg, cm)

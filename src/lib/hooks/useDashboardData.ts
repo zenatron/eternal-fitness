@@ -1,4 +1,5 @@
 import { DashboardData } from '@/types/dashboard';
+import { queryKeys } from '@/lib/queryKeys';
 import { useQuery } from '@tanstack/react-query';
 
 /**
@@ -6,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
  */
 export const useDashboardData = () => {
   const { data, isLoading, error, refetch } = useQuery<DashboardData>({
-    queryKey: ['dashboardData'],
+    queryKey: queryKeys.dashboardData,
     queryFn: async () => {
       const response = await fetch('/api/dashboard');
 

@@ -57,7 +57,7 @@ export default function EditTemplatePage({
       >
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-forge-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent-500 border-t-transparent"></div>
           </div>
         </div>
       </motion.div>
@@ -73,7 +73,7 @@ export default function EditTemplatePage({
         className="w-full h-full py-12 px-4"
       >
         <div className="max-w-7xl mx-auto">
-          <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+          <div className="p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-500/30 text-danger-700 dark:text-danger-400 rounded-lg">
             {String(error)}
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function EditTemplatePage({
                 transition={{ ...springGentle, delay: 0.15 }}
               >
                 <h1 className="text-3xl font-display font-bold tracking-wide">Edit Workout Template</h1>
-                <p className="text-forge-100 mt-1">
+                <p className="text-accent-100 mt-1">
                   Update your workout template details
                 </p>
               </motion.div>

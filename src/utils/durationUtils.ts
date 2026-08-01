@@ -65,11 +65,20 @@ export function formatDurationInput(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function formatDurationShort(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours > 0) {
-    return `${hours}h ${mins}m`;
+/**
+ * Compact duration for list/chip UIs: "1h 5m", "45m", "30s".
+ * Input is SECONDS (the canonical workoutSessions.duration unit).
+ */
+export function formatDurationCompact(seconds: number): string {
+  if (seconds < 0) return '0s';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) {
+    return `${h}h ${m}m`;
   }
-  return `${mins}m`;
+  if (m > 0) {
+    return `${m}m`;
+  }
+  return `${s}s`;
 }

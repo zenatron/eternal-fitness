@@ -1,0 +1,17 @@
+{
+  // The service worker runs in a WorkerGlobalScope, whose globals conflict with
+  // the DOM lib used by the app. It therefore gets its own program rather than
+  // living in the main tsconfig.
+  //
+  //   npx tsc -p tsconfig.worker.json --noEmit
+  //
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "WebWorker"],
+    "types": ["@serwist/next/typings"],
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": ["src/app/sw.ts"],
+  "exclude": []
+}

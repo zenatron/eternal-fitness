@@ -11,7 +11,15 @@ import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { awardWorkoutXP } from '@/lib/xp';
+import {
+  findIdempotentResponse,
+  getIdempotencyKey,
+  pruneIdempotencyKeys,
+  recordIdempotentResponse,
+} from '@/lib/idempotency';
 import { z } from 'zod';
+
+const ENDPOINT = 'session/active/complete';
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json(data, { status });
@@ -41,6 +49,20 @@ export async function POST(request: NextRequest) {
 
     const { duration, notes, completedAt } = validationResult.data;
 
+    // Offline clients replay this request; without the dedupe below a workout
+    // completed with no signal would be logged twice, permanently inflating
+    // volume, streak and XP.
+    const idempotencyKey = getIdempotencyKey(request);
+    if (idempotencyKey) {
+      const existing = await findIdempotentResponse(userId, idempotencyKey, ENDPOINT);
+      if (existing) {
+        return successResponse({
+          ...(existing.response as Record<string, unknown>),
+          deduplicated: true,
+        });
+      }
+    }
+
     const session = await db.transaction(async (tx) => {
       const [stats] = await tx
         .select({
@@ -58,11 +80,23 @@ export async function POST(request: NextRequest) {
       const activeSessionData = stats.activeWorkoutData as ActiveWorkoutSessionData;
       const completionTime = completedAt ? new Date(completedAt) : new Date();
 
-      const sessionDuration = duration || (
-        stats.activeWorkoutStartedAt
-          ? Math.floor((completionTime.getTime() - stats.activeWorkoutStartedAt.getTime() - activeSessionData.pausedTime) / 1000)
-          : 0
-      );
+      // Prefer the client's own elapsed count, then the tracked active seconds.
+      // The wall-clock fallback subtracted `pausedTime` from a millisecond
+      // difference while `pausedTime` was in seconds, so a paused workout came
+      // out essentially un-subtracted; it is now only a last resort.
+      const trackedSeconds =
+        activeSessionData.accumulatedSeconds ??
+        (activeSessionData.pausedTime || 0);
+
+      const sessionDuration =
+        duration ??
+        (trackedSeconds > 0
+          ? Math.floor(trackedSeconds)
+          : stats.activeWorkoutStartedAt
+            ? Math.floor(
+                (completionTime.getTime() - stats.activeWorkoutStartedAt.getTime()) / 1000
+              )
+            : 0);
 
       const finalTemplate = activeSessionData.modifiedTemplate || activeSessionData.originalTemplate;
 
@@ -209,14 +243,24 @@ export async function POST(request: NextRequest) {
 
     const totalAwarded = achievementResult.pointsAwarded + workoutXP;
 
-    return successResponse({
+    const payload = {
       session,
       message: 'Workout completed successfully',
       achievements: achievementResult,
       newPRs,
       workoutXP,
       totalAwarded,
-    });
+    };
+
+    if (idempotencyKey) {
+      // Stored after the work is done, so a crash mid-transaction leaves the key
+      // unrecorded and the retry genuinely re-runs.
+      await recordIdempotentResponse(userId, idempotencyKey, ENDPOINT, payload);
+      // Opportunistic housekeeping; failures here are swallowed internally.
+      void pruneIdempotencyKeys();
+    }
+
+    return successResponse(payload);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);

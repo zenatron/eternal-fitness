@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG } from '@/types/dashboard-config';
 import { toast } from 'react-hot-toast';
 
@@ -10,7 +11,7 @@ export const useDashboardConfig = () => {
 
   // Fetch current dashboard configuration
   const { data: config, isLoading, error } = useQuery<DashboardConfig>({
-    queryKey: ['dashboardConfig'],
+    queryKey: queryKeys.dashboardConfig,
     queryFn: async () => {
       const response = await fetch('/api/user/dashboard-config');
       
@@ -45,7 +46,7 @@ export const useDashboardConfig = () => {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboardConfig'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardConfig });
       toast.success('Dashboard settings saved!');
     },
     onError: (error) => {

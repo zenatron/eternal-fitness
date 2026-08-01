@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
 
 export interface UserStatsData {
   // Core stats
@@ -71,7 +72,7 @@ export const useUserStats = () => {
     error,
     refetch,
   } = useQuery<UserStatsData>({
-    queryKey: ['userStats'],
+    queryKey: queryKeys.userStats,
     queryFn: async () => {
       const response = await fetch('/api/user/stats');
 

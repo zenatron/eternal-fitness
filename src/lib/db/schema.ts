@@ -31,7 +31,34 @@ export const users = pgTable(
     useMetric: boolean('use_metric').notNull().default(false),
     points: integer('points').notNull().default(0),
     dashboardConfig: jsonb('dashboard_config').$type<DashboardConfig>(),
+    /**
+     * Accent theme id (see types/theme.ts). Nullable rather than defaulted so
+     * "never chose one" is distinguishable from "deliberately chose Forge" —
+     * the provider needs that to decide whether to adopt this device's local
+     * choice or the account's.
+     */
+    accentTheme: text('accent_theme'),
     weightGoal: doublePrecision('weight_goal'),
+    /**
+     * Picture URL from the OIDC `picture` claim, used when the user has not
+     * uploaded their own. Refreshed on each sign-in.
+     */
+    image: text('image'),
+    /**
+     * Custom avatar, overriding `image`. Stored as bytes rather than on disk so
+     * it survives container restarts, needs no extra volume, and is included in
+     * an ordinary database dump. A 256px lossy WebP is ~10-20KB, so the row
+     * stays small.
+     */
+    avatarData: text('avatar_data'),
+    avatarUpdatedAt: timestamp('avatar_updated_at', { withTimezone: true }),
+    /**
+     * Weight recorded when the current goal was set — the baseline progress is
+     * measured from. Without it, "progress toward goal" is not computable: a
+     * bare current/goal ratio rises as a weight-loss user moves *away* from
+     * target. Captured automatically when a goal is first set or changed.
+     */
+    startingWeight: doublePrecision('starting_weight'),
   },
 );
 
@@ -67,6 +94,9 @@ export const workoutSessions = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+    // NOTE: stored in SECONDS. Every writer must store seconds and every reader
+    // must divide by 3600 for hours. See scripts/reset-training-hours.ts for the
+    // historical units fix.
     duration: integer('duration'),
     notes: text('notes'),
     totalVolume: doublePrecision('total_volume').notNull().default(0),
@@ -129,12 +159,65 @@ export const monthlyStats = pgTable(
   ],
 );
 
+/**
+ * Dedupe record for offline-replayed writes.
+ *
+ * A workout completed with no signal is queued in the client's outbox and
+ * retried later; a request that timed out may also have succeeded server-side.
+ * Both cases can deliver the same completion twice. The client sends a stable
+ * Idempotency-Key, we record it here alongside the original response, and a
+ * repeat replays that response instead of logging a second workout.
+ */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    /** The original success payload, replayed verbatim on a repeat. */
+    response: jsonb('response'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Scoped per user so one person's key cannot collide with another's.
+    unique('idempotency_keys_user_key').on(table.userId, table.key),
+    index('idempotency_keys_created_at_idx').on(table.createdAt),
+  ],
+);
+
+/**
+ * Web Push endpoints, one row per browser/device. Subscriptions expire and get
+ * rotated by the browser, so rows are replaced on conflict and deleted when the
+ * push service reports them gone (404/410).
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** Push service URL — unique per device, so it is the natural key. */
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (table) => [index('push_subscriptions_user_id_idx').on(table.userId)],
+);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   workoutTemplates: many(workoutTemplates),
   workoutSessions: many(workoutSessions),
   userStats: one(userStats),
   monthlyStats: many(monthlyStats),
+  pushSubscriptions: many(pushSubscriptions),
+}));
+
+export const pushSubscriptionsRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(users, { fields: [pushSubscriptions.userId], references: [users.id] }),
 }));
 
 export const workoutTemplatesRelations = relations(workoutTemplates, ({ one, many }) => ({

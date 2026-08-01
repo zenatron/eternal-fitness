@@ -1,10 +1,26 @@
+# Pinned so the project name never depends on the directory name. Compose
+# derives it from the directory by default, so a second checkout under a
+# different name (eternal-fitness vs eternal_fitness) silently becomes a whole
+# second stack — new empty database volume and all — instead of updating the
+# running one. The underscore form is not cosmetic: it is where the live
+# pgdata volume already lives, so changing it would orphan the data.
+name: eternal_fitness
+
 services:
   app:
     image: zenatron/eternal-fitness:latest
     build: .
     restart: unless-stopped
+    # Stable DNS name for other stacks on quantanet (reverse proxy, etc.), so
+    # they never have to care about the generated <project>-app-1 form.
+    container_name: eternal-fitness
     ports:
       - "3000:3000"
+    networks:
+      # Listing any network disables the implicit default, so `default` has to
+      # be named explicitly here or the app loses its route to db.
+      - default
+      - quantanet
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://eternal:eternal@db:5432/eternal_fitness
@@ -12,7 +28,18 @@ services:
       - AUTH_POCKETID_ID=${AUTH_POCKETID_ID}
       - AUTH_POCKETID_SECRET=${AUTH_POCKETID_SECRET}
       - AUTH_POCKETID_ISSUER=${AUTH_POCKETID_ISSUER}
-      - AUTH_URL=${AUTH_URL:?AUTH_URL must be set to your public app URL (e.g. https://fitness.mydomain.me)}
+      # Optional. `trustHost: true` (src/lib/auth.ts) derives the origin from
+      # the request, so this only needs setting if your proxy does not forward
+      # X-Forwarded-Host/Proto correctly. It was previously required (`:?`),
+      # which made every `docker compose` command in this directory fail once it
+      # was unset for local development.
+      - AUTH_URL=${AUTH_URL:-}
+      # Web Push. All three are plain runtime config — leave them unset and push
+      # stays disabled with the rest of the app unaffected. The public key is
+      # handed to the browser by the API, not baked into the bundle.
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-}
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +60,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+networks:
+  # Pre-existing shared network, created and owned outside this stack. Declared
+  # external so Compose attaches to that one rather than creating its own
+  # namespaced eternal_fitness_quantanet, which would resolve to nothing the
+  # rest of the infrastructure can see.
+  quantanet:
+    external: true
 
 volumes:
   pgdata:

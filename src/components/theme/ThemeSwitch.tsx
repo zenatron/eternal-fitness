@@ -21,7 +21,7 @@ export default function ThemeSwitch() {
   return (
     <motion.button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="p-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-100 dark:hover:bg-surface-200 transition-colors relative"
+      className="p-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors relative"
       whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
       whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}

@@ -9,7 +9,7 @@ export function ProfileSkeleton() {
   const noMotion = prefersReducedMotion ?? false;
 
   return (
-    <div className="min-h-screen bg-surface-950 dark:bg-surface-100 py-8 px-4">
+    <div className="bg-surface-950 dark:bg-surface-100 py-8 px-4">
       <div className="max-w-7xl mx-auto">
         <style>{`
           @keyframes shimmer {
@@ -30,7 +30,7 @@ export function ProfileSkeleton() {
 
         {/* Back button skeleton */}
         <div className="mb-6">
-          <div className="h-10 w-32 bg-surface-200 dark:bg-surface-200 rounded-lg overflow-hidden relative">
+          <div className="h-10 w-32 bg-surface-700 dark:bg-surface-200 rounded-lg overflow-hidden relative">
             <div className="absolute inset-0 skeleton-shimmer" />
           </div>
         </div>
@@ -46,33 +46,33 @@ export function ProfileSkeleton() {
             <div className="absolute inset-0 skeleton-shimmer" />
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative">
               <div className="flex items-center gap-6">
-                <div className="w-24 h-24 bg-surface-200 dark:bg-surface-600 rounded-full relative overflow-hidden">
+                <div className="w-24 h-24 bg-surface-900 dark:bg-surface-600 rounded-full relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
                 <div>
-                  <div className="h-10 w-48 bg-surface-200 dark:bg-surface-600 rounded-lg relative overflow-hidden mb-2">
+                  <div className="h-10 w-48 bg-surface-900 dark:bg-surface-600 rounded-lg relative overflow-hidden mb-2">
                     <div className="absolute inset-0 skeleton-shimmer" />
                   </div>
-                  <div className="h-4 w-32 bg-surface-200 dark:bg-surface-600 rounded relative overflow-hidden mb-1">
+                  <div className="h-4 w-32 bg-surface-900 dark:bg-surface-600 rounded relative overflow-hidden mb-1">
                     <div className="absolute inset-0 skeleton-shimmer" />
                   </div>
-                  <div className="h-3 w-40 bg-surface-200 dark:bg-surface-600 rounded relative overflow-hidden">
+                  <div className="h-3 w-40 bg-surface-900 dark:bg-surface-600 rounded relative overflow-hidden">
                     <div className="absolute inset-0 skeleton-shimmer" />
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="w-24 h-20 bg-surface-200 dark:bg-surface-600 rounded-xl relative overflow-hidden">
+                <div className="w-24 h-20 bg-surface-900 dark:bg-surface-600 rounded-xl relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
-                <div className="w-12 h-12 bg-surface-200 dark:bg-surface-600 rounded-xl relative overflow-hidden">
+                <div className="w-12 h-12 bg-surface-900 dark:bg-surface-600 rounded-xl relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
               </div>
             </div>
             <div className="flex flex-wrap gap-3 mt-6 relative">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-8 w-20 bg-surface-200 dark:bg-surface-600 rounded-full relative overflow-hidden">
+                <div key={i} className="h-8 w-20 bg-surface-900 dark:bg-surface-600 rounded-full relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
               ))}
@@ -81,7 +81,7 @@ export function ProfileSkeleton() {
           <div className="p-6">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-10 bg-surface-200 dark:bg-surface-200 rounded-lg relative overflow-hidden">
+                <div key={i} className="h-10 bg-surface-700 dark:bg-surface-200 rounded-lg relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
               ))}
@@ -91,7 +91,7 @@ export function ProfileSkeleton() {
 
         {/* Stats overview skeleton */}
         <div className="mb-8">
-          <div className="h-8 w-48 bg-surface-200 dark:bg-surface-200 rounded-lg relative overflow-hidden mb-6">
+          <div className="h-8 w-48 bg-surface-700 dark:bg-surface-200 rounded-lg relative overflow-hidden mb-6">
             <div className="absolute inset-0 skeleton-shimmer" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -103,19 +103,19 @@ export function ProfileSkeleton() {
                 transition={{ ...springGentle, delay: noMotion ? 0 : 0.05 + i * 0.04 }}
                 className="forge-card p-6"
               >
-                <div className="h-2 bg-surface-200 dark:bg-surface-200 rounded-full relative overflow-hidden mb-4">
+                <div className="h-2 bg-surface-700 dark:bg-surface-200 rounded-full relative overflow-hidden mb-4">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="h-4 w-24 bg-surface-200 dark:bg-surface-200 rounded relative overflow-hidden mb-2">
+                    <div className="h-4 w-24 bg-surface-700 dark:bg-surface-200 rounded relative overflow-hidden mb-2">
                       <div className="absolute inset-0 skeleton-shimmer" />
                     </div>
-                    <div className="h-8 w-16 bg-surface-200 dark:bg-surface-200 rounded relative overflow-hidden">
+                    <div className="h-8 w-16 bg-surface-700 dark:bg-surface-200 rounded relative overflow-hidden">
                       <div className="absolute inset-0 skeleton-shimmer" />
                     </div>
                   </div>
-                  <div className="w-14 h-14 bg-surface-200 dark:bg-surface-200 rounded-xl relative overflow-hidden">
+                  <div className="w-14 h-14 bg-surface-700 dark:bg-surface-200 rounded-xl relative overflow-hidden">
                     <div className="absolute inset-0 skeleton-shimmer" />
                   </div>
                 </div>
@@ -134,26 +134,26 @@ export function ProfileSkeleton() {
               transition={{ ...springGentle, delay: noMotion ? 0 : 0.1 + i * 0.05 }}
               className="forge-card p-6"
             >
-              <div className="h-6 w-32 bg-surface-200 dark:bg-surface-200 rounded relative overflow-hidden mb-6">
+              <div className="h-6 w-32 bg-surface-700 dark:bg-surface-200 rounded relative overflow-hidden mb-6">
                 <div className="absolute inset-0 skeleton-shimmer" />
               </div>
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((j) => (
                   <div key={j} className="flex items-center justify-between p-4 bg-surface-950 dark:bg-surface-200/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-surface-200 dark:bg-surface-600 rounded-lg relative overflow-hidden">
+                      <div className="w-8 h-8 bg-surface-900 dark:bg-surface-600 rounded-lg relative overflow-hidden">
                         <div className="absolute inset-0 skeleton-shimmer" />
                       </div>
                       <div>
-                        <div className="h-4 w-24 bg-surface-200 dark:bg-surface-600 rounded relative overflow-hidden mb-1">
+                        <div className="h-4 w-24 bg-surface-900 dark:bg-surface-600 rounded relative overflow-hidden mb-1">
                           <div className="absolute inset-0 skeleton-shimmer" />
                         </div>
-                        <div className="h-3 w-16 bg-surface-200 dark:bg-surface-600 rounded relative overflow-hidden">
+                        <div className="h-3 w-16 bg-surface-900 dark:bg-surface-600 rounded relative overflow-hidden">
                           <div className="absolute inset-0 skeleton-shimmer" />
                         </div>
                       </div>
                     </div>
-                    <div className="h-4 w-12 bg-surface-200 dark:bg-surface-600 rounded relative overflow-hidden">
+                    <div className="h-4 w-12 bg-surface-900 dark:bg-surface-600 rounded relative overflow-hidden">
                       <div className="absolute inset-0 skeleton-shimmer" />
                     </div>
                   </div>
@@ -165,13 +165,13 @@ export function ProfileSkeleton() {
 
         {/* Favorite templates skeleton */}
         <div className="mb-8">
-          <div className="h-8 w-48 bg-surface-200 dark:bg-surface-200 rounded-lg relative overflow-hidden mb-6">
+          <div className="h-8 w-48 bg-surface-700 dark:bg-surface-200 rounded-lg relative overflow-hidden mb-6">
             <div className="absolute inset-0 skeleton-shimmer" />
           </div>
           <div className="forge-card p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-32 bg-surface-200 dark:bg-surface-200 rounded-xl relative overflow-hidden">
+                <div key={i} className="h-32 bg-surface-700 dark:bg-surface-200 rounded-xl relative overflow-hidden">
                   <div className="absolute inset-0 skeleton-shimmer" />
                 </div>
               ))}

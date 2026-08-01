@@ -82,7 +82,28 @@ export type Equipment =
 
   // Additional Equipment
   | 'Ab Wheel'
-  | 'Grip Trainer';
+  | 'Grip Trainer'
+
+  // Cardio machines. The library has had cardio exercises for a while, but
+  // their equipment was never added here, so they failed validation and were
+  // missing from equipment filters.
+  | 'Treadmill'
+  | 'Stationary Bike'
+  | 'Bicycle'
+  | 'Elliptical'
+  | 'Stair Climber'
+  | 'Ski Erg'
+  | 'Jump Rope'
+  | 'Pool'
+
+  // Specialist strength equipment
+  | 'Landmine'
+  | 'Belt Squat Machine'
+  | 'GHD'
+  | 'Reverse Hyper Machine'
+
+  // For exercises that need nothing at all (outdoor running, sprints).
+  | 'None';
 
 // Array of all equipment for validation and iteration
 export const equipment: Equipment[] = [
@@ -170,4 +191,22 @@ export const equipment: Equipment[] = [
   // Additional Equipment
   'Ab Wheel',
   'Grip Trainer',
+
+  // Cardio machines
+  'Treadmill',
+  'Stationary Bike',
+  'Bicycle',
+  'Elliptical',
+  'Stair Climber',
+  'Ski Erg',
+  'Jump Rope',
+  'Pool',
+
+  // Specialist strength equipment
+  'Landmine',
+  'Belt Squat Machine',
+  'GHD',
+  'Reverse Hyper Machine',
+
+  'None',
 ];

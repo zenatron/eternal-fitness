@@ -27,6 +27,158 @@
   inherits: false;
 }
 
+/* ── Design Tokens: accent themes & status colours ── */
+/* Accent themes. Channel triplets, so Tailwind can compose them with an
+   alpha value (`bg-accent-500/20`). Swapped wholesale by [data-accent]. */
+:root,
+[data-accent='forge'] {
+  --accent-50: 254 247 238;
+  --accent-100: 253 236 211;
+  --accent-200: 249 213 163;
+  --accent-300: 245 183 106;
+  --accent-400: 241 151 55;
+  --accent-500: 237 123 22;
+  --accent-600: 222 96 9;
+  --accent-700: 184 71 13;
+  --accent-800: 147 56 20;
+  --accent-900: 120 49 21;
+  --accent-950: 65 23 8;
+  /* Base hue, for the canvas particle systems that generate colour in JS. */
+  --accent-hue: 28;
+}
+
+[data-accent='arctic'] {
+  --accent-50: 236 254 255;
+  --accent-100: 207 250 254;
+  --accent-200: 165 243 252;
+  --accent-300: 103 232 249;
+  --accent-400: 34 211 238;
+  --accent-500: 6 182 212;
+  --accent-600: 8 145 178;
+  --accent-700: 14 116 144;
+  --accent-800: 21 94 117;
+  --accent-900: 22 78 99;
+  --accent-950: 8 51 68;
+  /* Base hue, for the canvas particle systems that generate colour in JS. */
+  --accent-hue: 189;
+}
+
+[data-accent='verdant'] {
+  --accent-50: 236 253 245;
+  --accent-100: 209 250 229;
+  --accent-200: 167 243 208;
+  --accent-300: 110 231 183;
+  --accent-400: 52 211 153;
+  --accent-500: 16 185 129;
+  --accent-600: 5 150 105;
+  --accent-700: 4 120 87;
+  --accent-800: 6 95 70;
+  --accent-900: 6 78 59;
+  --accent-950: 2 44 34;
+  /* Base hue, for the canvas particle systems that generate colour in JS. */
+  --accent-hue: 160;
+}
+
+[data-accent='amethyst'] {
+  --accent-50: 245 243 255;
+  --accent-100: 237 233 254;
+  --accent-200: 221 214 254;
+  --accent-300: 196 181 253;
+  --accent-400: 167 139 250;
+  --accent-500: 139 92 246;
+  --accent-600: 124 58 237;
+  --accent-700: 109 40 217;
+  --accent-800: 91 33 182;
+  --accent-900: 76 29 149;
+  --accent-950: 46 16 101;
+  /* Base hue, for the canvas particle systems that generate colour in JS. */
+  --accent-hue: 258;
+}
+
+[data-accent='steel'] {
+  --accent-50: 248 250 252;
+  --accent-100: 241 245 249;
+  --accent-200: 226 232 240;
+  --accent-300: 203 213 225;
+  --accent-400: 148 163 184;
+  --accent-500: 100 116 139;
+  --accent-600: 71 85 105;
+  --accent-700: 51 65 85;
+  --accent-800: 30 41 59;
+  --accent-900: 15 23 42;
+  --accent-950: 2 6 23;
+  /* Base hue, for the canvas particle systems that generate colour in JS. */
+  --accent-hue: 215;
+}
+
+/* Status colours. Fixed across themes: a success badge that changed hue with
+   the accent would stop meaning "success". */
+:root {
+  /* Gold. Trophies, personal records and achievement tiers read as medals, so
+     they stay gold under every theme — a bronze/silver/gold ladder only works
+     if gold is gold. Distinct from --warning-* (amber) by hue and by context:
+     the two never appear in the same component. */
+  --award-50: 254 252 232;
+  --award-100: 254 249 195;
+  --award-200: 254 240 138;
+  --award-300: 253 224 71;
+  --award-400: 250 204 21;
+  --award-500: 234 179 8;
+  --award-600: 202 138 4;
+  --award-700: 161 98 7;
+  --award-800: 133 77 14;
+  --award-900: 113 63 18;
+  --award-950: 66 32 6;
+
+  --success-50: 240 253 244;
+  --success-100: 220 252 231;
+  --success-200: 187 247 208;
+  --success-300: 134 239 172;
+  --success-400: 74 222 128;
+  --success-500: 34 197 94;
+  --success-600: 22 163 74;
+  --success-700: 21 128 61;
+  --success-800: 22 101 52;
+  --success-900: 20 83 45;
+  --success-950: 5 46 22;
+
+  --danger-50: 254 242 242;
+  --danger-100: 254 226 226;
+  --danger-200: 254 202 202;
+  --danger-300: 252 165 165;
+  --danger-400: 248 113 113;
+  --danger-500: 239 68 68;
+  --danger-600: 220 38 38;
+  --danger-700: 185 28 28;
+  --danger-800: 153 27 27;
+  --danger-900: 127 29 29;
+  --danger-950: 69 10 10;
+
+  --warning-50: 255 251 235;
+  --warning-100: 254 243 199;
+  --warning-200: 253 230 138;
+  --warning-300: 252 211 77;
+  --warning-400: 251 191 36;
+  --warning-500: 245 158 11;
+  --warning-600: 217 119 6;
+  --warning-700: 180 83 9;
+  --warning-800: 146 64 14;
+  --warning-900: 120 53 15;
+  --warning-950: 69 26 3;
+
+  --info-50: 239 246 255;
+  --info-100: 219 234 254;
+  --info-200: 191 219 254;
+  --info-300: 147 197 253;
+  --info-400: 96 165 250;
+  --info-500: 59 130 246;
+  --info-600: 37 99 235;
+  --info-700: 29 78 216;
+  --info-800: 30 64 175;
+  --info-900: 30 58 138;
+  --info-950: 23 37 84;}
+
+
 /* ── Spring Easing Tokens ── */
 :root {
   --ease-spring-snappy: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -35,14 +187,98 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 
-  --forge-glow: 0 0 20px rgba(237, 123, 22, 0.15);
-  --forge-glow-strong: 0 0 30px rgba(237, 123, 22, 0.25), 0 0 60px rgba(237, 123, 22, 0.1);
+  --accent-glow: 0 0 20px rgb(var(--accent-500) / 0.15);
+  --accent-glow-strong: 0 0 30px rgb(var(--accent-500) / 0.25), 0 0 60px rgb(var(--accent-500) / 0.1);
+
+  /* ── Safe Area Insets ──
+     viewportFit: 'cover' (see layout.tsx) lets the app paint into the notch and
+     home-indicator areas, which means we now own the job of keeping content out
+     of them. These resolve to 0px on hardware without insets. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* Height of the sticky header, so sticky children can offset from it. */
+  --header-height: 4rem;
+
+  /* Height of the mobile bottom nav. Zero on desktop, where the nav is hidden,
+     so anything anchored to the bottom can offset by this unconditionally. */
+  --bottom-nav: 3.25rem;
+
+  /* How far the bottom nav's background bleeds past the viewport edge. In
+     emulation `bottom: 0` sits exactly on the physical bottom and this is
+     invisible, but on a real iOS home screen app a strip of page background
+     can still show beneath it. Bleeding the nav's own surface downward covers
+     that without depending on what the browser reports for the inset. */
+  --nav-bleed: 5rem;
+
+  /* How much of the home-indicator inset the bottom nav actually reserves.
+     Reserving the full inset (34px on iOS, up to ~48px on edge-to-edge
+     Android) visibly floats the bar off the bottom of the screen, with the
+     bar's own surface filling the gap so it reads as stray padding. The bar
+     needs to clear the indicator, not the whole strip the OS declares. */
+  --nav-safe-bottom: min(var(--safe-bottom), 0.5rem);
+
+  /* Total space the fixed bottom nav takes out of the viewport: bar height,
+     its 1px top border, and the inset it reserves. Anything anchored to the
+     bottom offsets by this rather than recomputing the sum. */
+  --bottom-nav-total: calc(var(--bottom-nav) + 1px + var(--nav-safe-bottom));
+}
+
+@media (min-width: 768px) {
+  :root {
+    --bottom-nav: 0px;
+    /* The nav is `md:hidden`, so it occupies nothing at all here — not even
+       the border or the inset. */
+    --bottom-nav-total: 0px;
+  }
 }
 
 /* ── Base Layer ── */
 @layer base {
+  html {
+    /* Stop iOS bumping font sizes in landscape. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* The scrolling element is <html>, not <body> — setting this on body alone
+       left the whole page rubber-banding, dragging empty space in above the
+       header and below the footer. */
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    /* Painted in the bottom nav's colour, not the page's.
+     *
+     * In an installed iOS app the strip behind the home indicator sits outside
+     * the viewport box, so nothing rendered in the page can reach it — the
+     * nav's 5rem downward bleed stops at the viewport edge, which is why that
+     * strip stayed black no matter how the bar was padded. That region is
+     * painted from the *canvas* background, and the canvas takes its colour
+     * from <html> when <html> has one of its own.
+     *
+     * <body> keeps the page colour and covers the full viewport, so this is
+     * only ever visible in the strip below it — where it makes the bar read as
+     * continuous to the bottom of the screen instead of floating above a black
+     * band. Matches BottomNav: bg-white / dark:bg-surface-100.
+     */
+    @apply bg-white;
+  }
+
+  html.dark {
+    @apply bg-surface-100;
+  }
+
   body {
-    @apply bg-surface-950 text-surface-800 font-body antialiased;
+    /* The surface scale is inverted (0 = near-black, 950 = cream), so
+       text-surface-800 is a *light* grey — it was the default body colour
+       in light mode, giving roughly 1.8:1 against the cream background. */
+    @apply bg-surface-950 text-surface-100 font-body antialiased;
+    /* Kill the grey flash on tap; we render our own press states. */
+    -webkit-tap-highlight-color: transparent;
+    /* Scrolling happens in AppShell's <main>, never here. */
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   .dark body {
@@ -62,40 +298,40 @@
   }
 
   .btn-primary {
-    @apply bg-forge-500 hover:bg-forge-600 text-white focus:ring-forge-500 shadow-sm;
+    @apply bg-accent-500 hover:bg-accent-600 text-white focus:ring-accent-500 shadow-sm;
   }
 
   .dark .btn-primary {
-    box-shadow: 0 0 12px rgba(237, 123, 22, 0.2);
+    box-shadow: 0 0 12px rgb(var(--accent-500) / 0.2);
   }
 
   .dark .btn-primary:hover {
-    box-shadow: 0 0 20px rgba(237, 123, 22, 0.35);
+    box-shadow: 0 0 20px rgb(var(--accent-500) / 0.35);
   }
 
   .btn-secondary {
-    @apply bg-surface-100 dark:bg-surface-200 hover:bg-surface-200 dark:hover:bg-surface-300 text-surface-700 dark:text-surface-900 focus:ring-surface-400;
+    @apply bg-surface-900 dark:bg-surface-200 hover:bg-surface-800 dark:hover:bg-surface-300 text-surface-50 dark:text-surface-900 focus:ring-surface-400;
   }
 
   .btn-tertiary {
-    @apply bg-transparent hover:bg-surface-100 dark:hover:bg-surface-200 text-surface-600 dark:text-surface-800 border border-surface-300 dark:border-surface-400 focus:ring-surface-400;
+    @apply bg-transparent hover:bg-surface-900 dark:hover:bg-surface-200 text-surface-600 dark:text-surface-800 border border-surface-300 dark:border-surface-400 focus:ring-surface-400;
   }
 
   .btn-quaternary {
-    @apply bg-forge-50 dark:bg-forge-950/50 hover:bg-forge-100 dark:hover:bg-forge-900/50 text-forge-700 dark:text-forge-300 focus:ring-forge-400;
+    @apply bg-accent-50 dark:bg-accent-950/50 hover:bg-accent-100 dark:hover:bg-accent-900/50 text-accent-700 dark:text-accent-300 focus:ring-accent-400;
   }
 
   .btn-danger {
-    @apply bg-ember-500 hover:bg-ember-600 text-white focus:ring-ember-500;
+    @apply bg-danger-500 hover:bg-danger-600 text-white focus:ring-danger-500;
   }
 
   /* ── Semantic Color Utilities ── */
   .text-primary {
-    @apply text-forge-600 dark:text-forge-400;
+    @apply text-accent-600 dark:text-accent-400;
   }
 
   .text-primary-dark {
-    @apply text-forge-700 dark:text-forge-300;
+    @apply text-accent-700 dark:text-accent-300;
   }
 
   .text-heading {
@@ -115,7 +351,7 @@
   }
 
   .border-primary {
-    @apply border-forge-600 dark:border-forge-400;
+    @apply border-accent-600 dark:border-accent-400;
   }
 
   /* ── Form System (site-wide consistency) ── */
@@ -124,8 +360,8 @@
   }
 
   .form-input {
-    @apply w-full px-4 py-3 bg-white dark:bg-surface-100 border-2 border-surface-200 dark:border-surface-300 rounded-lg text-surface-800 dark:text-white placeholder-surface-500 dark:placeholder-surface-600;
-    @apply focus:outline-none focus:border-forge-500 dark:focus:border-forge-400 focus:ring-4 focus:ring-forge-500/10 dark:focus:ring-forge-400/10;
+    @apply w-full px-4 py-3 bg-white dark:bg-surface-100 border-2 border-surface-200 dark:border-surface-300 rounded-lg text-surface-50 dark:text-white placeholder-surface-500 dark:placeholder-surface-600;
+    @apply focus:outline-none focus:border-accent-500 dark:focus:border-accent-400 focus:ring-4 focus:ring-accent-500/10 dark:focus:ring-accent-400/10;
     @apply transition-all duration-200;
   }
 
@@ -139,22 +375,29 @@
   }
 
   .form-error {
-    @apply p-4 bg-red-50 dark:bg-ember-500/10 border border-red-200 dark:border-ember-500/30 rounded-lg text-red-600 dark:text-ember-400 text-sm font-medium flex items-center gap-3;
+    @apply p-4 bg-danger-50 dark:bg-danger-500/10 border border-danger-200 dark:border-danger-500/30 rounded-lg text-danger-600 dark:text-danger-400 text-sm font-medium flex items-center gap-3;
   }
 
   .form-hint {
     @apply text-xs text-surface-500 dark:text-surface-600 mt-1;
   }
 
-  /* Forge gradient — slow-burning amber/coral shift */
+  /* Accent gradient — the slow-burning wash behind page headers.
+   *
+   * Built from the accent scale rather than fixed oklch stops, so it follows
+   * whichever theme is active. Deliberately anchored at 600–800 and not the
+   * brighter 400–500: white heading text sits on this, and only from 600 down
+   * does every theme clear the 3:1 large-text contrast threshold (measured:
+   * forge 3.63, arctic 3.68, verdant 3.77, amethyst 5.70, steel 7.58).
+   */
   .greeting-gradient {
     background: linear-gradient(
       135deg,
-      oklch(0.55 0.18 40),
-      oklch(0.50 0.20 30),
-      oklch(0.45 0.16 20),
-      oklch(0.50 0.18 35),
-      oklch(0.55 0.18 40)
+      rgb(var(--accent-600)),
+      rgb(var(--accent-700)),
+      rgb(var(--accent-800)),
+      rgb(var(--accent-700)),
+      rgb(var(--accent-600))
     );
     background-size: 400% 400%;
     animation: gradient-shift 12s ease infinite;
@@ -163,10 +406,10 @@
   .greeting-gradient-subtle {
     background: linear-gradient(
       135deg,
-      oklch(0.95 0.03 50),
-      oklch(0.93 0.04 40),
-      oklch(0.94 0.03 30),
-      oklch(0.95 0.03 50)
+      rgb(var(--accent-50)),
+      rgb(var(--accent-100)),
+      rgb(var(--accent-50)),
+      rgb(var(--accent-100))
     );
     background-size: 400% 400%;
     animation: gradient-shift 12s ease infinite;
@@ -175,10 +418,10 @@
   .dark .greeting-gradient-subtle {
     background: linear-gradient(
       135deg,
-      oklch(0.18 0.04 40),
-      oklch(0.15 0.05 30),
-      oklch(0.16 0.03 20),
-      oklch(0.18 0.04 40)
+      rgb(var(--accent-950)),
+      rgb(var(--accent-900) / 0.55),
+      rgb(var(--accent-950)),
+      rgb(var(--accent-950))
     );
     background-size: 400% 400%;
   }
@@ -190,7 +433,7 @@
   }
 
   .dark .heat-glow:hover {
-    box-shadow: var(--forge-glow);
+    box-shadow: var(--accent-glow);
   }
 
   /* Card with warm border on hover */
@@ -199,8 +442,8 @@
   }
 
   .dark .forge-card:hover {
-    border-color: oklch(0.55 0.12 40 / 0.4);
-    box-shadow: 0 0 20px rgba(237, 123, 22, 0.08), 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-color: rgb(var(--accent-500) / 0.4);
+    box-shadow: 0 0 20px rgb(var(--accent-500) / 0.08), 0 4px 16px rgb(0 0 0 / 0.3);
   }
 
   /* Page transition classes */
@@ -233,6 +476,211 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* ── Safe Area Utilities ── */
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .px-safe {
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  /* Sticky elements need the inset folded into their offset, not just padding,
+     or they park underneath the status bar. */
+  .top-safe {
+    top: var(--safe-top);
+  }
+
+  .top-safe-header {
+    top: calc(var(--safe-top) + var(--header-height));
+  }
+
+  .bottom-safe {
+    bottom: var(--safe-bottom);
+  }
+
+  /* For fixed bottom bars: real height plus the home-indicator strip. */
+  .pb-safe-bar {
+    padding-bottom: calc(var(--safe-bottom) + 0.5rem);
+  }
+
+  /* Height available to a page inside AppShell's <main>.
+   *
+   * Pages used to reach for `min-h-screen` (100vh) here, but <main> is already
+   * only `100dvh − safe-top − header` tall and adds --bottom-nav-total as
+   * padding. A full-viewport minimum is therefore always taller than the space
+   * the page actually has, so every screen in the app scrolled by roughly the
+   * height of the chrome even when it had nothing to show.
+   *
+   * `min-h-full` is not the fix: the page sits inside template.tsx's
+   * auto-height transition wrapper, so a percentage min-height has no definite
+   * containing block to resolve against and collapses to nothing. Subtracting
+   * the chrome explicitly works wherever it is applied.
+   *
+   * Only needed by pages that centre their content vertically (empty, error and
+   * loading states). Pages with real content should simply size to it.
+   */
+  .min-h-page {
+    min-height: calc(
+      100dvh - var(--safe-top) - var(--header-height) - var(--bottom-nav-total)
+    );
+  }
+
+  /* Full viewport height that accounts for mobile browser chrome collapsing.
+     dvh is well supported now; the vh line is the fallback. */
+  .min-h-screen-dvh {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .h-screen-dvh {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* ── Touch Targets ──
+     WCAG 2.5.8 asks for 24px minimum; Apple and Google both say 44px. Use this
+     on any icon-only control so the hit area outgrows the glyph. */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Where 44px would wreck a dense layout, this keeps the visual size but grows
+     the hit area outward with a pseudo-element. */
+  .touch-target-expand {
+    position: relative;
+  }
+
+  .touch-target-expand::after {
+    content: '';
+    position: absolute;
+    inset: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Chrome for controls that get hammered repeatedly mid-set: no text selection,
+     no double-tap zoom, no 300ms delay. */
+  .tap-control {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Momentum scrolling inside horizontally scrollable rows. */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .scroll-touch::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Numeric readouts (weights, reps, timers) should never reflow as digits
+     change width. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
+
+/* ── Standalone (installed) mode ──
+   Only applies once the app is launched from the home screen. */
+@media all and (display-mode: standalone) {
+  body {
+    /* There is no browser UI to pull against, so lock the whole surface. */
+    overscroll-behavior: none;
+  }
+
+  /* Text selection inside an installed app reads as a bug rather than a feature,
+     except where the content is genuinely meant to be copied. */
+  body:not(.allow-select) {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable],
+  .allow-select {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* ── react-datepicker theming ──
+   The library ships a light-only stylesheet, so the inline calendar in the
+   schedule-workout sheet rendered as a white card floating in a dark modal.
+   Colours follow the surface scale (inverted: 0 = near-black, 950 = cream) and
+   the forge accent, and the day cells grow to a comfortable touch target.
+
+   Everything is scoped under .datepicker-forge, and the hover rules repeat the
+   library's own `:not([aria-disabled=true])` guard, purely to out-specify it.
+   The library's stylesheet is imported by the templates route while this lives
+   in the global sheet, so the two land in different CSS chunks and their load
+   order is not ours to rely on — specificity is. */
+.datepicker-forge .react-datepicker {
+  @apply border-surface-200 bg-white font-body dark:border-surface-300 dark:bg-surface-200;
+}
+
+.datepicker-forge .react-datepicker__header {
+  @apply border-surface-200 bg-surface-950 dark:border-surface-300 dark:bg-surface-100;
+}
+
+.datepicker-forge .react-datepicker__current-month,
+.datepicker-forge .react-datepicker-time__header {
+  @apply font-display text-surface-50 dark:text-white;
+}
+
+.datepicker-forge .react-datepicker__day-name {
+  @apply text-surface-600 dark:text-surface-700;
+}
+
+.datepicker-forge .react-datepicker__day {
+  @apply rounded-lg text-surface-50 dark:text-white;
+  /* 1.7rem cells were a small target for a thumb. */
+  width: 2.25rem;
+  line-height: 2.25rem;
+}
+
+.datepicker-forge .react-datepicker__day:not([aria-disabled='true']):hover {
+  @apply bg-surface-900 dark:bg-surface-300;
+}
+
+.datepicker-forge .react-datepicker__day--selected,
+.datepicker-forge .react-datepicker__day--keyboard-selected {
+  @apply bg-accent-500 text-white;
+}
+
+.datepicker-forge .react-datepicker__day--selected:not([aria-disabled='true']):hover,
+.datepicker-forge .react-datepicker__day--keyboard-selected:not([aria-disabled='true']):hover {
+  @apply bg-accent-600 text-white;
+}
+
+.datepicker-forge .react-datepicker__day--today {
+  @apply font-bold text-accent-600 dark:text-accent-400;
+}
+
+.datepicker-forge .react-datepicker__day--disabled {
+  @apply text-surface-700 dark:text-surface-500;
+}
+
+.datepicker-forge .react-datepicker__navigation-icon::before {
+  @apply border-surface-600 dark:border-surface-700;
+}
+
+.datepicker-forge .react-datepicker__triangle {
+  display: none;
 }
 
 /* ── Keyframe Animations ── */
@@ -255,10 +703,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(237, 123, 22, 0.4);
+    box-shadow: 0 0 0 0 rgb(var(--accent-500) / 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(237, 123, 22, 0);
+    box-shadow: 0 0 0 8px rgb(var(--accent-500) / 0);
   }
 }
 
@@ -341,5 +789,22 @@
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none !important;
+  }
+}
+
+/* ── iOS input zoom guard ──
+   iOS zooms the viewport whenever a focused field computes below 16px, and does
+   not zoom back out. This lived in @layer base, where Tailwind's `text-sm`
+   utility beat it — so the densest inputs in the app (set reps and weight in the
+   template builder) were still 14px and still triggered the zoom. Utilities
+   always win over base regardless of specificity, hence !important here.
+
+   Checkboxes, radios and ranges are excluded: font-size does not affect their
+   rendering and the zoom rule does not apply to them. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
   }
 }

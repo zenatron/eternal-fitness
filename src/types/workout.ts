@@ -82,6 +82,14 @@ export interface WorkoutExercise {
   muscles: string[]; // cached for performance
   equipment: string[]; // cached for performance
 
+  /**
+   * The logged weight is per limb, not the total load moved — true for dumbbell
+   * work (the number is one dumbbell) and for unilateral movements (one side at
+   * a time, reps logged per side). Volume counts it twice; see lib/volume.ts.
+   * Defaulted from the exercise library and overridable per template.
+   */
+  perSide?: boolean;
+
   sets: WorkoutSet[];
 
   // Exercise-specific settings
@@ -172,6 +180,13 @@ export interface ExercisePerformance {
   exerciseKey: string; // reference to Exercise table
   sets: PerformedSet[];
   exerciseNotes?: string;
+
+  /**
+   * Snapshot of the exercise's per-side setting at the time this was logged.
+   * Stored on the session rather than read from the template, so editing a
+   * template later cannot retroactively change what a past workout meant.
+   */
+  perSide?: boolean;
 
   // Exercise-level metrics
   totalVolume: number;
@@ -285,9 +300,19 @@ export interface ActiveWorkoutSessionData {
 
   // Session timing
   startedAt: Date;
-  pausedTime: number; // Total time paused in milliseconds
+  /**
+   * @deprecated Ambiguous and double-counted across pause/resume cycles. Kept so
+   * sessions written by older builds still load; use `accumulatedSeconds`.
+   */
+  pausedTime: number;
   isTimerActive: boolean;
-  lastPauseTime?: Date;
+  /** Date in memory; an ISO string once it has round-tripped through JSON. */
+  lastPauseTime?: Date | string;
+
+  /** Seconds of active training accumulated in already-finished segments. */
+  accumulatedSeconds?: number;
+  /** Start of the currently running segment. Absent while paused. */
+  segmentStartedAt?: Date | string;
 
   // Current workout state
   modifiedTemplate?: WorkoutTemplateData; // Template with user modifications
@@ -310,7 +335,15 @@ export interface ActiveSessionUpdatePayload {
   sessionNotes?: string;
   pausedTime?: number;
   isTimerActive?: boolean;
-  lastPauseTime?: Date;
+  accumulatedSeconds?: number;
+  /**
+   * `null` clears the field, `undefined` leaves it untouched. The distinction
+   * matters: JSON.stringify drops undefined keys, so pausing must send an
+   * explicit null or the server keeps a stale segment start and the elapsed
+   * time is computed from the wrong origin.
+   */
+  lastPauseTime?: Date | string | null;
+  segmentStartedAt?: Date | string | null;
 }
 
 // ============================================================================
@@ -470,6 +503,8 @@ export type FormExercise = {
   muscles: string[];
   equipment: string[];
   exerciseType?: 'strength' | 'cardio' | 'flexibility';
+  /** Library default for per-limb loading. See lib/volume.ts. */
+  perSide?: boolean;
 };
 
 // 🧩 FORM SET — the flat shape used by the template editor UI (distinct from

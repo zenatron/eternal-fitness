@@ -35,6 +35,15 @@ export async function GET(request: Request) {
     Object.entries(personalRecords).forEach(([exerciseName, exercisePR]) => {
       if (!exercisePR) return;
 
+      if (exercisePR.maxOneRepMax) {
+        allRecords.push({
+          exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'),
+          exerciseName,
+          type: 'oneRepMax',
+          value: exercisePR.maxOneRepMax.value,
+          achievedAt: exercisePR.maxOneRepMax.achievedAt,
+        });
+      }
       if (exercisePR.maxWeight) {
         allRecords.push({
           exerciseKey: exerciseName.toLowerCase().replace(/\s+/g, '_'),

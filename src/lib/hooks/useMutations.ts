@@ -1,4 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  queryKeys,
+  invalidateWorkoutData,
+  invalidateTemplateData,
+  invalidateProfileData,
+  templateKey,
+} from '@/lib/queryKeys';
 import { WorkoutTemplate, WorkoutType, Difficulty } from '@/types/workout';
 
 // 🚀 NEW JSON-BASED TEMPLATE INPUT DATA
@@ -72,8 +79,8 @@ export const useToggleFavorite = () => {
     onMutate: async (
       templateId: string,
     ): Promise<ToggleFavoriteContext> => {
-      await queryClient.cancelQueries({ queryKey: ['json-templates'] });
-      await queryClient.cancelQueries({ queryKey: ['json-template', templateId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.templates });
+      await queryClient.cancelQueries({ queryKey: templateKey(templateId) });
 
       const previousTemplates = queryClient.getQueryData<WorkoutTemplate[]>([
         'json-templates',
@@ -98,7 +105,7 @@ export const useToggleFavorite = () => {
       }
       // Update the cache for the single template view (if it exists)
       if (previousTemplate) {
-        queryClient.setQueryData(['json-template', templateId], {
+        queryClient.setQueryData(templateKey(templateId), {
           ...previousTemplate,
           favorite: newFavoriteStatusOptimistic,
         });
@@ -113,7 +120,7 @@ export const useToggleFavorite = () => {
         err,
       );
       if (context?.previousTemplates) {
-        queryClient.setQueryData(['json-templates'], context.previousTemplates);
+        queryClient.setQueryData(queryKeys.templates, context.previousTemplates);
       }
       if (context?.previousTemplate) {
         queryClient.setQueryData(
@@ -123,9 +130,11 @@ export const useToggleFavorite = () => {
       }
     },
 
-    onSettled: (templateId) => {
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
-      queryClient.invalidateQueries({ queryKey: ['json-template', templateId] });
+    // The id comes from `variables`, not the first argument: onSettled is
+    // (data, error, variables, context), and reading the first slot silently
+    // passed the whole response object where a template id was expected.
+    onSettled: (_data, _error, templateId) => {
+      void invalidateTemplateData(queryClient, templateId);
     },
   });
 };
@@ -160,8 +169,9 @@ export const useDeleteTemplate = () => {
     },
 
     onSuccess: (deletedTemplateId) => {
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
-      queryClient.removeQueries({ queryKey: ['json-template', deletedTemplateId] });
+      // Drop the detail entry outright rather than refetching a 404.
+      queryClient.removeQueries({ queryKey: templateKey(deletedTemplateId) });
+      void invalidateTemplateData(queryClient);
     },
   });
 };
@@ -189,10 +199,10 @@ export const useCreateTemplate = () => {
       return result.data;
     },
     onSuccess: (newTemplate) => {
-      // Invalidate the list of templates to refetch
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
-      // Optionally, add the new template to the cache immediately
-      queryClient.setQueryData(['json-template', newTemplate.id], newTemplate);
+      // Seed the detail cache so navigating straight to the new template is
+      // instant, then refresh everything that lists or scores templates.
+      queryClient.setQueryData(templateKey(newTemplate.id), newTemplate);
+      void invalidateTemplateData(queryClient, newTemplate.id);
     },
     // onError: (error) => { // Basic error logging
     //   console.error("Error creating template:", error);
@@ -223,14 +233,12 @@ export const useUpdateTemplate = () => {
       return result.data;
     },
     onSuccess: (updatedTemplate) => {
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
-      queryClient.invalidateQueries({
-        queryKey: ['json-template', updatedTemplate.id],
-      });
-      queryClient.setQueryData(
-        ['json-template', updatedTemplate.id],
-        updatedTemplate,
-      );
+      // Seed the detail cache from the response first so the page the user is
+      // looking at updates without waiting for a round trip, then invalidate the
+      // wider group — the dashboard and the recovery-map suggestions both read
+      // template contents and were never being refreshed.
+      queryClient.setQueryData(templateKey(updatedTemplate.id), updatedTemplate);
+      void invalidateTemplateData(queryClient, updatedTemplate.id);
     },
     // onError: (error, variables) => { // Basic error logging
     //   console.error(`Error updating template ${variables.id}:`, error);
@@ -264,11 +272,11 @@ export const useUpdateProfile = () => {
 
     onSuccess: async (data) => {
       // Invalidate and refetch the profile data
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      await invalidateProfileData(queryClient);
 
       // Set the new profile data in the cache immediately
       if (data?.data) {
-        queryClient.setQueryData(['profile'], data.data);
+        queryClient.setQueryData(queryKeys.profile, data.data);
       }
     },
   });
@@ -298,8 +306,7 @@ export const useDeduplicateExercises = () => {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
-      queryClient.invalidateQueries({ queryKey: ['json-template'] });
+      void invalidateTemplateData(queryClient);
     },
   });
 };
@@ -349,8 +356,10 @@ export const useUpdateSession = () => {
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userStats'] });
-      queryClient.invalidateQueries({ queryKey: ['session'] });
+      // Was invalidating ['userStats'] and ['session'] — the latter matches no
+      // query in the app, and editing a session moves everything a fresh one
+      // does.
+      void invalidateWorkoutData(queryClient);
     },
   });
 };
@@ -394,8 +403,7 @@ export const useLogPastWorkout = () => {
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userStats'] });
-      queryClient.invalidateQueries({ queryKey: ['json-templates'] });
+      void invalidateWorkoutData(queryClient);
     },
   });
 };

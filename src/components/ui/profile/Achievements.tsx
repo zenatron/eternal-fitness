@@ -3,10 +3,8 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { TrophyIcon } from '@heroicons/react/24/outline';
 import { TIER_COLORS, TIER_NAMES, AchievementCategory, localizeAchievement } from '@/types/achievements';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 interface AchievementData {
   id: string;
@@ -58,14 +56,14 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
       transition={springGentle}
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white flex items-center gap-2">
-          <TrophyIcon className="w-6 h-6 text-yellow-500" />
+        <h2 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white flex items-center gap-2">
+          <TrophyIcon className="w-6 h-6 text-award-500" />
           Achievements
         </h2>
         {onViewAll && (
           <motion.button
             onClick={onViewAll}
-            className="text-blue-500 hover:text-forge-600 text-sm font-medium"
+            className="text-info-500 hover:text-accent-600 text-sm font-medium"
             whileHover={noMotion ? {} : { scale: 1.03 }}
             whileTap={noMotion ? {} : { scale: 0.97 }}
             transition={springSnappy}
@@ -77,14 +75,14 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
 
       {/* Achievement Summary */}
       <motion.div
-        className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg p-6 mb-6"
+        className="bg-gradient-to-r from-award-50 to-award-100 dark:from-award-900/20 dark:to-award-900/20 rounded-lg p-6 mb-6"
         initial={noMotion ? {} : { scale: 0.95, opacity: 0 }}
         animate={noMotion ? {} : { scale: 1, opacity: 1 }}
         transition={{ ...springBouncy, delay: noMotion ? 0 : 0.1 }}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white">
+            <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">
               Progress Overview
             </h3>
             <p className="text-surface-500 dark:text-surface-600">
@@ -93,7 +91,7 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
           </div>
           <div className="text-right">
             <motion.div
-              className="text-3xl font-display font-bold tracking-wide text-yellow-600 dark:text-yellow-400"
+              className="text-3xl font-display font-bold tracking-wide text-award-600 dark:text-award-400"
               initial={noMotion ? {} : { scale: 0, rotate: -180 }}
               animate={noMotion ? {} : { scale: 1, rotate: 0 }}
               transition={{ ...springBouncy, delay: noMotion ? 0 : 0.3 }}
@@ -104,9 +102,9 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
           </div>
         </div>
 
-        <div className="mt-4 bg-surface-200 dark:bg-surface-200 rounded-full h-3 overflow-hidden">
+        <div className="mt-4 bg-surface-900 dark:bg-surface-300/60 rounded-full h-3 overflow-hidden">
           <motion.div
-            className="bg-gradient-to-r from-yellow-400 to-ember-500 h-3 rounded-full"
+            className="bg-gradient-to-r from-award-400 to-danger-500 h-3 rounded-full"
             initial={noMotion ? {} : { width: '0%' }}
             animate={noMotion ? {} : { width: `${percentComplete}%` }}
             transition={{ ...springSnappy, delay: noMotion ? 0 : 0.3 }}
@@ -116,7 +114,7 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
 
       {/* Next Achievements to Unlock */}
       <div>
-        <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-4">
+        <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4">
           {closestAchievements.length > 0 ? 'Closest to Achieving' : 'Get Started'}
         </h3>
         <div className="grid grid-cols-1 gap-4">
@@ -142,14 +140,14 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-display font-bold text-surface-800 dark:text-white truncate">
+                    <h4 className="font-display font-bold text-surface-50 dark:text-white truncate">
                       {achievement.name}
                     </h4>
                     <motion.span
                       className={`text-sm px-2 py-1 rounded-full ${
                         TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS]
                           ? `bg-gradient-to-r ${TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS]} text-white`
-                          : 'bg-surface-100 dark:bg-surface-200 text-surface-500 dark:text-surface-600'
+                          : 'bg-surface-900 dark:bg-surface-200 text-surface-500 dark:text-surface-600'
                       }`}
                       initial={noMotion ? {} : { scale: 0, opacity: 0 }}
                       animate={noMotion ? {} : { scale: 1, opacity: 1 }}
@@ -174,16 +172,16 @@ export function Achievements({ achievements, unlockedCount, totalCount, useMetri
                               {Number(achievement.progress.toFixed(2)).toLocaleString()} / {Number(localized.requirement.toFixed(2)).toLocaleString()}
                             </span>
                           </div>
-                          <div className="bg-surface-200 dark:bg-surface-200 rounded-full h-2 overflow-hidden">
+                          <div className="bg-surface-900 dark:bg-surface-300/60 rounded-full h-2 overflow-hidden">
                             <motion.div
-                              className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full"
+                              className="bg-gradient-to-r from-info-400 to-info-600 h-2 rounded-full"
                               initial={noMotion ? {} : { width: '0%' }}
                               animate={noMotion ? {} : { width: `${Math.min(100, progressPct)}%` }}
                               transition={{ ...springSnappy, delay: noMotion ? 0 : 0.25 + index * 0.08 }}
                             />
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-medium text-forge-600 dark:text-forge-400">
+                            <span className="text-sm font-medium text-accent-600 dark:text-accent-400">
                               {Math.round(progressPct)}% Complete
                             </span>
                           </div>

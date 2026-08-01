@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Dialog } from '@headlessui/react';
+import { ModalShell } from '@/components/ui/ModalShell';
 import {
   XMarkIcon,
   ChartBarIcon,
@@ -17,11 +17,10 @@ import {
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
+import { formatDurationCompact } from '@/utils/durationUtils';
 import { EditSessionModal } from './EditSessionModal';
+import { springSnappy } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 interface RecentActivityModalProps {
   isOpen: boolean;
@@ -39,12 +38,6 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [editingSession, setEditingSession] = useState<any>(null);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
 
   const formatFullDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -128,46 +121,18 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
 
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <Dialog as="div" className="relative z-50" open={isOpen} onClose={onClose}>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={springGentle}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            />
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={springBouncy}
-                  className="w-full max-w-5xl"
-                >
-                  <Dialog.Panel className="forge-card overflow-hidden shadow-2xl">
-                    <div className="h-1.5 greeting-gradient" />
-
-                    <div className="p-6 sm:p-8">
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-6">
-                        <Dialog.Title className="text-2xl font-display font-bold tracking-wide text-surface-800 dark:text-white flex items-center gap-3">
-                          <ChartBarIcon className="w-7 h-7 text-forge-500" />
-                          Recent Activity
-                          <span className="text-sm font-normal text-surface-500 dark:text-surface-600">
-                            ({filteredAndSortedSessions.length} total)
-                          </span>
-                        </Dialog.Title>
-                        <button
-                          onClick={onClose}
-                          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-200 rounded-lg transition-colors"
-                        >
-                          <XMarkIcon className="w-5 h-5 text-surface-500" />
-                        </button>
-                      </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Recent Activity"
+      subtitle={`${filteredAndSortedSessions.length} sessions`}
+      maxWidth="max-w-4xl"
+      icon={
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
+          <ChartBarIcon className="h-5 w-5 text-accent-500" />
+        </div>
+      }
+    >
 
                       {/* Search and Sort */}
                       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -195,8 +160,8 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                               onClick={() => handleSort(option.key)}
                               className={`px-3 py-2 rounded-lg text-sm font-display font-semibold tracking-wide uppercase flex items-center gap-1.5 transition-colors ${
                                 sortBy === option.key
-                                  ? 'bg-forge-100 dark:bg-forge-900/30 text-forge-700 dark:text-forge-300'
-                                  : 'bg-surface-100 dark:bg-surface-200 text-surface-600 dark:text-surface-800 hover:bg-surface-200 dark:hover:bg-surface-300'
+                                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300'
+                                  : 'bg-surface-900 dark:bg-surface-200 text-surface-600 dark:text-surface-800 hover:bg-surface-800 dark:hover:bg-surface-300'
                               }`}
                             >
                               <option.icon className="w-4 h-4" />
@@ -208,7 +173,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                       </div>
 
                       {/* Sessions List */}
-                      <div className="max-h-96 overflow-y-auto">
+                      <div className="">
                         {filteredAndSortedSessions.length === 0 ? (
                           <div className="text-center py-12">
                             <ChartBarIcon className="w-16 h-16 text-surface-300 dark:text-surface-500 mx-auto mb-4" />
@@ -224,10 +189,10 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                                 initial={{ opacity: 0, y: 16 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ ...springSnappy, delay: index * 0.03 }}
-                                className="form-section !p-4 flex items-center justify-between hover:!border-forge-400/30 dark:hover:!border-forge-500/30 transition-colors"
+                                className="form-section !p-4 flex items-center justify-between hover:!border-accent-400/30 dark:hover:!border-accent-500/30 transition-colors"
                               >
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-display font-bold text-surface-800 dark:text-white tracking-wide text-sm truncate">
+                                  <h4 className="font-display font-bold text-surface-50 dark:text-white tracking-wide text-sm truncate">
                                     {session.templateName}
                                   </h4>
                                   <div className="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-600 mt-1">
@@ -236,26 +201,26 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm shrink-0 ml-4">
-                                  <div className="flex items-center gap-1 text-forge-600 dark:text-forge-400">
+                                  <div className="flex items-center gap-1 text-accent-600 dark:text-accent-400">
                                     <ClockIcon className="w-4 h-4" />
-                                    <span className="text-xs font-medium">{formatDuration(session.duration)}</span>
+                                    <span className="text-xs font-medium">{formatDurationCompact(session.duration)}</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-forge-600 dark:text-forge-400">
+                                  <div className="flex items-center gap-1 text-accent-600 dark:text-accent-400">
                                     <ScaleIcon className="w-4 h-4" />
                                     <span className="text-xs font-medium">{formatVolume(session.totalVolume, useMetric)}</span>
                                   </div>
-                                  <div className="hidden sm:flex items-center gap-1 text-forge-600 dark:text-forge-400">
+                                  <div className="hidden sm:flex items-center gap-1 text-accent-600 dark:text-accent-400">
                                     <BoltIcon className="w-4 h-4" />
                                     <span className="text-xs font-medium">{session.totalSets} sets</span>
                                   </div>
                                   <button
                                     onClick={() => handleEditSession(session)}
                                     disabled={loadingSessionId === session.id}
-                                    className="p-2 text-surface-400 hover:text-forge-500 dark:hover:text-forge-400 hover:bg-forge-50 dark:hover:bg-forge-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                    className="p-2 text-surface-400 hover:text-accent-500 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 rounded-lg transition-colors disabled:opacity-50"
                                     title="Edit workout"
                                   >
                                     {loadingSessionId === session.id ? (
-                                      <div className="w-4 h-4 border-2 border-forge-500 border-t-transparent rounded-full animate-spin" />
+                                      <div className="w-4 h-4 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
                                     ) : (
                                       <PencilSquareIcon className="w-4 h-4" />
                                     )}
@@ -273,14 +238,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                           Close
                         </button>
                       </div>
-                    </div>
-                  </Dialog.Panel>
-                </motion.div>
-              </div>
-            </div>
-          </Dialog>
-        )}
-      </AnimatePresence>
+    </ModalShell>
 
       <EditSessionModal
         isOpen={!!editingSession}

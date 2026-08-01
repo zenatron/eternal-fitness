@@ -5,14 +5,13 @@ import Link from 'next/link';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
+import { springSnappy, springGentle } from '@/lib/motion';
 
 interface MonthlyProgressProps {
   stats: UserStatsData;
   useMetric: boolean;
 }
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
   const prefersReducedMotion = useReducedMotion();
@@ -26,8 +25,8 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
         transition={springGentle}
         className="forge-card p-8"
       >
-        <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2">
-          <ChartBarIcon className="w-6 h-6 text-green-500" />
+        <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2">
+          <ChartBarIcon className="w-6 h-6 text-success-500" />
           Monthly Progress
         </h3>
         <div className="text-center py-8">
@@ -52,8 +51,8 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
       transition={springGentle}
       className="forge-card p-6"
     >
-      <h3 className="text-xl font-display font-bold tracking-wide text-surface-800 dark:text-white mb-6 flex items-center gap-2">
-        <ChartBarIcon className="w-6 h-6 text-green-500" />
+      <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-2">
+        <ChartBarIcon className="w-6 h-6 text-success-500" />
         Monthly Progress
       </h3>
 
@@ -79,9 +78,9 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
                     {month.month} {month.year}
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-8 bg-surface-200 dark:bg-surface-200 rounded-lg overflow-hidden">
+                    <div className="h-8 bg-surface-900 dark:bg-surface-300/60 rounded-lg overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-lg flex items-center justify-end pr-2"
+                        className="h-full bg-gradient-to-r from-success-400 to-success-500 rounded-lg flex items-center justify-end pr-2"
                         initial={noMotion ? {} : { width: '0%' }}
                         animate={noMotion ? {} : { width: `${percentage}%` }}
                         transition={{ ...springSnappy, delay: noMotion ? 0 : 0.3 + index * 0.06 }}
@@ -121,9 +120,9 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
                     {month.month} {month.year}
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-8 bg-surface-200 dark:bg-surface-200 rounded-lg overflow-hidden">
+                    <div className="h-8 bg-surface-900 dark:bg-surface-300/60 rounded-lg overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-forge-400 to-forge-700 rounded-lg flex items-center justify-end pr-2"
+                        className="h-full bg-gradient-to-r from-accent-400 to-accent-700 rounded-lg flex items-center justify-end pr-2"
                         initial={noMotion ? {} : { width: '0%' }}
                         animate={noMotion ? {} : { width: `${percentage}%` }}
                         transition={{ ...springSnappy, delay: noMotion ? 0 : 0.3 + index * 0.06 }}
@@ -163,9 +162,9 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
                     {month.month} {month.year}
                   </div>
                   <div className="flex-1 relative">
-                    <div className="h-8 bg-surface-200 dark:bg-surface-200 rounded-lg overflow-hidden">
+                    <div className="h-8 bg-surface-900 dark:bg-surface-300/60 rounded-lg overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg flex items-center justify-end pr-2"
+                        className="h-full bg-gradient-to-r from-info-400 to-info-500 rounded-lg flex items-center justify-end pr-2"
                         initial={noMotion ? {} : { width: '0%' }}
                         animate={noMotion ? {} : { width: `${percentage}%` }}
                         transition={{ ...springSnappy, delay: noMotion ? 0 : 0.3 + index * 0.06 }}
@@ -187,7 +186,7 @@ export function MonthlyProgress({ stats, useMetric }: MonthlyProgressProps) {
         <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-300">
           <Link
             href="/progress"
-            className="text-sm font-display font-semibold text-forge-500 dark:text-forge-400 hover:text-forge-600 dark:hover:text-forge-300 transition-colors inline-flex items-center gap-1"
+            className="text-sm font-display font-semibold text-accent-500 dark:text-accent-400 hover:text-accent-600 dark:hover:text-accent-300 transition-colors inline-flex items-center gap-1"
           >
             View Full Progress
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

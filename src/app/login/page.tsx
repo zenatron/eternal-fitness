@@ -2,12 +2,11 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { signIn } from 'next-auth/react';
+import { springSnappy, springGentle } from '@/lib/motion';
 
 const devBypassEnabled =
   process.env.NEXT_PUBLIC_AUTH_DEV_BYPASS === 'true';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 const staggerVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -22,7 +21,7 @@ export default function LoginPage() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh] px-4">
+    <div className="flex items-center justify-center min-h-page px-4">
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
@@ -69,7 +68,7 @@ export default function LoginPage() {
             </motion.div>
 
             <motion.h1
-              className="text-3xl font-display font-bold text-surface-800 dark:text-white mb-1 tracking-wide"
+              className="text-3xl font-display font-bold text-surface-50 dark:text-white mb-1 tracking-wide"
               variants={prefersReducedMotion ? {} : staggerVariants}
               custom={1}
             >
@@ -97,7 +96,7 @@ export default function LoginPage() {
               whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
               transition={springSnappy}
-              style={{ boxShadow: '0 0 15px rgba(237, 123, 22, 0.2)' }}
+              style={{ boxShadow: '0 0 15px rgb(var(--accent-500) / 0.2)' }}
             >
               Sign in with PocketID
             </motion.button>
@@ -105,7 +104,7 @@ export default function LoginPage() {
             {devBypassEnabled && (
               <motion.button
                 onClick={() => signIn('dev-bypass', { email: 'dev@eternal-fitness.local' })}
-                className="w-full px-5 py-3 border-2 border-dashed border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400 font-display font-semibold tracking-wide uppercase rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 dark:focus:ring-offset-surface-0"
+                className="w-full px-5 py-3 border-2 border-dashed border-warning-400 dark:border-warning-600 text-warning-700 dark:text-warning-400 font-display font-semibold tracking-wide uppercase rounded-lg hover:bg-warning-50 dark:hover:bg-warning-950/30 transition-colors focus:outline-none focus:ring-2 focus:ring-warning-400 focus:ring-offset-2 dark:focus:ring-offset-surface-0"
                 whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
                 transition={springSnappy}

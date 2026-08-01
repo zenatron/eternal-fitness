@@ -8,6 +8,7 @@ import {
   WorkoutTemplateData,
 } from '@/types/workout';
 import { z } from 'zod';
+import { updateSessionSchema } from '@/lib/validation/activeSession';
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
@@ -24,16 +25,6 @@ const startSessionSchema = z.object({
   template: z.any(),
 });
 
-const updateSessionSchema = z.object({
-  performance: z.record(z.any()).optional(),
-  modifiedTemplate: z.any().optional(),
-  exerciseProgress: z.record(z.any()).optional(),
-  sessionNotes: z.string().optional(),
-  pausedTime: z.number().optional(),
-  isTimerActive: z.boolean().optional(),
-  lastPauseTime: z.string().optional(),
-  version: z.number().optional(),
-});
 
 export async function GET() {
   try {
@@ -193,10 +184,25 @@ export async function PATCH(request: NextRequest) {
       return errorResponse('Invalid session data structure', 400);
     }
 
+    // `lastPauseTime` and `segmentStartedAt` are explicitly nullable: an
+    // undefined field means "not sent, keep current", while an explicit null
+    // means "clear it". Collapsing the two would leave a stale segment start
+    // behind after a pause and corrupt the elapsed-time calculation.
     const updatedSessionData: ActiveWorkoutSessionData = {
       ...currentSessionData,
       ...updates,
-      lastPauseTime: updates.lastPauseTime ? new Date(updates.lastPauseTime) : currentSessionData.lastPauseTime,
+      lastPauseTime:
+        updates.lastPauseTime === undefined
+          ? currentSessionData.lastPauseTime
+          : updates.lastPauseTime === null
+            ? undefined
+            : new Date(updates.lastPauseTime),
+      segmentStartedAt:
+        updates.segmentStartedAt === undefined
+          ? currentSessionData.segmentStartedAt
+          : updates.segmentStartedAt === null
+            ? undefined
+            : new Date(updates.segmentStartedAt),
       version: currentSessionData.version + 1,
       lastUpdated: now,
     };

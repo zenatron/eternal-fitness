@@ -1,7 +1,32 @@
 // 🏆 SIMPLE PERSONAL RECORDS TYPES
 // Based on exercises from src/lib/exercises.ts
 
+/** Every record type, in the order they should be presented. */
+export const PR_TYPES = [
+  'maxWeight',
+  'maxOneRepMax',
+  'maxVolume',
+  'maxDuration',
+  'maxDistance',
+] as const;
+
+export type PRType = (typeof PR_TYPES)[number];
+
 export interface ExercisePR {
+  /**
+   * Best estimated 1RM. Distinct from maxWeight, which only knows the heaviest
+   * load moved: 5x100 is a stronger performance than 1x105, and maxWeight
+   * cannot see the difference. Stores the set it came from so the estimate is
+   * attributable rather than a bare number.
+   */
+  maxOneRepMax?: {
+    value: number;
+    weight: number;
+    reps: number;
+    achievedAt: string;
+    sessionId: string;
+  };
+
   maxWeight?: {
     value: number;
     reps: number;
@@ -65,9 +90,11 @@ export interface UserPersonalRecords {
 // Helper type for PR updates
 export interface PRUpdate {
   exerciseName: string;
-  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
+  type: PRType;
   value: number;
   reps?: number;
+  /** Load the estimate came from, for maxOneRepMax. */
+  weight?: number;
   sets?: number;
   avgWeight?: number;
   sessionId: string;
@@ -76,8 +103,9 @@ export interface PRUpdate {
 // PR comparison result
 export interface PRComparison {
   isNewPR: boolean;
-  type: 'maxWeight' | 'maxVolume' | 'maxDuration' | 'maxDistance';
+  type: PRType;
   improvement?: number;
   improvementPercent?: number;
   previousBest?: number;
 }
+

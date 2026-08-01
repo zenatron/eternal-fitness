@@ -238,33 +238,39 @@ export function formatPerformedSetDisplay(set: PerformedSet, useMetric: boolean 
 export function getDifficultyColor(difficulty: string): string {
   switch (difficulty.toLowerCase()) {
     case 'beginner':
-      return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30';
+      return 'text-success-600 bg-success-100 dark:text-success-400 dark:bg-success-900/30';
     case 'intermediate':
-      return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30';
+      return 'text-award-600 bg-award-100 dark:text-award-400 dark:bg-award-900/30';
     case 'advanced':
-      return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30';
+      return 'text-danger-600 bg-danger-100 dark:text-danger-400 dark:bg-danger-900/30';
     default:
-      return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700/30';
+      return 'text-surface-700 bg-surface-200 dark:text-surface-800 dark:bg-surface-300/40';
   }
 }
 
 /**
- * Gets workout type color class
+ * Gets workout type color class.
+ *
+ * Kept within the forge/surface palette rather than the blue/purple/green
+ * assortment this used before, which clashed badly with the amber accents these
+ * badges sit next to on template cards. Types are distinguished by weight and
+ * warmth instead of by unrelated hues, and `ember` stays reserved for
+ * destructive actions so it is not used here.
  */
 export function getWorkoutTypeColor(workoutType: string): string {
   switch (workoutType.toLowerCase()) {
     case 'strength':
-      return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30';
+      return 'text-accent-700 bg-accent-100 dark:text-accent-300 dark:bg-accent-900/40';
     case 'cardio':
-      return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30';
+      return 'text-warning-700 bg-warning-100 dark:text-warning-300 dark:bg-warning-900/30';
     case 'hybrid':
-      return 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30';
+      return 'text-award-700 bg-award-100 dark:text-award-300 dark:bg-award-900/30';
     case 'flexibility':
-      return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30';
+      return 'text-info-700 bg-info-100 dark:text-info-300 dark:bg-info-900/30';
     case 'sports':
-      return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30';
+      return 'text-success-700 bg-success-100 dark:text-success-300 dark:bg-success-900/30';
     default:
-      return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700/30';
+      return 'text-surface-700 bg-surface-200 dark:text-surface-800 dark:bg-surface-300/40';
   }
 }
 
@@ -284,9 +290,9 @@ export function formatRPE(rpe: number): string {
  * Gets RPE color class
  */
 export function getRPEColor(rpe: number): string {
-  if (rpe <= 3) return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30';
-  if (rpe <= 5) return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30';
-  if (rpe <= 7) return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30';
-  if (rpe <= 8) return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30';
-  return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30';
+  if (rpe <= 3) return 'text-success-600 bg-success-100 dark:text-success-400 dark:bg-success-900/30';
+  if (rpe <= 5) return 'text-info-600 bg-info-100 dark:text-info-400 dark:bg-info-900/30';
+  if (rpe <= 7) return 'text-award-600 bg-award-100 dark:text-award-400 dark:bg-award-900/30';
+  if (rpe <= 8) return 'text-warning-600 bg-warning-100 dark:text-warning-400 dark:bg-warning-900/30';
+  return 'text-danger-600 bg-danger-100 dark:text-danger-400 dark:bg-danger-900/30';
 }

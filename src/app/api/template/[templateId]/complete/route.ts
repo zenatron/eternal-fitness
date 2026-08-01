@@ -8,6 +8,7 @@ import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
 import { WorkoutTemplate, WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { awardWorkoutXP } from '@/lib/xp';
 
 const successResponse = (data: unknown, status = 201) => {
   return NextResponse.json({ data }, { status });
@@ -214,16 +215,32 @@ export async function POST(
       return createdSession;
     });
 
+    let achievementPoints = 0;
     try {
       const exerciseKeys = performance ? Object.values(performance).map(p => p.exerciseKey) : [];
       await updateUniqueExercisesCount(userId, exerciseKeys);
       const achievementResult = await updateUserAchievements(userId);
-
+      achievementPoints = achievementResult.pointsAwarded;
     } catch (achievementError) {
       console.error('Error updating achievements:', achievementError);
     }
 
-    return successResponse(newSession);
+    // The other three completion paths (session/active/complete, session/log and
+    // session-json) all award base XP. This one did not, so finishing a workout
+    // through a template silently earned zero points and left the user's level
+    // out of step with their workout count.
+    let workoutXP = 0;
+    try {
+      workoutXP = await awardWorkoutXP(userId, { newPRs: 0 });
+    } catch (xpError) {
+      console.error('Error awarding workout XP:', xpError);
+    }
+
+    return successResponse({
+      ...newSession,
+      workoutXP,
+      totalAwarded: workoutXP + achievementPoints,
+    });
   } catch (error: any) {
     const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {

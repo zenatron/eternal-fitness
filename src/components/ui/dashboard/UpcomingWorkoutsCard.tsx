@@ -35,7 +35,7 @@ function SessionRow({ session, index }: { session: WorkoutSession; index: number
       className="flex items-center justify-between py-2"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-surface-800 dark:text-white truncate">
+        <p className="text-sm font-semibold text-surface-50 dark:text-white truncate">
           {template?.name || 'Untitled'}
         </p>
         <p className="text-xs text-surface-500 dark:text-surface-600">
@@ -55,7 +55,7 @@ function SessionRow({ session, index }: { session: WorkoutSession; index: number
       >
         <Link
           href={`/session/active/${session.workoutTemplateId}?sessionId=${session.id}`}
-          className="ml-3 px-3 py-1 text-xs font-display font-bold tracking-wide uppercase bg-forge-500 text-white rounded-lg hover:bg-forge-600 transition-colors shrink-0"
+          className="ml-3 px-3 py-1 text-xs font-display font-bold tracking-wide uppercase bg-accent-500 text-white rounded-lg hover:bg-accent-600 transition-colors shrink-0"
         >
           Start
         </Link>
@@ -76,10 +76,10 @@ export function UpcomingWorkoutsCard({
   return (
     <div className="forge-card heat-glow h-full">
       <div className="px-5 py-4 border-b border-surface-100 dark:border-surface-300 flex items-center justify-between">
-        <h3 className="font-display font-bold text-surface-800 dark:text-white tracking-wide uppercase text-sm">
+        <h3 className="font-display font-bold text-surface-50 dark:text-white tracking-wide uppercase text-sm">
           Upcoming
         </h3>
-        <CalendarDaysIcon className="w-5 h-5 text-forge-500/40" />
+        <CalendarDaysIcon className="w-5 h-5 text-accent-500/40" />
       </div>
       <div className="p-5">
         {Array.isArray(sessions) && sessions.length > 0 ? (
@@ -116,7 +116,7 @@ export function UpcomingWorkoutsCard({
           >
             <Link
               href="/templates"
-              className="block px-3 py-2 text-center text-sm font-display font-bold tracking-wide uppercase bg-forge-500 text-white rounded-lg hover:bg-forge-600 transition-colors"
+              className="block px-3 py-2 text-center text-sm font-display font-bold tracking-wide uppercase bg-accent-500 text-white rounded-lg hover:bg-accent-600 transition-colors"
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 Browse

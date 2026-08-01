@@ -36,6 +36,8 @@ const createExerciseSchema = z.object({
   sets: z.array(createSetSchema).min(1, 'Each exercise must have at least one set'),
   instructions: z.string().optional(),
   restBetweenSets: z.number().positive().optional(),
+  /** Weight is per limb; volume counts it twice. See lib/volume.ts. */
+  perSide: z.boolean().optional(),
 });
 
 const createTemplateSchema = z.object({
@@ -51,7 +53,12 @@ const createTemplateSchema = z.object({
 function getExerciseData(exerciseKey: string) {
   const staticData = staticExercisesData[exerciseKey as keyof typeof staticExercisesData];
   if (staticData) {
-    return { name: staticData.name, muscles: staticData.muscles, equipment: staticData.equipment };
+    return {
+      name: staticData.name,
+      muscles: staticData.muscles,
+      equipment: staticData.equipment,
+      perSide: staticData.perSide,
+    };
   }
   return { name: exerciseKey, muscles: [], equipment: [] };
 }
@@ -76,6 +83,7 @@ export async function POST(request: Request) {
         name: exerciseData.name,
         muscles: exerciseData.muscles,
         equipment: exerciseData.equipment,
+        perSide: ex.perSide ?? exerciseData.perSide,
         sets: ex.sets.map((set) => ({
           reps: set.reps,
           weight: set.weight,

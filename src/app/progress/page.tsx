@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { queryKeys } from '@/lib/queryKeys';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
+import { ErrorState } from '@/components/ui/ErrorState';
 import {
   ArrowLeftIcon,
   ChartBarIcon,
@@ -15,10 +18,8 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { formatPRValue } from '@/utils/prFormatting';
+import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 const PERIODS = [
   { key: '7d', label: '7 Days' },
@@ -53,12 +54,12 @@ function StatPill({ label, value, change, isNew, format, icon: Icon, delay }: {
       className="forge-card p-4 flex flex-col items-center text-center"
     >
       <Icon className="w-5 h-5 text-surface-500 dark:text-surface-600 mb-1.5" />
-      <span className="text-xl font-display font-black text-surface-800 dark:text-white">{value}</span>
+      <span className="text-xl font-display font-black text-surface-50 dark:text-white">{value}</span>
       <span className="text-xs text-surface-500 dark:text-surface-600 uppercase tracking-wider mt-0.5">{label}</span>
       {isNew ? (
-        <span className="text-[10px] font-bold text-forge-500 mt-1">NEW</span>
+        <span className="text-[10px] font-bold text-accent-500 mt-1">NEW</span>
       ) : change !== 0 ? (
-        <span className={`text-[10px] font-bold mt-1 ${change > 0 ? 'text-green-500' : 'text-red-500'}`}>
+        <span className={`text-[10px] font-bold mt-1 ${change > 0 ? 'text-success-500' : 'text-danger-500'}`}>
           {change > 0 ? '↑' : '↓'} {Math.abs(change)}%
         </span>
       ) : (
@@ -156,17 +157,31 @@ export default function ProgressPage() {
   const useMetric = profile?.useMetric ?? false;
 
   const [period, setPeriod] = useState('30d');
-  const [data, setData] = useState<ProgressData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetch(`/api/progress?period=${period}`)
-      .then(r => r.json())
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, [period]);
+  /*
+   * React Query rather than a bare useEffect + fetch. The previous version
+   * swallowed failures with `.catch(console.error)` and fell through to the
+   * empty state, so a network error was indistinguishable from having no
+   * workouts. This also gets retry, and serves the service worker's cached copy
+   * when offline.
+   */
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery<ProgressData>({
+    queryKey: [...queryKeys.progress, period],
+    queryFn: async () => {
+      const response = await fetch(`/api/progress?period=${period}`, {
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error('Failed to load progress');
+      return response.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const maxFreq = data ? Math.max(...data.frequency.map(d => d.workouts), 1) : 1;
   const maxVol = data ? Math.max(...data.frequency.map(d => d.volume), 1) : 1;
@@ -177,44 +192,54 @@ export default function ProgressPage() {
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="min-h-screen app-bg py-8 px-4"
+      className="app-bg py-8 px-4"
     >
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="forge-card overflow-hidden mb-6">
-          <div className="relative px-8 py-8 text-white greeting-gradient">
+          <div className="relative px-5 py-6 sm:px-8 sm:py-8 text-white greeting-gradient">
             <div className="absolute inset-0 bg-black/10" />
-            <div className="relative flex items-center gap-4">
-              <motion.button
-                onClick={() => router.back()}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                transition={springSnappy}
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </motion.button>
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase flex items-center gap-3">
-                  <ChartBarIcon className="w-8 h-8" />
-                  Progress
-                </h1>
-                <p className="text-forge-100 text-sm mt-1">
-                  Your training analytics at a glance
-                </p>
+            {/* Title and period selector are on separate rows. Sharing one row
+                pushed three of the five periods off the side of a phone, with
+                no way to scroll to them — they were simply unreachable. */}
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <motion.button
+                  onClick={() => router.back()}
+                  aria-label="Go back"
+                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors tap-control"
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
+                  transition={springSnappy}
+                >
+                  <ArrowLeftIcon className="h-6 w-6" />
+                </motion.button>
+                <div className="min-w-0 flex-1">
+                  <h1 className="flex items-center gap-2.5 text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase">
+                    <ChartBarIcon className="w-7 h-7 shrink-0" />
+                    Progress
+                  </h1>
+                  <p className="text-accent-100 text-sm mt-0.5">
+                    Your training analytics at a glance
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-1.5">
+
+              {/* Scrollable on narrow screens; the bleed keeps the first and
+                  last chips flush with the card padding while scrolling. */}
+              <div className="scroll-touch -mx-5 mt-5 flex gap-1.5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
                 {PERIODS.map(p => (
                   <motion.button
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
+                    aria-pressed={period === p.key}
                     whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                     whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                     transition={springSnappy}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-display font-semibold uppercase tracking-wider transition-colors ${
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 min-h-[38px] text-xs font-display font-semibold uppercase tracking-wider transition-colors tap-control ${
                       period === p.key
-                        ? 'bg-white text-forge-700 shadow-sm'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                        ? 'bg-white text-accent-700 shadow-sm'
+                        : 'bg-white/10 text-white/80 hover:text-white hover:bg-white/20'
                     }`}
                   >
                     {p.label}
@@ -227,12 +252,24 @@ export default function ProgressPage() {
 
         {isLoading ? (
           <div className="forge-card p-12 text-center text-surface-500">Loading...</div>
+        ) : isError ? (
+          <ErrorState
+            what="progress data"
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
         ) : !data ? (
-          <div className="forge-card p-12 text-center text-surface-500">No data available</div>
+          <div className="forge-card p-12 text-center text-surface-500">
+            No workouts logged in this period yet.
+          </div>
         ) : (
           <>
             {/* Stat Pills */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
+            {/* Two columns on mobile rather than three: the pill count is 4 or 5
+                depending on whether any distance was logged, and a 3-wide grid
+                left a single orphan pill beside a large empty gap. The arbitrary
+                variant makes a lone final pill span the full width instead. */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6 [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1">
               <StatPill label="Workouts" value={String(data.summary.workouts.value)} change={data.summary.workouts.change} isNew={data.summary.workouts.isNew} format="workouts" icon={FireIcon} delay={0.1} />
               <StatPill label="Volume" value={formatVolume(data.summary.volume.value, useMetric)} change={data.summary.volume.change} isNew={data.summary.volume.isNew} format="volume" icon={ScaleIcon} delay={0.15} />
               <StatPill label="Hours" value={`${data.summary.hours.value}h`} change={data.summary.hours.change} isNew={data.summary.hours.isNew} format="hours" icon={ClockIcon} delay={0.2} />
@@ -246,11 +283,11 @@ export default function ProgressPage() {
             <div className="columns-1 lg:columns-2 gap-6 mb-6 [&>*]:break-inside-avoid [&>*]:mb-6">
               {/* Workout Frequency */}
               <div className="forge-card p-6">
-                <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-4 flex items-center gap-2">
-                  <FireIcon className="w-5 h-5 text-orange-500" />
+                <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
+                  <FireIcon className="w-5 h-5 text-accent-500" />
                   Workout Frequency
                 </h3>
-                <BarChart data={data.frequency} valueKey="workouts" color="bg-gradient-to-t from-green-400 to-green-500" maxValue={maxFreq} delay={0.4} />
+                <BarChart data={data.frequency} valueKey="workouts" color="bg-gradient-to-t from-success-400 to-success-500" maxValue={maxFreq} delay={0.4} />
                 <div className="flex justify-between mt-2 text-[10px] text-surface-400 dark:text-surface-600 font-display uppercase tracking-wider">
                   {data.frequency.length > 0 && (
                     <>
@@ -264,12 +301,12 @@ export default function ProgressPage() {
 
               {/* Volume Trend */}
               <div className="forge-card p-6">
-                <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-4 flex items-center gap-2">
-                  <ScaleIcon className="w-5 h-5 text-forge-500" />
+                <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
+                  <ScaleIcon className="w-5 h-5 text-accent-500" />
                   Volume Trend
                 </h3>
-                <Sparkline data={data.frequency} valueKey="volume" color="text-forge-500" />
-                <BarChart data={data.frequency} valueKey="volume" color="bg-gradient-to-t from-forge-400 to-forge-600" maxValue={maxVol} delay={0.5} />
+                <Sparkline data={data.frequency} valueKey="volume" color="text-accent-500" />
+                <BarChart data={data.frequency} valueKey="volume" color="bg-gradient-to-t from-accent-400 to-accent-600" maxValue={maxVol} delay={0.5} />
                 <div className="flex justify-between mt-2 text-[10px] text-surface-400 dark:text-surface-600 font-display uppercase tracking-wider">
                   {data.frequency.length > 0 && (
                     <>
@@ -283,8 +320,8 @@ export default function ProgressPage() {
               {/* Top Exercises */}
               {data.topExercises.length > 0 && (
                 <div className="forge-card p-6">
-                  <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-4 flex items-center gap-2">
-                    <FireIcon className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
+                    <FireIcon className="w-5 h-5 text-accent-500" />
                     Top Exercises
                   </h3>
                   <div className="space-y-2">
@@ -301,9 +338,9 @@ export default function ProgressPage() {
                         >
                           <span className="w-5 text-xs font-bold text-surface-400 text-right tabular-nums">{i + 1}</span>
                           <span className="w-28 text-sm font-medium text-surface-700 dark:text-surface-400 truncate">{ex.name}</span>
-                          <div className="flex-1 h-5 bg-surface-200 dark:bg-surface-300/40 rounded-full overflow-hidden">
+                          <div className="flex-1 h-5 bg-surface-900 dark:bg-surface-300/40 rounded-full overflow-hidden">
                             <motion.div
-                              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                              className="h-full rounded-full bg-gradient-to-r from-accent-400 to-accent-600"
                               initial={prefersReducedMotion ? {} : { width: 0 }}
                               animate={prefersReducedMotion ? {} : { width: `${pct}%` }}
                               transition={{ duration: 0.8, delay: 0.6 + i * 0.05, ease: 'easeOut' }}
@@ -322,8 +359,8 @@ export default function ProgressPage() {
               {/* Recent Sessions */}
               {data.recentSessions.length > 0 && (
                 <div className="forge-card p-6">
-                  <h3 className="text-lg font-display font-bold text-surface-800 dark:text-white mb-4 flex items-center gap-2">
-                    <ClockIcon className="w-5 h-5 text-blue-500" />
+                  <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
+                    <ClockIcon className="w-5 h-5 text-info-500" />
                     Recent Sessions
                   </h3>
                   <div className="space-y-1">
@@ -336,7 +373,7 @@ export default function ProgressPage() {
                         className="flex items-center justify-between py-2 border-b border-surface-200 dark:border-surface-300/20 last:border-0"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-surface-800 dark:text-white truncate">{s.name}</p>
+                          <p className="text-sm font-medium text-surface-50 dark:text-white truncate">{s.name}</p>
                           <p className="text-xs text-surface-500">{formatDateFull(s.date)}</p>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-surface-600 dark:text-surface-400 tabular-nums">

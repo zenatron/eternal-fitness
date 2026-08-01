@@ -21,7 +21,14 @@ export interface ProgressData {
     current: number;
     goal: number;
     unit: string;
-    percentage: number;
+    /** Baseline the goal is measured from; null until a goal has been set. */
+    startingWeight: number | null;
+    /** Null when there is no baseline, so the UI can say so rather than show 0%. */
+    percentage: number | null;
+    /** Absolute amount left to go, in `unit`. */
+    remaining: number;
+    direction: 'lose' | 'gain' | 'maintain';
+    reached: boolean;
   };
 }
 

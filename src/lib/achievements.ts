@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { userStats, workoutSessions, users, monthlyStats, workoutTemplates } from '@/lib/db/schema';
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { WorkoutSessionData } from '@/types/workout';
+import { PR_TYPES } from '@/types/personalRecords';
 
 /**
  * Calculate progress for time-of-day achievements (early bird / night owl)
@@ -17,12 +18,25 @@ async function calculateSessionBasedProgress(userId: string): Promise<{
   cardioSessionsCount: number;
   cardioDurationHours: number;
 }> {
-  // Early bird: completed before 8 AM, Night owl: completed after 10 PM
+  /*
+   * Early bird: completed before 8 AM, Night owl: completed after 10 PM.
+   *
+   * Only the two JSONB paths actually read are projected. Selecting the whole
+   * `performanceData` pulled a full `templateSnapshot` — every exercise, set
+   * and target — for every session the user has ever completed, and this runs
+   * on each workout completion, so the cost grew with their entire history.
+   */
   const sessions = await db
     .select({
       completedAt: workoutSessions.completedAt,
       workoutTemplateId: workoutSessions.workoutTemplateId,
-      performanceData: workoutSessions.performanceData,
+      performance: sql<WorkoutSessionData['performance'] | null>`
+        ${workoutSessions.performanceData} -> 'performance'
+      `,
+      // Fallback for sessions whose template has since been deleted.
+      snapshotWorkoutType: sql<string | null>`
+        ${workoutSessions.performanceData} #>> '{templateSnapshot,metadata,workoutType}'
+      `,
       templateWorkoutType: workoutTemplates.workoutType,
     })
     .from(workoutSessions)
@@ -50,8 +64,7 @@ async function calculateSessionBasedProgress(userId: string): Promise<{
     }
 
     // Check if this is a cardio or hybrid session
-    const workoutType = session.templateWorkoutType ||
-      (session.performanceData as WorkoutSessionData)?.templateSnapshot?.metadata?.workoutType;
+    const workoutType = session.templateWorkoutType || session.snapshotWorkoutType;
     const isCardio = workoutType === 'cardio' || workoutType === 'hybrid';
 
     if (isCardio) {
@@ -59,9 +72,9 @@ async function calculateSessionBasedProgress(userId: string): Promise<{
     }
 
     // Sum distance and cardio duration from performance data
-    const perfData = session.performanceData as WorkoutSessionData | null;
-    if (perfData?.performance) {
-      for (const exercisePerf of Object.values(perfData.performance)) {
+    const performance = session.performance;
+    if (performance) {
+      for (const exercisePerf of Object.values(performance)) {
         if (exercisePerf.sets) {
           for (const set of exercisePerf.sets) {
             if (set.completed) {
@@ -102,15 +115,17 @@ export function calculateAchievementProgress(
   stats: Record<string, any>,
   sessionProgress?: { earlyBirdCount: number; nightOwlCount: number; maxTemplateSessions: number; bestMonthWorkouts: number; totalDistance: number; cardioSessionsCount: number; cardioDurationHours: number },
 ): Record<AchievementCategory, number> {
+  /*
+   * Every record on every exercise counts as one towards the personal_records
+   * achievements. Driven off PR_TYPES rather than a hand-written list of `if`s:
+   * that list silently missed maxOneRepMax when it was added, so estimated-1RM
+   * records were being stored but not counted.
+   */
   const personalRecords = stats.personalRecords || {};
-  const prCount = Object.keys(personalRecords).reduce((count, exerciseName) => {
-    const exercisePR = personalRecords[exerciseName];
-    let exerciseCount = 0;
-    if (exercisePR.maxWeight) exerciseCount++;
-    if (exercisePR.maxVolume) exerciseCount++;
-    if (exercisePR.maxDuration) exerciseCount++;
-    if (exercisePR.maxDistance) exerciseCount++;
-    return count + exerciseCount;
+  const prCount = Object.values(personalRecords).reduce((count: number, exercisePR) => {
+    if (!exercisePR || typeof exercisePR !== 'object') return count;
+    const record = exercisePR as Record<string, unknown>;
+    return count + PR_TYPES.filter((type) => record[type]).length;
   }, 0);
 
   return {
@@ -154,9 +169,12 @@ export function checkUnlockedAchievements(
 }
 
 /**
- * Calculate total points to award for a list of newly unlocked achievement IDs.
+ * Total points for a list of newly unlocked achievement IDs.
+ *
+ * Exported for testing: this is the only place the tier-points table is applied,
+ * and getting it wrong inflates a user's level permanently.
  */
-function calculatePointsForAchievements(achievementIds: string[]): number {
+export function calculatePointsForAchievements(achievementIds: string[]): number {
   return achievementIds.reduce((total, id) => {
     const def = ACHIEVEMENT_DEFINITIONS.find(a => a.id === id);
     return total + (TIER_POINTS[def?.tier as keyof typeof TIER_POINTS] || def?.points || 0);
@@ -293,33 +311,49 @@ export async function getUserAchievements(userId: string) {
   }
 }
 
+/**
+ * Recomputes `uniqueExercises` and `activeWeeks` for a user.
+ *
+ * Both are aggregated in Postgres rather than by loading every session's
+ * `performanceData` blob into Node and iterating. That old approach ran on
+ * every single workout completion and grew linearly with the user's entire
+ * training history — the JSONB payload for a year of lifting is megabytes.
+ *
+ * `activeWeeks` was additionally never written by anything, which left the
+ * "dedication" achievement permanently at 0 and the Active Weeks stat showing
+ * zero on the dashboard and profile.
+ */
 export async function updateUniqueExercisesCount(userId: string, _exerciseKeys?: string[]) {
   try {
-    const sessions = await db
-      .select({ performanceData: workoutSessions.performanceData })
-      .from(workoutSessions)
-      .where(and(
-        eq(workoutSessions.userId, userId),
-        isNotNull(workoutSessions.completedAt),
-        isNotNull(workoutSessions.performanceData),
-      ));
+    // `jsonb_each` expands the performance object so distinct exercise keys can
+    // be counted by the database.
+    const [exerciseRow] = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(DISTINCT perf.value->>'exerciseKey')::int AS count
+      FROM ${workoutSessions} ws,
+           LATERAL jsonb_each(ws.performance_data->'performance') AS perf
+      WHERE ws.user_id = ${userId}
+        AND ws.completed_at IS NOT NULL
+        AND ws.performance_data IS NOT NULL
+        AND jsonb_typeof(ws.performance_data->'performance') = 'object'
+    `);
 
-    const uniqueExercises = new Set<string>();
-    sessions.forEach(session => {
-      const performance = session.performanceData?.performance;
-      if (performance) {
-        Object.values(performance).forEach(exercisePerf => {
-          if (exercisePerf.exerciseKey) uniqueExercises.add(exercisePerf.exerciseKey);
-        });
-      }
-    });
+    // A week counts as active if it contains at least one completed session.
+    const [weekRow] = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(DISTINCT date_trunc('week', completed_at))::int AS count
+      FROM ${workoutSessions}
+      WHERE user_id = ${userId}
+        AND completed_at IS NOT NULL
+    `);
+
+    const uniqueExercises = Number(exerciseRow?.count ?? 0);
+    const activeWeeks = Number(weekRow?.count ?? 0);
 
     await db
       .update(userStats)
-      .set({ uniqueExercises: uniqueExercises.size })
+      .set({ uniqueExercises, activeWeeks })
       .where(eq(userStats.userId, userId));
 
-    return uniqueExercises.size;
+    return uniqueExercises;
   } catch (error) {
     console.error('Error updating unique exercises count:', error);
     return 0;

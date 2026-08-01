@@ -5,10 +5,8 @@ import { ArrowLeftIcon, PlusCircleIcon, SparklesIcon } from '@heroicons/react/24
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import JsonTemplateForm from '@/components/ui/JsonTemplateForm';
+import { springSnappy, springGentle } from '@/lib/motion';
 
-const springSnappy = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const springBouncy = { type: 'spring' as const, stiffness: 300, damping: 20, mass: 0.7 };
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 export default function CreateTemplatePage() {
   const router = useRouter();
@@ -19,7 +17,7 @@ export default function CreateTemplatePage() {
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="min-h-screen app-bg py-8 px-4"
+      className="app-bg py-8 px-4"
     >
       <div className="max-w-7xl mx-auto">
         {/* Enhanced Header */}
@@ -30,7 +28,7 @@ export default function CreateTemplatePage() {
           className="mb-8"
         >
           <div className="forge-card overflow-hidden">
-            <div className="relative px-8 py-8 text-white greeting-gradient">
+            <div className="relative px-5 py-6 text-white greeting-gradient sm:px-8 sm:py-8">
               {/* Subtle overlay for depth */}
               <div className="absolute inset-0 bg-black/10" />
 
@@ -47,23 +45,23 @@ export default function CreateTemplatePage() {
                     <ArrowLeftIcon className="h-6 w-6" />
                   </motion.button>
                   <div>
-                    <h1 className="text-3xl font-display font-bold tracking-wide mb-2 flex items-center gap-3">
+                    <h1 className="mb-1.5 flex items-center gap-2.5 font-display text-2xl font-bold tracking-wide sm:text-3xl">
                       <motion.span
                         initial={prefersReducedMotion ? {} : { opacity: 0, x: -12 }}
                         animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
                         transition={{ ...springGentle, delay: 0.1 }}
                       >
-                        <SparklesIcon className="h-8 w-8" />
+                        <SparklesIcon className="h-7 w-7 shrink-0" />
                       </motion.span>
-                      CREATE WORKOUT TEMPLATE
+                      NEW TEMPLATE
                     </h1>
                     <motion.p
-                      className="text-forge-100"
+                      className="text-accent-100"
                       initial={prefersReducedMotion ? {} : { opacity: 0, y: 8 }}
                       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
                       transition={{ ...springGentle, delay: 0.15 }}
                     >
-                      Design your perfect workout blueprint with our advanced template system
+                      Design your workout blueprint
                     </motion.p>
                   </div>
                 </div>
@@ -74,7 +72,7 @@ export default function CreateTemplatePage() {
                   transition={{ ...springGentle, delay: 0.2 }}
                 >
                   <div className="text-right">
-                    <p className="text-forge-100 text-sm">Step 1 of 1</p>
+                    <p className="text-accent-100 text-sm">Step 1 of 1</p>
                     <p className="text-xl font-semibold">
                       Template Builder
                     </p>
