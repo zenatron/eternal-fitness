@@ -4,29 +4,23 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
-import { Switch } from '@headlessui/react';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowLeftIcon,
+  UserCircleIcon,
+  ScaleIcon,
+  SwatchIcon,
+  CheckIcon,
+} from '@heroicons/react/24/outline';
 import { AccentPicker } from '@/components/theme/AccentPicker';
 import { AvatarUploader } from '@/components/ui/profile/AvatarUploader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SectionHeading } from '@/components/ui/SectionHeading';
+import { Spinner } from '@/components/ui/Spinner';
+import { convertLengthField, convertMassField } from '@/utils/units';
 import { motion, useReducedMotion } from 'framer-motion';
 import { z } from 'zod';
 import { springSnappy, springGentle } from '@/lib/motion';
 
-
-const CM_PER_INCH = 2.54;
-const LB_PER_KG = 2.20462262;
-
-/** Convert a numeric string field when the unit system flips. Empty/invalid → unchanged. */
-const convertLength = (val: string, toMetric: boolean) => {
-  const num = parseFloat(val);
-  if (isNaN(num)) return val;
-  return (toMetric ? num * CM_PER_INCH : num / CM_PER_INCH).toFixed(1);
-};
-const convertMass = (val: string, toMetric: boolean) => {
-  const num = parseFloat(val);
-  if (isNaN(num)) return val;
-  return (toMetric ? num / LB_PER_KG : num * LB_PER_KG).toFixed(1);
-};
 
 const profileFormSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100, 'Name is too long'),
@@ -139,14 +133,12 @@ export default function EditProfilePage() {
       return {
         ...prev,
         useMetric,
-        height: convertLength(prev.height, useMetric),
-        weight: convertMass(prev.weight, useMetric),
-        weightGoal: convertMass(prev.weightGoal, useMetric),
+        height: convertLengthField(prev.height, useMetric),
+        weight: convertMassField(prev.weight, useMetric),
+        weightGoal: convertMassField(prev.weightGoal, useMetric),
       };
     });
   };
-
-  const toggleUnit = () => selectUnit(!formData.useMetric);
 
   const handleBack = () => {
     if (isDirty && !window.confirm('Discard your unsaved changes?')) return;
@@ -218,10 +210,7 @@ export default function EditProfilePage() {
           initial={prefersReducedMotion ? {} : { opacity: 0 }}
           animate={prefersReducedMotion ? {} : { opacity: 1 }}
         >
-          <svg className="animate-spin h-8 w-8 text-accent-500" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
+          <Spinner className="h-8 w-8 text-accent-500" />
           <p className="text-sm text-surface-500 dark:text-surface-600">Loading profile...</p>
         </motion.div>
       </div>
@@ -300,9 +289,9 @@ export default function EditProfilePage() {
             >
               {/* Personal Info */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Personal Information
-                </h2>
+                <SectionHeading icon={UserCircleIcon} title="Personal Information">
+                  Shown on your profile and the leaderboard.
+                </SectionHeading>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label htmlFor="name" className="form-label">Full Name</label>
@@ -353,80 +342,42 @@ export default function EditProfilePage() {
                 </div>
               </motion.div>
 
-              {/* Unit System */}
+              {/* Unit System.
+                  Was a headless-ui Switch plus a duplicate pair of buttons
+                  driving the same value — the switch could disagree with the
+                  selection, and "metric or imperial" is a choice between two
+                  named things rather than something to turn on. Now one control:
+                  tap the system you want. */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Measurement System
-                </h2>
+                <SectionHeading icon={ScaleIcon} title="Measurement System">
+                  Your entered heights and weights convert automatically.
+                </SectionHeading>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-surface-600 dark:text-surface-500">
-                      Unit Preference
-                    </p>
-                    <p className="text-xs text-surface-500 dark:text-surface-600 mt-0.5">
-                      Tap a system to switch — your values are converted automatically
-                    </p>
-                  </div>
-                  <Switch
-                    checked={formData.useMetric}
-                    onChange={toggleUnit}
-                    className={`${
-                      formData.useMetric ? 'bg-accent-500' : 'bg-surface-900 dark:bg-surface-600'
-                    } relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 dark:focus:ring-offset-surface-0`}
-                  >
-                    <span className="sr-only">Use metric system</span>
-                    <motion.span
-                      animate={{ x: formData.useMetric ? 22 : 4 }}
-                      transition={springSnappy}
-                      className="inline-block h-5 w-5 rounded-full bg-white shadow"
-                    />
-                  </Switch>
-                </div>
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => selectUnit(false)}
-                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors tap-control ${
-                      !formData.useMetric
-                        ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
-                        : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600 hover:bg-surface-200 dark:hover:bg-surface-200'
-                    }`}
-                  >
-                    Imperial (lbs, in)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => selectUnit(true)}
-                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors tap-control ${
-                      formData.useMetric
-                        ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
-                        : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600 hover:bg-surface-200 dark:hover:bg-surface-200'
-                    }`}
-                  >
-                    Metric (kg, cm)
-                  </button>
-                </div>
+                <SegmentedControl
+                  label="Unit preference"
+                  value={formData.useMetric}
+                  onChange={selectUnit}
+                  options={[
+                    { value: false, label: 'Imperial', hint: 'lbs, inches' },
+                    { value: true, label: 'Metric', hint: 'kg, cm' },
+                  ]}
+                />
               </motion.div>
 
               {/* Appearance */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-2">
-                  Appearance
-                </h2>
-                <p className="text-xs text-surface-500 dark:text-surface-600 mb-4">
+                <SectionHeading icon={SwatchIcon} title="Appearance">
                   {/* No Save needed, and saying so avoids the "did that take?" pause. */}
                   Applies immediately, and follows you to your other devices.
-                </p>
+                </SectionHeading>
                 <AccentPicker />
               </motion.div>
 
               {/* Measurements */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Measurements
-                </h2>
+                <SectionHeading icon={ScaleIcon} title="Measurements">
+                  Used for your weight goal and body-composition estimates.
+                </SectionHeading>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label htmlFor="height" className="form-label">
@@ -485,26 +436,32 @@ export default function EditProfilePage() {
               </motion.div>
             </motion.div>
 
-            {/* Action */}
-            <div className="pt-6 border-t border-surface-100 dark:border-surface-300">
+            {/* Action.
+                Sticky, because the form is long enough that Save sat below the
+                fold on a phone for anyone editing the fields near the top. The
+                dirty state is stated rather than left to be inferred from
+                whether the button looks pressable. */}
+            <div className="sticky bottom-4 -mx-2 rounded-xl border border-surface-200 bg-white/95 p-3 backdrop-blur dark:border-surface-300 dark:bg-surface-100/95">
               <motion.button
                 type="submit"
-                className="btn btn-primary w-full !py-3 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-                disabled={submitting}
-                whileHover={prefersReducedMotion || submitting ? {} : { scale: 1.02 }}
-                whileTap={prefersReducedMotion || submitting ? {} : { scale: 0.98 }}
+                className="btn btn-primary inline-flex w-full items-center justify-center gap-2 !py-3 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={submitting || !isDirty}
+                whileHover={prefersReducedMotion || submitting || !isDirty ? {} : { scale: 1.02 }}
+                whileTap={prefersReducedMotion || submitting || !isDirty ? {} : { scale: 0.98 }}
                 transition={springSnappy}
               >
                 {submitting ? (
                   <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
+                    <Spinner className="h-4 w-4" />
                     Saving...
                   </>
-                ) : (
+                ) : isDirty ? (
                   'Save Profile'
+                ) : (
+                  <>
+                    <CheckIcon className="h-4 w-4" />
+                    All Changes Saved
+                  </>
                 )}
               </motion.button>
             </div>

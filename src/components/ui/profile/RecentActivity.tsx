@@ -5,6 +5,7 @@ import { ClockIcon, ScaleIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationCompact } from '@/utils/durationUtils';
+import { formatSessionDateTime } from '@/utils/relativeTime';
 import { springSnappy, springGentle } from '@/lib/motion';
 
 interface RecentActivityProps {
@@ -17,40 +18,6 @@ interface RecentActivityProps {
 export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
   const prefersReducedMotion = useReducedMotion();
   const noMotion = prefersReducedMotion ?? false;
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const diffTime = nowOnly.getTime() - dateOnly.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    const timeString = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    let dateLabel = '';
-    if (diffDays === 0) {
-      dateLabel = 'Today';
-    } else if (diffDays === 1) {
-      dateLabel = 'Yesterday';
-    } else if (diffDays <= 7) {
-      dateLabel = date.toLocaleDateString('en-US', { weekday: 'long' });
-    } else {
-      dateLabel = date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
-    }
-
-    return `${dateLabel} at ${timeString}`;
-  };
 
   if (!stats.recentSessions || stats.recentSessions.length === 0) {
     return (
@@ -99,7 +66,7 @@ export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityPr
                 {session.templateName}
               </h4>
               <p className="text-sm text-surface-500 dark:text-surface-600">
-                {formatDateTime(session.completedAt)}
+                {formatSessionDateTime(session.completedAt)}
               </p>
             </div>
             <div className="flex items-center gap-4 text-sm">

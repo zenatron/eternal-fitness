@@ -12,10 +12,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUpdateSession, UpdateSessionData } from '@/lib/hooks/useMutations';
-import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
+import { DurationInput } from '@/components/ui/DurationInput';
+import { getExerciseType } from '@/lib/exerciseSearch';
+import { formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
 import { WorkoutSessionData, ExercisePerformance } from '@/types/workout';
-import { exercises as exerciseLibrary } from '@/lib/exercises';
 import { springSnappy } from '@/lib/motion';
 
 
@@ -56,56 +57,6 @@ interface EditableExercise {
   exerciseType: 'strength' | 'cardio' | 'flexibility';
   sets: EditableSet[];
   exerciseNotes?: string;
-}
-
-function getExerciseType(exerciseKey: string): 'strength' | 'cardio' | 'flexibility' {
-  const ex = exerciseLibrary[exerciseKey as keyof typeof exerciseLibrary];
-  return (ex as any)?.exerciseType || 'strength';
-}
-
-function DurationField({ value, onChange, placeholder = '45:00' }: {
-  value: number;
-  onChange: (seconds: number) => void;
-  placeholder?: string;
-}) {
-  const [textValue, setTextValue] = useState(() => formatDurationInput(value));
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (!isFocused) setTextValue(formatDurationInput(value));
-  }, [value, isFocused]);
-
-  const parsed = textValue.trim() ? parseDuration(textValue) : null;
-  const isInvalid = textValue.trim() !== '' && parsed === null;
-
-  return (
-    <div className="flex flex-col">
-      <input
-        type="text"
-        value={textValue}
-        onChange={(e) => {
-          setTextValue(e.target.value);
-          const p = parseDuration(e.target.value);
-          if (p !== null) onChange(p);
-        }}
-        onBlur={() => {
-          setIsFocused(false);
-          if (parsed !== null) {
-            setTextValue(formatDurationInput(parsed));
-            onChange(parsed);
-          }
-        }}
-        onFocus={() => setIsFocused(true)}
-        className={`form-input !py-2 ${isInvalid ? '!border-danger-400 dark:!border-danger-500' : ''}`}
-        placeholder={placeholder}
-      />
-      {textValue.trim() !== '' && (
-        <span className={`form-hint ${isInvalid ? '!text-danger-400' : ''}`}>
-          {isInvalid ? 'Invalid format' : `= ${formatDurationHuman(parsed!)}`}
-        </span>
-      )}
-    </div>
-  );
 }
 
 export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSessionModalProps) {
@@ -267,7 +218,7 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
               <ClockIcon className="w-3.5 h-3.5 inline mr-1.5" />
               Duration
             </label>
-            <DurationField value={duration} onChange={setDuration} />
+            <DurationInput value={duration} onChange={(v) => setDuration(v ?? 0)} className="!py-2" />
           </div>
           <div>
             <label className="form-label">
@@ -374,10 +325,11 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
                                     <label className="form-label">Duration</label>
-                                    <DurationField
-                                      value={set.actualDuration || 0}
+                                    <DurationInput
+                                      value={set.actualDuration}
                                       onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualDuration: v })}
                                       placeholder="30:00"
+                                      className="!py-2"
                                     />
                                   </div>
                                   <div>

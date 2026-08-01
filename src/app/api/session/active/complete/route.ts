@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { workoutSessions, userStats } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import {
+  computeStreakFromHistory,
+  getStreakBaseline,
+  recordWorkoutCompletion,
+} from '@/lib/workout/completion';
 import {
   ActiveWorkoutSessionData,
   WorkoutSessionData,
@@ -125,86 +130,35 @@ export async function POST(request: NextRequest) {
           notes: notes || activeSessionData.sessionNotes,
           performanceData: sessionData,
           totalVolume: metrics.totalVolume,
-          totalSets: metrics.totalSets,
+          // Completed, not attempted — matches what the summary screen reports
+          // and what /api/session/log has always stored. See WorkoutTotals.
+          totalSets: metrics.completedSets,
           totalExercises: metrics.totalExercises,
           personalRecords: metrics.personalRecords?.length || 0,
         })
         .returning();
 
-      // Calculate streak
-      let newStreak = 1;
-      let newLongestStreak = 1;
+      // Recomputed from history rather than incremented from `lastWorkoutAt`:
+      // sessions can also be inserted into the past via /api/session/log, and an
+      // incremental count cannot see a gap that was filled in behind it.
+      const streak = await computeStreakFromHistory(
+        tx,
+        userId,
+        await getStreakBaseline(tx, userId)
+      );
 
-      // Fetch current streak values
-      const [streakData] = await tx
-        .select({
-          currentStreak: userStats.currentStreak,
-          longestStreak: userStats.longestStreak,
-          lastWorkoutAt: userStats.lastWorkoutAt,
-        })
-        .from(userStats)
-        .where(eq(userStats.userId, userId));
-
-      if (streakData) {
-        const lastWorkoutDate = streakData.lastWorkoutAt;
-        if (lastWorkoutDate) {
-          const lastDate = new Date(lastWorkoutDate);
-          const today = new Date(completionTime);
-          // Compare calendar dates (strip time)
-          lastDate.setHours(0, 0, 0, 0);
-          today.setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (diffDays === 0) {
-            newStreak = Math.max(1, streakData.currentStreak);
-          } else if (diffDays === 1) {
-            // Consecutive day - increment streak
-            newStreak = streakData.currentStreak + 1;
-          }
-          // else diffDays > 1, streak resets to 1
-        }
-        newLongestStreak = Math.max(streakData.longestStreak, newStreak);
-      }
-
-      // Clear active session and update stats
-      await tx
-        .update(userStats)
-        .set({
-          activeWorkoutId: null,
-          activeWorkoutData: null,
-          activeWorkoutStartedAt: null,
-          totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
-          totalVolume: sql`${userStats.totalVolume} + ${metrics.totalVolume}`,
-          totalSets: sql`${userStats.totalSets} + ${metrics.totalSets}`,
-          totalExercises: sql`${userStats.totalExercises} + ${metrics.totalExercises}`,
-          totalTrainingHours: sql`${userStats.totalTrainingHours} + ${sessionDuration ? sessionDuration / 3600 : 0}`,
-          lastWorkoutAt: completionTime,
-          currentStreak: newStreak,
-          longestStreak: newLongestStreak,
-        })
-        .where(eq(userStats.userId, userId));
-
-      // Upsert monthly stats
-      const currentYear = completionTime.getFullYear();
-      const currentMonth = completionTime.getMonth() + 1;
-      await tx
-        .insert(monthlyStats)
-        .values({
-          userId,
-          year: currentYear,
-          month: currentMonth,
-          workoutsCount: 1,
-          volume: metrics.totalVolume,
-          trainingHours: sessionDuration ? sessionDuration / 3600 : 0,
-        })
-        .onConflictDoUpdate({
-          target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
-          set: {
-            workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
-            volume: sql`${monthlyStats.volume} + ${metrics.totalVolume}`,
-            trainingHours: sql`${monthlyStats.trainingHours} + ${sessionDuration ? sessionDuration / 3600 : 0}`,
-          },
-        });
+      await recordWorkoutCompletion(tx, {
+        userId,
+        totals: {
+          totalVolume: metrics.totalVolume,
+          totalSets: metrics.completedSets,
+          totalExercises: metrics.totalExercises,
+        },
+        durationSeconds: sessionDuration,
+        completionTime,
+        streak,
+        clearActiveWorkout: true,
+      });
 
       return createdSession;
     });

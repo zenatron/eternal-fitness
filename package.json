@@ -1,6 +1,6 @@
 {
   "name": "eternal-fitness",
-  "version": "3.11.0",
+  "version": "3.12.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -14,6 +14,7 @@
     "db:fix-points": "bun run scripts/fix-points.ts",
     "db:reset-training-hours": "bun run scripts/reset-training-hours.ts",
     "db:backfill-e1rm": "bun run scripts/backfill-e1rm.ts",
+    "db:rebuild-set-totals": "bun run scripts/rebuild-set-totals.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",

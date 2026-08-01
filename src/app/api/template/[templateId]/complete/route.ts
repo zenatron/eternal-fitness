@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutTemplates, workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
-import { getTotalSetsCount } from '@/utils/workoutDisplayUtils';
+import { getTotalSetsCount, getTemplateExercises } from '@/utils/workoutDisplayUtils';
+import {
+  computeStreakFromHistory,
+  getStreakBaseline,
+  recordWorkoutCompletion,
+} from '@/lib/workout/completion';
 import { WorkoutTemplate, WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -133,84 +138,27 @@ export async function POST(
         }
       }
 
-      // Upsert user stats with streak calculation
-      const [existingStats] = await tx
-        .select({
-          currentStreak: userStats.currentStreak,
-          longestStreak: userStats.longestStreak,
-          lastWorkoutAt: userStats.lastWorkoutAt,
-        })
-        .from(userStats)
-        .where(eq(userStats.userId, userId));
+      // Shared with the other two completion routes so the lifetime totals
+      // cannot diverge between them again — see lib/workout/completion.ts. This
+      // path had the same defect as /api/session/log: it never incremented
+      // totalSets or totalExercises.
+      const streak = await computeStreakFromHistory(
+        tx,
+        userId,
+        await getStreakBaseline(tx, userId)
+      );
 
-      let newStreak = 1;
-      let newLongestStreak = 1;
-
-      if (existingStats) {
-        const lastWorkout = existingStats.lastWorkoutAt;
-        if (lastWorkout) {
-          const lastDate = new Date(lastWorkout);
-          const today = new Date(completionTime);
-          // Compare calendar dates (strip time)
-          lastDate.setHours(0, 0, 0, 0);
-          today.setHours(0, 0, 0, 0);
-          const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (diffDays === 0) {
-            newStreak = Math.max(1, existingStats.currentStreak);
-          } else if (diffDays === 1) {
-            // Consecutive day - increment streak
-            newStreak = existingStats.currentStreak + 1;
-          }
-          // else diffDays > 1, streak resets to 1
-        }
-        newLongestStreak = Math.max(existingStats.longestStreak, newStreak);
-      }
-
-      await tx
-        .insert(userStats)
-        .values({
-          userId,
-          totalWorkouts: 1,
+      await recordWorkoutCompletion(tx, {
+        userId,
+        totals: {
           totalVolume: actualTotalVolume,
-          totalTrainingHours: duration ? duration / 3600 : 0,
-          lastWorkoutAt: completionTime,
-          currentStreak: 1,
-          longestStreak: 1,
-        })
-        .onConflictDoUpdate({
-          target: userStats.userId,
-          set: {
-            totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
-            totalVolume: sql`${userStats.totalVolume} + ${actualTotalVolume}`,
-            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration ? duration / 3600 : 0}`,
-            lastWorkoutAt: completionTime,
-            currentStreak: newStreak,
-            longestStreak: newLongestStreak,
-          },
-        });
-
-      // Upsert monthly stats
-      const currentYear = completionTime.getFullYear();
-      const currentMonth = completionTime.getMonth() + 1;
-      await tx
-        .insert(monthlyStats)
-        .values({
-          userId,
-          year: currentYear,
-          month: currentMonth,
-          workoutsCount: 1,
-          volume: actualTotalVolume,
-          trainingHours: duration ? duration / 3600 : 0,
-        })
-        .onConflictDoUpdate({
-          target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
-          set: {
-            workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
-            volume: sql`${monthlyStats.volume} + ${actualTotalVolume}`,
-            trainingHours: sql`${monthlyStats.trainingHours} + ${duration ? duration / 3600 : 0}`,
-          },
-        });
+          totalSets: completedSets,
+          totalExercises: getTemplateExercises(template as WorkoutTemplate).length,
+        },
+        durationSeconds: duration ?? 0,
+        completionTime,
+        streak,
+      });
 
       return createdSession;
     });

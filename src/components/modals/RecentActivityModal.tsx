@@ -18,6 +18,7 @@ import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationCompact } from '@/utils/durationUtils';
+import { formatFullDateTime } from '@/utils/relativeTime';
 import { EditSessionModal } from './EditSessionModal';
 import { springSnappy } from '@/lib/motion';
 
@@ -38,19 +39,6 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [editingSession, setEditingSession] = useState<any>(null);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
-
-  const formatFullDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
 
   const filteredAndSortedSessions = useMemo(() => {
     if (!stats?.recentSessions) return [];
@@ -197,7 +185,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                                   </h4>
                                   <div className="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-600 mt-1">
                                     <CalendarDaysIcon className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate">{formatFullDate(session.completedAt)}</span>
+                                    <span className="truncate">{formatFullDateTime(session.completedAt)}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm shrink-0 ml-4">

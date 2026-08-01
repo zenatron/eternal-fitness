@@ -2,6 +2,8 @@ import { ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { ActivityEntry } from '@/types/dashboard';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
+import { formatTimeAgo } from '@/utils/relativeTime';
+import { useNow } from '@/lib/hooks/useNow';
 
 interface RecentActivityCardProps {
   activities: ActivityEntry[];
@@ -9,6 +11,9 @@ interface RecentActivityCardProps {
 
 export function RecentActivityCard({ activities }: RecentActivityCardProps) {
   const prefersReducedMotion = useReducedMotion();
+  // Ages the labels while the page stays open; the payload only carries the
+  // timestamp, so nothing here can go stale in the query cache.
+  const now = useNow();
 
   return (
     <div className="forge-card heat-glow h-full">
@@ -25,7 +30,9 @@ export function RecentActivityCard({ activities }: RecentActivityCardProps) {
           </p>
         ) : (
           <div className="space-y-2">
-            {activities.map((activity, i) => (
+            {activities.map((activity, i) => {
+              const timeAgo = formatTimeAgo(activity.completedAt, now ?? Date.now());
+              return (
               <motion.div
                 key={activity.id}
                 initial={
@@ -52,14 +59,15 @@ export function RecentActivityCard({ activities }: RecentActivityCardProps) {
                     {activity.title}
                   </p>
                   <p className="text-xs text-surface-500 dark:text-surface-600 truncate">
-                    {activity.details}
+                    Completed {timeAgo} &middot; {activity.volumeLabel}
                   </p>
                 </div>
-                <span className="text-xs text-surface-400 dark:text-surface-600 ml-3 shrink-0">
-                  {activity.timeAgo}
+                <span className="text-xs text-surface-400 dark:text-surface-600 ml-3 shrink-0 tabular">
+                  {timeAgo}
                 </span>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
 

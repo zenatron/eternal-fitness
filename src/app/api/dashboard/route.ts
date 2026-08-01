@@ -52,23 +52,6 @@ function calculateStreak(sessionDates: Date[]): number {
   return streak;
 }
 
-function formatTimeAgo(dateInput: Date | string | null): string {
-  if (!dateInput) return '';
-  const date = new Date(dateInput);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
-
 export async function GET() {
   try {
     const userId = await getUserId();
@@ -235,8 +218,12 @@ export async function GET() {
         return {
           id: session.id,
           title: session.workoutTemplate?.name || 'Quick Workout',
-          details: `Completed ${formatTimeAgo(session.completedAt)} • ${formattedVolume} Vol.`,
-          timeAgo: formatTimeAgo(session.completedAt),
+          // The raw timestamp, not a rendered "2m ago". This response is cached
+          // by React Query for five minutes and persisted to IndexedDB, so any
+          // relative string baked in here is stale the moment it is stored — the
+          // client formats it at render time instead. See utils/relativeTime.ts.
+          completedAt: session.completedAt?.toISOString() ?? null,
+          volumeLabel: `${formattedVolume} Vol.`,
         };
       }),
       stats: {

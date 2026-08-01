@@ -10,13 +10,7 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useRouter } from 'next/navigation';
 import type { WorkoutTemplate } from '@/types/workout';
-import { formatVolume } from '@/utils/formatters';
-import {
-  countUniqueExercises,
-  getTotalSetsCount,
-  getDifficultyColor,
-  getWorkoutTypeColor,
-} from '@/utils/workoutDisplayUtils';
+import { TemplateSummary } from '@/components/ui/TemplateSummary';
 import { springSnappy } from '@/lib/motion';
 
 /**
@@ -57,9 +51,6 @@ export function TemplateCard({
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
-  const exercises = countUniqueExercises(template);
-  const sets = getTotalSetsCount(template);
-
   return (
     <motion.div
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
@@ -75,78 +66,37 @@ export function TemplateCard({
       <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-700" />
 
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 flex-1 font-display text-lg font-bold tracking-wide text-surface-50 dark:text-white">
-            {template.name}
-          </h3>
-
-          {onToggleFavorite && (
-            <motion.button
-              onClick={() => onToggleFavorite(template.id)}
-              whileHover={prefersReducedMotion ? {} : { scale: 1.12 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-              transition={springSnappy}
-              aria-pressed={template.favorite}
-              aria-label={
-                template.favorite
-                  ? `Remove ${template.name} from favourites`
-                  : `Add ${template.name} to favourites`
-              }
-              className={`touch-target flex shrink-0 items-center justify-center rounded-lg transition-colors tap-control ${
-                template.favorite
-                  ? 'bg-award-100 text-award-500 dark:bg-award-900/30 dark:text-award-400'
-                  : 'bg-surface-900 text-surface-600 hover:text-award-500 dark:bg-surface-200 dark:text-surface-600'
-              }`}
-            >
-              {template.favorite ? (
-                <StarIconSolid className="h-5 w-5" />
-              ) : (
-                <StarIcon className="h-5 w-5" />
-              )}
-            </motion.button>
-          )}
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${getDifficultyColor(
-              template.difficulty
-            )}`}
-          >
-            {template.difficulty}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${getWorkoutTypeColor(
-              template.workoutType
-            )}`}
-          >
-            {template.workoutType}
-          </span>
-        </div>
-
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-surface-500 dark:text-surface-600">
-          <span>
-            <span className="font-display font-bold tabular text-surface-100 dark:text-surface-800">
-              {exercises}
-            </span>{' '}
-            exercises
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>
-            <span className="font-display font-bold tabular text-surface-100 dark:text-surface-800">
-              {sets}
-            </span>{' '}
-            sets
-          </span>
-          {template.totalVolume > 0 && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="font-medium text-accent-600 dark:text-accent-400 tabular">
-                {formatVolume(template.totalVolume, useMetric)}
-              </span>
-            </>
-          )}
-        </p>
+        <TemplateSummary
+          template={template}
+          useMetric={useMetric}
+          action={
+            onToggleFavorite && (
+              <motion.button
+                onClick={() => onToggleFavorite(template.id)}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.12 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
+                transition={springSnappy}
+                aria-pressed={template.favorite}
+                aria-label={
+                  template.favorite
+                    ? `Remove ${template.name} from favourites`
+                    : `Add ${template.name} to favourites`
+                }
+                className={`touch-target flex shrink-0 items-center justify-center rounded-lg transition-colors tap-control ${
+                  template.favorite
+                    ? 'bg-award-100 text-award-500 dark:bg-award-900/30 dark:text-award-400'
+                    : 'bg-surface-900 text-surface-600 hover:text-award-500 dark:bg-surface-200 dark:text-surface-600'
+                }`}
+              >
+                {template.favorite ? (
+                  <StarIconSolid className="h-5 w-5" />
+                ) : (
+                  <StarIcon className="h-5 w-5" />
+                )}
+              </motion.button>
+            )
+          }
+        />
 
         <div className="mt-3.5 border-t border-surface-900 pt-3.5 dark:border-surface-300/50">
           <motion.button

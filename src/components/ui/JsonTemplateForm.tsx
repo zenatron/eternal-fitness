@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BoltIcon,
@@ -10,11 +10,11 @@ import {
   CheckCircleIcon,
   DocumentDuplicateIcon,
   Bars3Icon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { exercises } from '@/lib/exercises';
+import { ExercisePicker } from '@/components/ui/ExercisePicker';
+import { DurationInput } from '@/components/ui/DurationInput';
 import { StepperInput } from '@/components/workout/StepperInput';
 import { weightUnitLabel } from '@/lib/volume';
 import { useCreateTemplate, useUpdateTemplate } from '@/lib/hooks/useMutations';
@@ -25,174 +25,6 @@ import { motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { WorkoutType, Difficulty } from '@/types/workout';
 import { springSnappy } from '@/lib/motion';
-
-// ============================================================================
-// DURATION PARSING & FORMATTING HELPERS
-// ============================================================================
-
-/**
- * Parse a flexible duration string into seconds.
- * Supported formats:
- *   - Pure number: "300" -> 300s
- *   - MM:SS: "5:00" -> 300s
- *   - H:MM:SS: "1:30:00" -> 5400s
- *   - Shorthand: "5m" -> 300s, "1h30m" -> 5400s, "90s" -> 90s, "1h" -> 3600s
- * Returns null for invalid input.
- */
-function parseDuration(input: string): number | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  // Try shorthand notation: 1h30m15s, 5m, 90s, 1h, etc.
-  const shorthandRegex = /^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$/i;
-  const shorthandMatch = trimmed.match(shorthandRegex);
-  if (shorthandMatch && (shorthandMatch[1] || shorthandMatch[2] || shorthandMatch[3])) {
-    const hours = parseInt(shorthandMatch[1] || '0', 10);
-    const minutes = parseInt(shorthandMatch[2] || '0', 10);
-    const seconds = parseInt(shorthandMatch[3] || '0', 10);
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  // Try H:MM:SS or MM:SS format
-  const colonParts = trimmed.split(':');
-  if (colonParts.length === 2) {
-    const mins = parseInt(colonParts[0], 10);
-    const secs = parseInt(colonParts[1], 10);
-    if (!isNaN(mins) && !isNaN(secs) && secs >= 0 && secs < 60) {
-      return mins * 60 + secs;
-    }
-  }
-  if (colonParts.length === 3) {
-    const hrs = parseInt(colonParts[0], 10);
-    const mins = parseInt(colonParts[1], 10);
-    const secs = parseInt(colonParts[2], 10);
-    if (!isNaN(hrs) && !isNaN(mins) && !isNaN(secs) && mins >= 0 && mins < 60 && secs >= 0 && secs < 60) {
-      return hrs * 3600 + mins * 60 + secs;
-    }
-  }
-
-  // Try pure number (seconds)
-  const num = parseFloat(trimmed);
-  if (!isNaN(num) && num >= 0 && /^\d+(\.\d+)?$/.test(trimmed)) {
-    return Math.round(num);
-  }
-
-  return null;
-}
-
-/**
- * Format seconds into a human-readable string: "5m 00s", "1h 30m 00s"
- */
-function formatDuration(seconds: number): string {
-  if (seconds < 0) return '0s';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) {
-    return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
-  }
-  if (m > 0) {
-    return `${m}m ${String(s).padStart(2, '0')}s`;
-  }
-  return `${s}s`;
-}
-
-/**
- * Format seconds into normalized input display: "5:00", "1:30:00"
- */
-function formatDurationInput(seconds: number): string {
-  if (seconds < 0) return '0:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-// ============================================================================
-// DURATION INPUT COMPONENT
-// ============================================================================
-
-interface DurationInputProps {
-  value: number | undefined;
-  onChange: (seconds: number | undefined) => void;
-  placeholder?: string;
-  className?: string;
-  focusRingColor?: string;
-}
-
-function DurationInput({ value, onChange, placeholder = '5:00', className = '', focusRingColor = 'focus:ring-accent-500' }: DurationInputProps) {
-  const [textValue, setTextValue] = useState<string>(() =>
-    value !== undefined && value !== null ? formatDurationInput(value) : ''
-  );
-  const [isFocused, setIsFocused] = useState(false);
-
-  // Sync text value when the external value changes and input is not focused
-  const lastExternalValue = React.useRef(value);
-  if (!isFocused && value !== lastExternalValue.current) {
-    lastExternalValue.current = value;
-    setTextValue(value !== undefined && value !== null ? formatDurationInput(value) : '');
-  }
-
-  const parsed = textValue.trim() ? parseDuration(textValue) : null;
-  const isInvalid = textValue.trim() !== '' && parsed === null;
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newText = e.target.value;
-    setTextValue(newText);
-
-    // Live-update the stored value as the user types
-    const newParsed = parseDuration(newText);
-    if (newParsed !== null) {
-      onChange(newParsed);
-    } else if (newText.trim() === '') {
-      onChange(undefined);
-    }
-  };
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    if (parsed !== null) {
-      // Normalize the display
-      setTextValue(formatDurationInput(parsed));
-      onChange(parsed);
-      lastExternalValue.current = parsed;
-    } else if (textValue.trim() === '') {
-      onChange(undefined);
-      lastExternalValue.current = undefined;
-    }
-  };
-
-  const handleFocus = () => {
-    setIsFocused(true);
-  };
-
-  return (
-    <div className="flex flex-col">
-      <input
-        type="text"
-        value={textValue}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        className={`px-3 py-2 border rounded-lg text-sm transition-all duration-200 ${
-          isInvalid
-            ? 'border-danger-400 dark:border-danger-500 focus:ring-2 focus:ring-danger-500'
-            : `border-surface-300 dark:border-surface-400 focus:ring-2 ${focusRingColor}`
-        } focus:border-transparent dark:bg-surface-200 dark:text-white ${className}`}
-        placeholder={placeholder}
-      />
-      {textValue.trim() !== '' && (
-        <span className={`text-xs mt-0.5 ${isInvalid ? 'text-danger-400' : 'text-surface-500 dark:text-surface-600'}`}>
-          {isInvalid ? 'invalid' : `= ${formatDuration(parsed!)}`}
-        </span>
-      )}
-    </div>
-  );
-}
-
 
 interface ExerciseSet {
   id?: string;
@@ -237,7 +69,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
   const [workoutType, setWorkoutType] = useState(initialData?.workoutType || 'strength');
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'intermediate');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
-  const [exerciseSearch, setExerciseSearch] = useState('');
   const [templateExercises, setTemplateExercises] = useState<TemplateExercise[]>(() => {
     const initExercises = (initialData?.exercises as TemplateExercise[]) || [];
     return initExercises.map(exercise => {
@@ -255,84 +86,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
       };
     });
   });
-
-  const fuzzySearch = (text: string, searchTerms: string[]): number => {
-    if (!text || searchTerms.length === 0) return 0;
-
-    const textLower = text.toLowerCase();
-    let score = 0;
-
-    for (const term of searchTerms) {
-      if (!term || term.length === 0) continue;
-
-      if (textLower.includes(term)) {
-        score += 10;
-
-        const wordBoundaryRegex = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
-        if (wordBoundaryRegex.test(text)) {
-          score += 5;
-        }
-
-        if (textLower.startsWith(term)) {
-          score += 3;
-        }
-      } else if (term.length >= 2) {
-        let partialScore = 0;
-        let lastIndex = -1;
-
-        for (const char of term) {
-          const charIndex = textLower.indexOf(char, lastIndex + 1);
-          if (charIndex > lastIndex) {
-            partialScore += 1;
-            lastIndex = charIndex;
-          }
-        }
-
-        const threshold = Math.max(2, Math.ceil(term.length * 0.6));
-        if (partialScore >= threshold) {
-          score += partialScore * 0.5;
-        }
-      }
-    }
-
-    return score;
-  };
-
-  const filteredExercises = useMemo(() => {
-    if (!exerciseSearch.trim()) {
-      return Object.entries(exercises);
-    }
-
-    const searchTerms = exerciseSearch.toLowerCase().trim().split(/\s+/);
-
-    const exerciseScores = Object.entries(exercises).map(([key, exercise]) => {
-      let totalScore = 0;
-
-      const nameScore = fuzzySearch(exercise.name, searchTerms) * 3;
-      totalScore += nameScore;
-
-      const muscleScore = exercise.muscles.reduce((score, muscle) => {
-        return score + fuzzySearch(muscle, searchTerms);
-      }, 0) * 2;
-      totalScore += muscleScore;
-
-      const equipmentScore = exercise.equipment.reduce((score, equipment) => {
-        return score + fuzzySearch(equipment, searchTerms);
-      }, 0);
-      totalScore += equipmentScore;
-
-      return {
-        key,
-        exercise,
-        score: totalScore
-      };
-    });
-
-    return exerciseScores
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map(item => [item.key, item.exercise] as [string, typeof item.exercise]);
-  }, [exerciseSearch]);
 
   const handleSetDragEnd = (result: DropResult, exerciseIndex: number) => {
     if (!result.destination) return;
@@ -653,113 +406,7 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
               </div>
             </div>
 
-            {/* Search Input */}
-            <div className="mb-6">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-surface-600" />
-                </div>
-                <input
-                  type="text"
-                  value={exerciseSearch}
-                  onChange={(e) => setExerciseSearch(e.target.value)}
-                  className="form-input !pl-10 !pr-10"
-                  placeholder="Search exercises... Try 'chest press', 'leg quad', or 'dumbbell'"
-                />
-                {exerciseSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setExerciseSearch('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <XMarkIcon className="h-5 w-5 text-surface-600 hover:text-surface-500 dark:hover:text-surface-800 transition-colors" />
-                  </button>
-                )}
-              </div>
-
-              {!exerciseSearch && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="text-xs text-surface-500 dark:text-surface-600">Quick searches:</span>
-                  {['chest', 'legs', 'back', 'shoulders', 'barbell', 'dumbbell'].map((term) => (
-                    <motion.button
-                      key={term}
-                      type="button"
-                      onClick={() => setExerciseSearch(term)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={springSnappy}
-                      className="px-2 py-1 text-xs bg-surface-900 dark:bg-surface-200 text-surface-500 dark:text-surface-600 rounded-md hover:bg-surface-200 dark:hover:bg-surface-600 transition-colors"
-                    >
-                      {term}
-                    </motion.button>
-                  ))}
-                </div>
-              )}
-
-              {exerciseSearch && (
-                <div className="mt-2 flex items-center justify-between">
-                  <p className="text-sm text-surface-500 dark:text-surface-600">
-                    Found {filteredExercises.length} exercise{filteredExercises.length === 1 ? '' : 's'}
-                    {filteredExercises.length > 0 && (
-                      <span className="text-success-600 dark:text-success-400 font-medium"> (sorted by relevance)</span>
-                    )}
-                  </p>
-                  {exerciseSearch.includes(' ') && (
-                    <p className="text-xs text-accent-600 dark:text-accent-400">
-                      💡 Multi-word search active
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Exercise Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto pr-2">
-              {filteredExercises.length === 0 ? (
-                <div className="col-span-full text-center py-8">
-                  <div className="p-4 bg-surface-900 dark:bg-surface-200 rounded-full w-16 h-16 mx-auto mb-4">
-                    <MagnifyingGlassIcon className="w-8 h-8 text-surface-600 mx-auto" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-surface-50 dark:text-white mb-2">
-                    No exercises found
-                  </h4>
-                  <p className="text-surface-500 dark:text-surface-600 mb-4">
-                    Try adjusting your search terms or browse all exercises
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setExerciseSearch('')}
-                    className="px-4 py-2 bg-success-100 dark:bg-success-900/30 text-success-600 dark:text-success-400 rounded-lg hover:bg-success-200 dark:hover:bg-success-900/50 transition-colors font-medium"
-                  >
-                    Clear Search
-                  </button>
-                </div>
-              ) : (
-                filteredExercises.map(([key, exercise]) => (
-                  <motion.button
-                    key={key}
-                    type="button"
-                    onClick={() => addExercise(key)}
-                    whileHover={{ scale: 1.03, borderColor: 'rgb(var(--success-400))' }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ ...springSnappy }}
-                    className="p-4 text-left border-2 border-surface-200 dark:border-surface-400 rounded-xl hover:border-success-300 hover:bg-success-50 dark:hover:bg-success-900/20 transition-colors group"
-                  >
-                    <div className="font-semibold text-surface-50 dark:text-white group-hover:text-success-700 dark:group-hover:text-success-400 transition-colors">
-                      {exercise.name}
-                    </div>
-                    <div className="text-sm text-surface-500 dark:text-surface-600 mt-1">
-                      {exercise.muscles.slice(0, 2).join(', ')}
-                      {exercise.muscles.length > 2 && ` +${exercise.muscles.length - 2} more`}
-                    </div>
-                    <div className="text-xs text-surface-600 dark:text-surface-500 mt-1">
-                      {exercise.equipment.slice(0, 2).join(', ')}
-                      {exercise.equipment.length > 2 && ` +${exercise.equipment.length - 2} more`}
-                    </div>
-                  </motion.button>
-                ))
-              )}
-            </div>
+            <ExercisePicker onSelect={(key) => addExercise(key)} layout="grid" />
           </div>
         </motion.div>
 
@@ -927,7 +574,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                                             value={set.duration}
                                             onChange={(val) => updateSet(exerciseIndex, setIndex, 'duration', val)}
                                             placeholder="5:00"
-                                            focusRingColor="focus:ring-accent-500"
                                           />
                                         </div>
                                         <StepperInput
@@ -944,7 +590,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                                             value={set.restTime}
                                             onChange={(val) => updateSet(exerciseIndex, setIndex, 'restTime', val)}
                                             placeholder="1:00"
-                                            focusRingColor="focus:ring-accent-500"
                                           />
                                         </div>
                                       </div>
@@ -971,7 +616,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                                             value={set.restTime}
                                             onChange={(val) => updateSet(exerciseIndex, setIndex, 'restTime', val)}
                                             placeholder="1:00"
-                                            focusRingColor="focus:ring-accent-500"
                                           />
                                         </div>
                                       </div>

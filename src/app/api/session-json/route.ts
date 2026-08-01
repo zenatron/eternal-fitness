@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutTemplates, workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc, sql } from 'drizzle-orm';
+import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
+import {
+  computeStreakFromHistory,
+  getStreakBaseline,
+  recordWorkoutCompletion,
+} from '@/lib/workout/completion';
+import { eq, and, isNotNull, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   createWorkoutSession,
@@ -37,101 +42,6 @@ const errorResponse = (message: string, status = 500, details?: unknown) => {
   console.error(`API Error (${status}) [session-json/]:`, message, details ? JSON.stringify(details) : '');
   return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-/**
- * Updates userStats (with streak) and monthlyStats after a session is completed.
- * `duration` is in SECONDS, matching the canonical workoutSessions.duration unit.
- * This mirrors the logic in session/active/complete and session/log so every
- * completion path contributes to lifetime + monthly rollups identically.
- */
-async function recordCompletionStats(
-  tx: Tx,
-  userId: string,
-  completionTime: Date,
-  duration: number | undefined,
-  metrics: { totalVolume: number; totalSets: number; totalExercises: number },
-) {
-  const trainingHours = duration ? duration / 3600 : 0;
-
-  // Streak — fetch current values then compute against the completion date.
-  let newStreak = 1;
-  let newLongestStreak = 1;
-  const [streakData] = await tx
-    .select({
-      currentStreak: userStats.currentStreak,
-      longestStreak: userStats.longestStreak,
-      lastWorkoutAt: userStats.lastWorkoutAt,
-    })
-    .from(userStats)
-    .where(eq(userStats.userId, userId));
-
-  if (streakData) {
-    if (streakData.lastWorkoutAt) {
-      const lastDate = new Date(streakData.lastWorkoutAt);
-      const today = new Date(completionTime);
-      lastDate.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
-      const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) {
-        newStreak = Math.max(1, streakData.currentStreak);
-      } else if (diffDays === 1) {
-        newStreak = streakData.currentStreak + 1;
-      }
-    }
-    newLongestStreak = Math.max(streakData.longestStreak, newStreak);
-  }
-
-  await tx
-    .insert(userStats)
-    .values({
-      userId,
-      totalWorkouts: 1,
-      totalVolume: metrics.totalVolume,
-      totalSets: metrics.totalSets,
-      totalExercises: metrics.totalExercises,
-      totalTrainingHours: trainingHours,
-      lastWorkoutAt: completionTime,
-      currentStreak: newStreak,
-      longestStreak: newLongestStreak,
-    })
-    .onConflictDoUpdate({
-      target: userStats.userId,
-      set: {
-        totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
-        totalVolume: sql`${userStats.totalVolume} + ${metrics.totalVolume}`,
-        totalSets: sql`${userStats.totalSets} + ${metrics.totalSets}`,
-        totalExercises: sql`${userStats.totalExercises} + ${metrics.totalExercises}`,
-        totalTrainingHours: sql`${userStats.totalTrainingHours} + ${trainingHours}`,
-        lastWorkoutAt: completionTime,
-        currentStreak: newStreak,
-        longestStreak: newLongestStreak,
-      },
-    });
-
-  // Upsert monthly stats for the completion month.
-  const completionYear = completionTime.getFullYear();
-  const completionMonth = completionTime.getMonth() + 1;
-  await tx
-    .insert(monthlyStats)
-    .values({
-      userId,
-      year: completionYear,
-      month: completionMonth,
-      workoutsCount: 1,
-      volume: metrics.totalVolume,
-      trainingHours,
-    })
-    .onConflictDoUpdate({
-      target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
-      set: {
-        workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
-        volume: sql`${monthlyStats.volume} + ${metrics.totalVolume}`,
-        trainingHours: sql`${monthlyStats.trainingHours} + ${trainingHours}`,
-      },
-    });
-}
 
 const performedSetSchema = z.object({
   setId: z.string(),
@@ -300,10 +210,16 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         console.error('Error processing PRs:', error);
       }
 
-      await recordCompletionStats(tx, userId, completionTime, duration, {
-        totalVolume: sessionData.metrics.totalVolume,
-        totalSets: sessionData.metrics.totalSets,
-        totalExercises: sessionData.metrics.totalExercises,
+      await recordWorkoutCompletion(tx, {
+        userId,
+        totals: {
+          totalVolume: sessionData.metrics.totalVolume,
+          totalSets: sessionData.metrics.completedSets,
+          totalExercises: sessionData.metrics.totalExercises,
+        },
+        durationSeconds: duration ?? 0,
+        completionTime,
+        streak: await computeStreakFromHistory(tx, userId, await getStreakBaseline(tx, userId)),
       });
 
       return session;
@@ -360,10 +276,16 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       .where(eq(workoutSessions.id, scheduledSessionId))
       .returning();
 
-    await recordCompletionStats(tx, userId, completionTime, duration, {
-      totalVolume: sessionData.metrics.totalVolume,
-      totalSets: sessionData.metrics.totalSets,
-      totalExercises: sessionData.metrics.totalExercises,
+    await recordWorkoutCompletion(tx, {
+      userId,
+      totals: {
+        totalVolume: sessionData.metrics.totalVolume,
+        totalSets: sessionData.metrics.completedSets,
+        totalExercises: sessionData.metrics.totalExercises,
+      },
+      durationSeconds: duration ?? 0,
+      completionTime,
+      streak: await computeStreakFromHistory(tx, userId, await getStreakBaseline(tx, userId)),
     });
 
     return session;

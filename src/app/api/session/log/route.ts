@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutTemplates, workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
-import { eq, and, sql, desc, isNotNull } from 'drizzle-orm';
+import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import {
+  computeStreakFromHistory,
+  getStreakBaseline,
+  recordWorkoutCompletion,
+} from '@/lib/workout/completion';
 import { z } from 'zod';
 import { performedSetsVolume } from '@/lib/volume';
 import { exercises as staticExercisesData } from '@/lib/exercises';
@@ -214,142 +219,21 @@ export async function POST(request: Request) {
         })
         .returning();
 
-      // Streak calculation — must be date-aware for past workouts
-      // Find the workout immediately before and after the logged date
-      const [existingStats] = await tx
-        .select({
-          currentStreak: userStats.currentStreak,
-          longestStreak: userStats.longestStreak,
-          lastWorkoutAt: userStats.lastWorkoutAt,
-          totalWorkouts: userStats.totalWorkouts,
-        })
-        .from(userStats)
-        .where(eq(userStats.userId, userId));
+      // Recomputed from full history rather than incrementally: a workout
+      // inserted into the past can bridge a gap between two existing days.
+      const streak = await computeStreakFromHistory(
+        tx,
+        userId,
+        await getStreakBaseline(tx, userId)
+      );
 
-      // For past workouts, we need to recalculate the streak from scratch
-      // since inserting a workout in the past can bridge a gap
-      let newStreak = 1;
-      let newLongestStreak = 1;
-      let newLastWorkoutAt = completionTime;
-
-      if (existingStats) {
-        // Get all completed session dates to recalculate streak properly
-        const allSessions = await tx
-          .select({ completedAt: workoutSessions.completedAt })
-          .from(workoutSessions)
-          .where(and(
-            eq(workoutSessions.userId, userId),
-            isNotNull(workoutSessions.completedAt),
-          ))
-          .orderBy(desc(workoutSessions.completedAt));
-
-        if (allSessions.length > 0) {
-          // Get unique dates (calendar days)
-          const uniqueDates = Array.from(new Set(
-            allSessions
-              .map(s => {
-                const d = new Date(s.completedAt!);
-                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-              })
-          )).map(key => {
-            const [y, m, d] = key.split('-').map(Number);
-            return new Date(y, m, d);
-          }).sort((a, b) => b.getTime() - a.getTime());
-
-          // Calculate current streak from most recent date
-          newStreak = 1;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const mostRecentDate = new Date(uniqueDates[0]);
-          mostRecentDate.setHours(0, 0, 0, 0);
-
-          // If most recent workout is more than 1 day ago, streak is still counted from it
-          for (let i = 1; i < uniqueDates.length; i++) {
-            const prev = new Date(uniqueDates[i - 1]);
-            const curr = new Date(uniqueDates[i]);
-            prev.setHours(0, 0, 0, 0);
-            curr.setHours(0, 0, 0, 0);
-            const diffDays = Math.round((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays === 1) {
-              newStreak++;
-            } else {
-              break;
-            }
-          }
-
-          // Check if the streak is still active (most recent date is today or yesterday)
-          const daysSinceLast = Math.round((today.getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysSinceLast > 1) {
-            newStreak = 0;
-          }
-
-          newLastWorkoutAt = allSessions[0].completedAt!;
-
-          // Calculate longest streak across all dates
-          let maxStreak = 1;
-          let currentRun = 1;
-          for (let i = 1; i < uniqueDates.length; i++) {
-            const prev = new Date(uniqueDates[i - 1]);
-            const curr = new Date(uniqueDates[i]);
-            prev.setHours(0, 0, 0, 0);
-            curr.setHours(0, 0, 0, 0);
-            const diffDays = Math.round((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays === 1) {
-              currentRun++;
-              maxStreak = Math.max(maxStreak, currentRun);
-            } else {
-              currentRun = 1;
-            }
-          }
-          newLongestStreak = Math.max(maxStreak, existingStats.longestStreak);
-        }
-      }
-
-      // Upsert user stats
-      await tx
-        .insert(userStats)
-        .values({
-          userId,
-          totalWorkouts: 1,
-          totalVolume,
-          totalTrainingHours: duration / 3600,
-          lastWorkoutAt: newLastWorkoutAt,
-          currentStreak: newStreak,
-          longestStreak: newLongestStreak,
-        })
-        .onConflictDoUpdate({
-          target: userStats.userId,
-          set: {
-            totalWorkouts: sql`${userStats.totalWorkouts} + 1`,
-            totalVolume: sql`${userStats.totalVolume} + ${totalVolume}`,
-            totalTrainingHours: sql`${userStats.totalTrainingHours} + ${duration / 3600}`,
-            lastWorkoutAt: newLastWorkoutAt,
-            currentStreak: newStreak,
-            longestStreak: newLongestStreak,
-          },
-        });
-
-      // Upsert monthly stats for the completedAt month (not today)
-      const completionYear = completionTime.getFullYear();
-      const completionMonth = completionTime.getMonth() + 1;
-      await tx
-        .insert(monthlyStats)
-        .values({
-          userId,
-          year: completionYear,
-          month: completionMonth,
-          workoutsCount: 1,
-          volume: totalVolume,
-          trainingHours: duration / 3600,
-        })
-        .onConflictDoUpdate({
-          target: [monthlyStats.userId, monthlyStats.year, monthlyStats.month],
-          set: {
-            workoutsCount: sql`${monthlyStats.workoutsCount} + 1`,
-            volume: sql`${monthlyStats.volume} + ${totalVolume}`,
-            trainingHours: sql`${monthlyStats.trainingHours} + ${duration / 3600}`,
-          },
-        });
+      await recordWorkoutCompletion(tx, {
+        userId,
+        totals: { totalVolume, totalSets: completedSets, totalExercises },
+        durationSeconds: duration,
+        completionTime,
+        streak,
+      });
 
       return createdSession;
     });

@@ -10,8 +10,10 @@ export interface ActivityDay {
 export interface ActivityEntry {
   id: number;
   title: string;
-  details: string;
-  timeAgo: string;
+  /** ISO timestamp. Formatted client-side — see utils/relativeTime.ts. */
+  completedAt: string | null;
+  /** Pre-formatted because the unit depends on the user's profile, not the clock. */
+  volumeLabel: string;
 }
 // Progress data
 export interface ProgressData {

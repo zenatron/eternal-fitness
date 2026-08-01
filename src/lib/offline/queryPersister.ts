@@ -85,5 +85,9 @@ export const PERSIST_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
 /**
  * Bumping this invalidates every persisted cache — do it when a query's shape
  * changes, or restored data will be deserialised into the wrong type.
+ *
+ * v2: the dashboard's `recentActivity` entries carry `completedAt` +
+ * `volumeLabel` instead of the pre-rendered `timeAgo` / `details` strings. A
+ * cache restored from v1 would render those fields as blank.
  */
-export const PERSIST_BUSTER = 'v1';
+export const PERSIST_BUSTER = 'v2';

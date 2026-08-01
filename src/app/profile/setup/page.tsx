@@ -3,10 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
-import { UserCircleIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline';
+import {
+  UserCircleIcon,
+  ArrowRightStartOnRectangleIcon,
+  ScaleIcon,
+} from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
-import { Switch } from '@headlessui/react';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SectionHeading } from '@/components/ui/SectionHeading';
+import { Spinner } from '@/components/ui/Spinner';
+import { convertLengthField, convertMassField } from '@/utils/units';
 import { springSnappy, springGentle } from '@/lib/motion';
 
 
@@ -25,9 +32,11 @@ const formItem = {
 
 interface ProfileFormData {
   name: string;
-  age: number;
-  height: number;
-  weight: number;
+  age: string;
+  /** Held as strings, like the profile editor, so unit conversion can round-trip
+   *  a half-typed value without clobbering it. */
+  height: string;
+  weight: string;
   gender: string;
   useMetric: boolean;
 }
@@ -39,9 +48,9 @@ export default function ProfileSetup() {
 
   const [formData, setFormData] = useState<ProfileFormData>({
     name: '',
-    age: 0,
-    height: 0,
-    weight: 0,
+    age: '',
+    height: '',
+    weight: '',
     gender: '',
     useMetric: false,
   });
@@ -56,11 +65,18 @@ export default function ProfileSetup() {
     if (error) setError(null);
   };
 
-  const toggleUnit = () => {
-    setFormData((prev) => ({
-      ...prev,
-      useMetric: !prev.useMetric,
-    }));
+  const selectUnit = (useMetric: boolean) => {
+    setFormData((prev) => {
+      if (prev.useMetric === useMetric) return prev;
+      // Without this the label flipped from cm to inches and the number stayed,
+      // so a height entered as 175cm was submitted as 175 inches.
+      return {
+        ...prev,
+        useMetric,
+        height: convertLengthField(prev.height, useMetric),
+        weight: convertMassField(prev.weight, useMetric),
+      };
+    });
   };
 
   const triggerShake = () => {
@@ -73,18 +89,22 @@ export default function ProfileSetup() {
     setError(null);
 
     try {
+      const age = parseInt(formData.age, 10);
+      const height = parseFloat(formData.height);
+      const weight = parseFloat(formData.weight);
+
       if (!formData.name.trim()) throw new Error('Please enter your name');
-      if (!formData.age || formData.age < 13) throw new Error('Please enter a valid age (13 or older)');
+      if (Number.isNaN(age) || age < 13) throw new Error('Please enter a valid age (13 or older)');
       if (!formData.gender) throw new Error('Please select your gender');
-      if (!formData.height || formData.height <= 0) throw new Error('Please enter a valid height');
-      if (!formData.weight || formData.weight <= 0) throw new Error('Please enter a valid weight');
+      if (Number.isNaN(height) || height <= 0) throw new Error('Please enter a valid height');
+      if (Number.isNaN(weight) || weight <= 0) throw new Error('Please enter a valid weight');
 
       await updateProfileMutation.mutateAsync({
         name: formData.name.trim(),
-        age: Number(formData.age),
+        age,
         gender: formData.gender,
-        height: Number(formData.height),
-        weight: Number(formData.weight),
+        height,
+        weight,
         useMetric: formData.useMetric,
       });
       router.replace('/profile');
@@ -152,9 +172,9 @@ export default function ProfileSetup() {
             >
               {/* Personal Info */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Personal Information
-                </h2>
+                <SectionHeading icon={UserCircleIcon} title="Personal Information">
+                  Shown on your profile and the leaderboard.
+                </SectionHeading>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label htmlFor="name" className="form-label">Full Name</label>
@@ -176,7 +196,7 @@ export default function ProfileSetup() {
                       id="age"
                       type="number"
                       name="age"
-                      value={formData.age || ''}
+                      value={formData.age}
                       onChange={handleChange}
                       className="form-input"
                       placeholder="Your age"
@@ -204,60 +224,31 @@ export default function ProfileSetup() {
                 </div>
               </motion.div>
 
-              {/* Unit System */}
+              {/* Unit System.
+                  A headless-ui Switch above two non-interactive labels: the
+                  thing that looked like the choice was not the thing you could
+                  press. Same control as the profile editor now. */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Measurement System
-                </h2>
+                <SectionHeading icon={ScaleIcon} title="Measurement System">
+                  Pick one — anything you have already entered is converted.
+                </SectionHeading>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-surface-600 dark:text-surface-800">
-                      Unit Preference
-                    </p>
-                    <p className="text-xs text-surface-500 dark:text-surface-600 mt-0.5">
-                      Choose your preferred measurement system
-                    </p>
-                  </div>
-                  <Switch
-                    checked={formData.useMetric}
-                    onChange={toggleUnit}
-                    className={`${
-                      formData.useMetric ? 'bg-accent-500' : 'bg-surface-900 dark:bg-surface-600'
-                    } relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 dark:focus:ring-offset-surface-0`}
-                  >
-                    <span className="sr-only">Use metric system</span>
-                    <motion.span
-                      animate={{ x: formData.useMetric ? 22 : 4 }}
-                      transition={springSnappy}
-                      className="inline-block h-5 w-5 rounded-full bg-white shadow"
-                    />
-                  </Switch>
-                </div>
-
-                <div className="flex gap-3 mt-4">
-                  <div className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors ${
-                    !formData.useMetric
-                      ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
-                      : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600'
-                  }`}>
-                    Imperial (lbs, in)
-                  </div>
-                  <div className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-center transition-colors ${
-                    formData.useMetric
-                      ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 ring-1 ring-accent-200 dark:ring-accent-800'
-                      : 'bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600'
-                  }`}>
-                    Metric (kg, cm)
-                  </div>
-                </div>
+                <SegmentedControl
+                  label="Unit preference"
+                  value={formData.useMetric}
+                  onChange={selectUnit}
+                  options={[
+                    { value: false, label: 'Imperial', hint: 'lbs, inches' },
+                    { value: true, label: 'Metric', hint: 'kg, cm' },
+                  ]}
+                />
               </motion.div>
 
               {/* Measurements */}
               <motion.div variants={formItem} className="form-section">
-                <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-5">
-                  Measurements
-                </h2>
+                <SectionHeading icon={ScaleIcon} title="Measurements">
+                  Used for your weight goal and body-composition estimates.
+                </SectionHeading>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label htmlFor="height" className="form-label">
@@ -267,7 +258,7 @@ export default function ProfileSetup() {
                       id="height"
                       type="number"
                       name="height"
-                      value={formData.height || ''}
+                      value={formData.height}
                       onChange={handleChange}
                       className="form-input"
                       placeholder={formData.useMetric ? 'e.g. 175' : 'e.g. 69'}
@@ -283,7 +274,7 @@ export default function ProfileSetup() {
                       id="weight"
                       type="number"
                       name="weight"
-                      value={formData.weight || ''}
+                      value={formData.weight}
                       onChange={handleChange}
                       className="form-input"
                       placeholder={formData.useMetric ? 'e.g. 70' : 'e.g. 154'}
@@ -318,10 +309,7 @@ export default function ProfileSetup() {
               >
                 {updateProfileMutation.isPending ? (
                   <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
+                    <Spinner className="h-4 w-4" />
                     Saving...
                   </>
                 ) : (
