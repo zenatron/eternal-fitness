@@ -5,6 +5,8 @@ import { userStats, workoutSessions, monthlyStats } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc, gte, sql } from 'drizzle-orm';
 import { UserPersonalRecords } from '@/types/personalRecords';
 import { exerciseDisplayName } from '@/lib/exerciseLookup';
+import { addDays, dayKeyOf, todayKey } from '@/utils/datetime';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 
 /**
  * How far back the top-exercise breakdown looks. Bounded because this runs on
@@ -77,6 +79,8 @@ export async function GET() {
   try {
     const userId = await getUserId();
     if (!userId) return errorResponse('Unauthorized', 401);
+
+    const timeZone = await getUserTimeZone(userId);
 
     const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
 
@@ -161,28 +165,30 @@ export async function GET() {
       ? convertStoredPRsToDisplayFormat(stats.personalRecords as any)
       : [];
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentSessionsForTrend = allSessions.filter(s => new Date(s.completedAt!) >= thirtyDaysAgo);
-    const volumeTrend = recentSessionsForTrend.map(s => ({
-      date: s.completedAt!.toISOString().split('T')[0],
-      volume: s.totalVolume || 0,
-    }));
+    /*
+     * Both series used to label their points with `toISOString()` — the UTC day —
+     * while selecting them with server-local `setDate` arithmetic. An evening
+     * workout was therefore plotted on the following day, and the twelve week
+     * windows were half-open in a way that dropped sessions falling in the last
+     * few hours of `weekEnd`.
+     */
+    const today = todayKey(timeZone);
 
-    const twelveWeeksAgo = new Date();
-    twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+    const trendCutoff = addDays(today, -29);
+    const volumeTrend = allSessions
+      .map(s => ({ day: dayKeyOf(s.completedAt!, timeZone), volume: s.totalVolume || 0 }))
+      .filter(s => s.day >= trendCutoff)
+      .map(s => ({ date: s.day, volume: s.volume }));
+
+    const sessionDays = allSessions.map(s => dayKeyOf(s.completedAt!, timeZone));
     const workoutFrequency: Array<{ date: string; count: number }> = [];
-    for (let i = 0; i < 12; i++) {
-      const weekStart = new Date(twelveWeeksAgo);
-      weekStart.setDate(weekStart.getDate() + (i * 7));
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-
-      const weekSessions = allSessions.filter(s => {
-        const d = new Date(s.completedAt!);
-        return d >= weekStart && d <= weekEnd;
+    for (let i = 11; i >= 0; i--) {
+      const weekStart = addDays(today, -i * 7 - 6);
+      const weekEnd = addDays(weekStart, 6);
+      workoutFrequency.push({
+        date: weekStart,
+        count: sessionDays.filter(d => d >= weekStart && d <= weekEnd).length,
       });
-      workoutFrequency.push({ date: weekStart.toISOString().split('T')[0], count: weekSessions.length });
     }
 
     const statsData = {

@@ -5,6 +5,7 @@ import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { getTotalSetsCount, getTemplateExercises } from '@/utils/workoutDisplayUtils';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 import {
   computeStreakFromHistory,
   getStreakBaseline,
@@ -142,14 +143,17 @@ export async function POST(
       // cannot diverge between them again — see lib/workout/completion.ts. This
       // path had the same defect as /api/session/log: it never incremented
       // totalSets or totalExercises.
+      const timeZone = await getUserTimeZone(userId, tx);
       const streak = await computeStreakFromHistory(
         tx,
         userId,
+        timeZone,
         await getStreakBaseline(tx, userId)
       );
 
       await recordWorkoutCompletion(tx, {
         userId,
+        timeZone,
         totals: {
           totalVolume: actualTotalVolume,
           totalSets: completedSets,

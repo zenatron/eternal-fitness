@@ -1,9 +1,10 @@
 import { CalendarDaysIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { WorkoutSession } from '@/types/workout';
-import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
+import { dayKeyOf, formatCivilDayRelative } from '@/utils/datetime';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { useTimeZone } from '@/lib/hooks/useTimeZone';
 import { motion, useReducedMotion } from 'framer-motion';
 
 const springTransition = {
@@ -15,6 +16,7 @@ const springTransition = {
 function SessionRow({ session, index }: { session: WorkoutSession; index: number }) {
   const { template } = useTemplate(session.workoutTemplateId);
   const { profile } = useProfile();
+  const timeZone = useTimeZone();
   const prefersReducedMotion = useReducedMotion();
 
   return (
@@ -40,7 +42,7 @@ function SessionRow({ session, index }: { session: WorkoutSession; index: number
         </p>
         <p className="text-xs text-surface-500 dark:text-surface-600">
           {session.scheduledAt
-            ? formatUTCDateToLocalDateFriendly(session.scheduledAt)
+            ? formatCivilDayRelative(dayKeyOf(session.scheduledAt, timeZone), timeZone)
             : 'Unscheduled'}
           {session.duration ? ` · ${session.duration}m` : ''}
           {template?.totalVolume != null

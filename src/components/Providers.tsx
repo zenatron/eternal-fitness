@@ -12,6 +12,7 @@ import {
   PERSIST_BUSTER,
   PERSIST_MAX_AGE,
 } from '@/lib/offline/queryPersister';
+import { TimeZoneSync } from '@/components/TimeZoneSync';
 
 const queryConfig: QueryClientConfig = {
   defaultOptions: {
@@ -65,6 +66,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
+      <TimeZoneSync />
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={{

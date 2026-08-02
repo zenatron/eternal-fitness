@@ -59,6 +59,22 @@ export const users = pgTable(
      * target. Captured automatically when a goal is first set or changed.
      */
     startingWeight: doublePrecision('starting_weight'),
+    /**
+     * IANA timezone name (e.g. `America/New_York`), reported by the browser and
+     * refreshed whenever it changes.
+     *
+     * Streaks, monthly totals and the activity grid are all "which calendar day
+     * was this?" questions, and they are answered on the server — inside a
+     * container that runs in UTC. Without this column the server had no choice
+     * but to bucket by UTC, so an evening workout anywhere in the Americas
+     * counted toward the *following* day, and one finished on the last evening
+     * of a month landed in the next month's totals.
+     *
+     * Nullable because it can only be learned from a client: rows predating this
+     * column, and any user who has not opened the app since, fall back to UTC —
+     * exactly the behaviour they had before.
+     */
+    timeZone: text('time_zone'),
   },
 );
 

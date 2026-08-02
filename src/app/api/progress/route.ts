@@ -5,6 +5,8 @@ import { workoutSessions, workoutTemplates } from '@/lib/db/schema';
 import { eq, and, isNotNull, gte, lte, desc, sql } from 'drizzle-orm';
 import { WorkoutSessionData } from '@/types/workout';
 import { exerciseDisplayName } from '@/lib/exerciseLookup';
+import { dayKeyOf, monthOf, startOfWeek } from '@/utils/datetime';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 
 const VALID_PERIODS = ['7d', '30d', '90d', '1y', 'all'] as const;
 type Period = (typeof VALID_PERIODS)[number];
@@ -26,6 +28,8 @@ export async function GET(request: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const timeZone = await getUserTimeZone(userId);
 
     const { searchParams } = new URL(request.url);
     const period = parsePeriod(searchParams.get('period'));
@@ -165,14 +169,19 @@ export async function GET(request: Request) {
 
     // Build frequency data grouped by period
     const frequencyMap = new Map<string, { workouts: number; volume: number; hours: number; distance: number }>();
+    /*
+     * This managed to use three different calendars in one function: UTC for
+     * days (`toISOString`), server-local for weeks (`setDate`/`getDay`) and
+     * server-local again for months (`getFullYear`/`getMonth`). Switching the
+     * grouping could therefore move a session between buckets. All three now
+     * resolve the civil day in the user's zone first, then group.
+     */
     const getKey = (date: Date) => {
-      if (groupBy === 'day') return date.toISOString().slice(0, 10);
-      if (groupBy === 'week') {
-        const d = new Date(date);
-        d.setDate(d.getDate() - d.getDay());
-        return d.toISOString().slice(0, 10);
-      }
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const day = dayKeyOf(date, timeZone);
+      if (groupBy === 'day') return day;
+      if (groupBy === 'week') return startOfWeek(day);
+      const { year, month } = monthOf(day);
+      return `${year}-${String(month).padStart(2, '0')}`;
     };
 
     for (const session of sessions) {

@@ -3,6 +3,7 @@ import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 import {
   computeStreakFromHistory,
   getStreakBaseline,
@@ -221,14 +222,17 @@ export async function POST(request: Request) {
 
       // Recomputed from full history rather than incrementally: a workout
       // inserted into the past can bridge a gap between two existing days.
+      const timeZone = await getUserTimeZone(userId, tx);
       const streak = await computeStreakFromHistory(
         tx,
         userId,
+        timeZone,
         await getStreakBaseline(tx, userId)
       );
 
       await recordWorkoutCompletion(tx, {
         userId,
+        timeZone,
         totals: { totalVolume, totalSets: completedSets, totalExercises },
         durationSeconds: duration,
         completionTime,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 import {
   computeStreakFromHistory,
   getStreakBaseline,
@@ -210,8 +211,11 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         console.error('Error processing PRs:', error);
       }
 
+      const timeZone = await getUserTimeZone(userId, tx);
+
       await recordWorkoutCompletion(tx, {
         userId,
+        timeZone,
         totals: {
           totalVolume: sessionData.metrics.totalVolume,
           totalSets: sessionData.metrics.completedSets,
@@ -219,7 +223,12 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         },
         durationSeconds: duration ?? 0,
         completionTime,
-        streak: await computeStreakFromHistory(tx, userId, await getStreakBaseline(tx, userId)),
+        streak: await computeStreakFromHistory(
+          tx,
+          userId,
+          timeZone,
+          await getStreakBaseline(tx, userId)
+        ),
       });
 
       return session;
@@ -276,8 +285,11 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       .where(eq(workoutSessions.id, scheduledSessionId))
       .returning();
 
+    const timeZone = await getUserTimeZone(userId, tx);
+
     await recordWorkoutCompletion(tx, {
       userId,
+      timeZone,
       totals: {
         totalVolume: sessionData.metrics.totalVolume,
         totalSets: sessionData.metrics.completedSets,
@@ -285,7 +297,12 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       },
       durationSeconds: duration ?? 0,
       completionTime,
-      streak: await computeStreakFromHistory(tx, userId, await getStreakBaseline(tx, userId)),
+      streak: await computeStreakFromHistory(
+        tx,
+        userId,
+        timeZone,
+        await getStreakBaseline(tx, userId)
+      ),
     });
 
     return session;

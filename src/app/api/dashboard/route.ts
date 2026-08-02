@@ -3,53 +3,25 @@ import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users, userStats, monthlyStats, workoutSessions } from '@/lib/db/schema';
 import { eq, and, isNotNull, isNull, gte, desc, asc, or } from 'drizzle-orm';
-import { formatUTCDateToLocalDateShort } from '@/utils/dateUtils';
+import { addDays, dayKeyOf, monthOf, resolveTimeZone, startOfDayInZone, todayKey } from '@/utils/datetime';
+import { computeStreakFromDates } from '@/lib/workout/completion';
 import { getLevel } from '@/utils/levels';
 import { calculateWeightGoalProgress } from '@/utils/weightGoal';
 
 /** The dashboard card only ever renders a few of these. */
 const UPCOMING_WORKOUTS_LIMIT = 10;
 
-function calculateStreak(sessionDates: Date[]): number {
+/**
+ * Fallback streak, used only when no `userStats` row exists yet.
+ *
+ * Delegates to the shared rules in `lib/workout/completion.ts` rather than
+ * carrying a fourth hand-rolled implementation. The version that used to live
+ * here counted in UTC days and disagreed with the stored streak for anyone not
+ * on UTC — the same figure computed two ways, differing by a day.
+ */
+function calculateStreak(sessionDates: Date[], timeZone: string): number {
   if (!sessionDates.length) return 0;
-
-  const sortedDates = [...sessionDates].sort((a, b) => b.getTime() - a.getTime());
-
-  const uniqueUTCDateStringsSet = new Set(sortedDates.map((d) => formatUTCDateToLocalDateShort(d)));
-  const uniqueUTCDateStrings = Array.from(uniqueUTCDateStringsSet);
-
-  if (!uniqueUTCDateStrings.length) return 0;
-
-  const uniqueUTCDates = uniqueUTCDateStrings
-    .map((dateStr) => {
-      const [year, month, day] = dateStr.split('-').map(Number);
-      return new Date(Date.UTC(year, month - 1, day));
-    })
-    .sort((a, b) => b.getTime() - a.getTime());
-
-  let streak = 0;
-  const todayUTC = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-  const yesterdayUTC = new Date(todayUTC);
-  yesterdayUTC.setUTCDate(todayUTC.getUTCDate() - 1);
-
-  if (uniqueUTCDates[0].getTime() === todayUTC.getTime() || uniqueUTCDates[0].getTime() === yesterdayUTC.getTime()) {
-    streak = 1;
-    let currentStreakDate = uniqueUTCDates[0];
-
-    for (let i = 1; i < uniqueUTCDates.length; i++) {
-      const expectedPrevDate = new Date(currentStreakDate);
-      expectedPrevDate.setUTCDate(currentStreakDate.getUTCDate() - 1);
-
-      if (uniqueUTCDates[i].getTime() === expectedPrevDate.getTime()) {
-        streak++;
-        currentStreakDate = uniqueUTCDates[i];
-      } else {
-        break;
-      }
-    }
-  }
-
-  return streak;
+  return computeStreakFromDates(sessionDates, timeZone).currentStreak;
 }
 
 export async function GET() {
@@ -67,10 +39,15 @@ export async function GET() {
         weightGoal: users.weightGoal,
         startingWeight: users.startingWeight,
         useMetric: users.useMetric,
+        timeZone: users.timeZone,
       })
       .from(users)
       .where(eq(users.id, userId));
     if (!user) return new NextResponse('User not found', { status: 404 });
+
+    // Every "which day?" below is answered in this zone. Falls back to UTC,
+    // which is what this route silently assumed for every user before.
+    const timeZone = resolveTimeZone(user.timeZone);
 
     const [stats] = await db
       .select({
@@ -85,9 +62,14 @@ export async function GET() {
       .from(userStats)
       .where(eq(userStats.userId, userId));
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    /*
+     * Must agree with how `recordWorkoutCompletion` files a workout, which is by
+     * the user's calendar month. Reading "now" in the server's zone instead meant
+     * that on the last day of a month the dashboard could query the *next*
+     * month's row — empty — and report zero progress to a user who had trained
+     * that morning.
+     */
+    const { year: currentYear, month: currentMonth } = monthOf(todayKey(timeZone));
     const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
     const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
 
@@ -116,9 +98,10 @@ export async function GET() {
       with: { workoutTemplate: { columns: { id: true, name: true } } },
     });
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
-    thirtyDaysAgo.setUTCHours(0, 0, 0, 0);
+    // The first instant of the earliest day the grid shows, in the user's zone —
+    // not 30×24h before now, which clips part of the oldest day when the user is
+    // ahead of UTC.
+    const thirtyDaysAgo = startOfDayInZone(addDays(todayKey(timeZone), -29), timeZone);
 
     const sessionsLast30Days = await db
       .select({ completedAt: workoutSessions.completedAt })
@@ -130,22 +113,27 @@ export async function GET() {
       ))
       .orderBy(asc(workoutSessions.completedAt));
 
-    const completedUTCDates = new Set(
-      sessionsLast30Days.map(s => formatUTCDateToLocalDateShort(s.completedAt!)),
+    /*
+     * The grid used to build its 30 cells with `date.setDate(...)` — server-local
+     * days — while labelling them with the *UTC* components of that date. The two
+     * disagree for most of the day outside UTC, so a workout could light up the
+     * neighbouring cell, or none at all.
+     */
+    const completedDays = new Set(
+      sessionsLast30Days.map(s => dayKeyOf(s.completedAt!, timeZone)),
     );
 
+    const today = todayKey(timeZone);
     const activityData = [];
-    for (let i = 0; i < 30; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - (29 - i));
-      const formattedDate = formatUTCDateToLocalDateShort(date);
-      activityData.push({ date: formattedDate, completed: completedUTCDates.has(formattedDate) });
+    for (let i = 29; i >= 0; i--) {
+      const day = addDays(today, -i);
+      activityData.push({ date: day, completed: completedDays.has(day) });
     }
 
     let currentStreak = stats?.currentStreak || 0;
     if (!stats) {
       const allSessionDates = sessionsLast30Days.map(s => s.completedAt).filter(Boolean) as Date[];
-      currentStreak = calculateStreak(allSessionDates);
+      currentStreak = calculateStreak(allSessionDates, timeZone);
     }
 
     // The dashboard card shows a handful of upcoming sessions, but this fetched

@@ -51,7 +51,13 @@ import { useTemplates } from '@/lib/hooks/useTemplates';
 import { useScheduledSessions } from '@/lib/hooks/useScheduledSessions';
 import { useToggleFavorite } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
-import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
+import {
+  civilDayToInstant,
+  dayKeyOf,
+  deviceTimeZone,
+  formatCivilDayRelative,
+} from '@/utils/datetime';
+import { useTimeZone } from '@/lib/hooks/useTimeZone';
 import { WorkoutTemplate } from '@/types/workout';
 import { TemplateCard } from '@/components/ui/TemplateCard';
 
@@ -170,6 +176,7 @@ export default function TemplatesPage() {
   } = useScheduledSessions();
   const toggleFavoriteMutation = useToggleFavorite();
   const { profile } = useProfile();
+  const timeZone = useTimeZone();
   const prefersReducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
 
@@ -205,12 +212,26 @@ export default function TemplatesPage() {
     if (!selectedTemplateId) return;
 
     try {
+      /*
+       * The picker hands back a moment, not a day: react-datepicker copies the
+       * previously selected time onto the clicked date, and the modal seeds
+       * itself with `new Date()`. Scheduling at 8pm on the 1st for the 2nd
+       * therefore produced 8pm on the 2nd, which is already the 3rd in UTC —
+       * and the card then read the day off the UTC components. Two separate
+       * mistakes that happened to compound into a two-day error.
+       *
+       * Reduce the moment to the civil day the user actually clicked, then
+       * re-anchor it at local noon so no reader can round it to a neighbour.
+       */
+      const zone = deviceTimeZone();
+      const scheduledDay = dayKeyOf(date, zone);
+
       const response = await fetch('/api/session-json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId: selectedTemplateId,
-          scheduledAt: date.toISOString(),
+          scheduledAt: civilDayToInstant(scheduledDay, zone).toISOString(),
           performance: {},
         }),
       });
@@ -452,7 +473,10 @@ export default function TemplatesPage() {
                           <CalendarDaysIcon className="w-4 h-4" />
                           <span>
                             Scheduled for {session.scheduledAt
-                              ? formatUTCDateToLocalDateFriendly(session.scheduledAt)
+                              ? formatCivilDayRelative(
+                                  dayKeyOf(session.scheduledAt, timeZone),
+                                  timeZone,
+                                )
                               : 'Unknown date'}
                           </span>
                         </div>

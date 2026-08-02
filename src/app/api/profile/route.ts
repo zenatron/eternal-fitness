@@ -7,6 +7,7 @@ import { eq, and, isNotNull, count, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { deleteUserById } from '@/utils/userDeletion';
 import { ACCENT_THEME_IDS } from '@/types/theme';
+import { resolveTimeZone } from '@/utils/datetime';
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, { message: 'Name is required' }),
@@ -27,6 +28,13 @@ const profileSchema = z.object({
 const preferencesSchema = z.object({
   accentTheme: z.enum(ACCENT_THEME_IDS).optional(),
   useMetric: z.boolean().optional(),
+  /**
+   * IANA zone name from the browser. Length-capped here and validated for real
+   * by `resolveTimeZone` below — the value is client-supplied and ends up
+   * driving date bucketing, so an unrecognised zone must degrade to UTC rather
+   * than be stored and throw later inside a stats query.
+   */
+  timeZone: z.string().min(1).max(64).optional(),
 });
 
 const successResponse = (data: unknown, status = 200) => {
@@ -57,6 +65,7 @@ export async function GET() {
         weight: users.weight,
         useMetric: users.useMetric,
         accentTheme: users.accentTheme,
+        timeZone: users.timeZone,
         weightGoal: users.weightGoal,
         startingWeight: users.startingWeight,
         points: users.points,
@@ -268,6 +277,9 @@ export async function PATCH(request: Request) {
     const updates = {
       ...(parsed.data.accentTheme !== undefined && { accentTheme: parsed.data.accentTheme }),
       ...(parsed.data.useMetric !== undefined && { useMetric: parsed.data.useMetric }),
+      ...(parsed.data.timeZone !== undefined && {
+        timeZone: resolveTimeZone(parsed.data.timeZone),
+      }),
     };
 
     if (Object.keys(updates).length === 0) {
@@ -278,7 +290,11 @@ export async function PATCH(request: Request) {
       .update(users)
       .set(updates)
       .where(eq(users.id, userId))
-      .returning({ accentTheme: users.accentTheme, useMetric: users.useMetric });
+      .returning({
+        accentTheme: users.accentTheme,
+        useMetric: users.useMetric,
+        timeZone: users.timeZone,
+      });
 
     // No row yet: the user is mid-setup. Not an error — the local value still
     // applies, and setup will write the row shortly.

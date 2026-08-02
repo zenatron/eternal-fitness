@@ -23,7 +23,7 @@ import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
-import { formatUTCDateToLocalDateFriendly } from '@/utils/dateUtils';
+import { formatInstantDate } from '@/utils/relativeTime';
 import { WorkoutExercise, WorkoutSet } from '@/types/workout';
 import {
   getTemplateExercises,
@@ -247,7 +247,7 @@ export default function TemplateDetailPage({
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-accent-100">
                     <ClockIcon className="h-4 w-4 shrink-0" />
                     Created{' '}
-                    {formatUTCDateToLocalDateFriendly(template.createdAt, {
+                    {formatInstantDate(template.createdAt, {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',

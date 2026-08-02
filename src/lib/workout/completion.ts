@@ -1,6 +1,7 @@
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { monthlyStats, userStats, workoutSessions } from '@/lib/db/schema';
+import { dayKeyOf, daysBetween, monthOf, todayKey } from '@/utils/datetime';
 
 /**
  * The bookkeeping that happens when a workout is finished.
@@ -49,14 +50,18 @@ export interface StreakResult {
   lastWorkoutAt: Date;
 }
 
-const DAY_MS = 1000 * 60 * 60 * 24;
-
-/** Local calendar midnight — streaks are counted in days, not elapsed hours. */
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+/**
+ * A streak is counted in the *user's* calendar days.
+ *
+ * This used to call `setHours(0,0,0,0)`, which snaps to midnight in whatever
+ * zone the process runs in. In production that process is a container with no
+ * `TZ` set, so it was UTC — and a workout finished at 8pm in New York was
+ * bucketed as the *following* day. Two workouts on consecutive evenings could
+ * therefore land on the same UTC day and count once, or an evening workout
+ * could appear to happen a day ahead of the user's own calendar and break the
+ * chain. Neither is visible in development, where the process zone happens to
+ * be the developer's.
+ */
 
 /**
  * Recomputes both streaks from the user's full session history.
@@ -76,6 +81,7 @@ function startOfDay(date: Date): Date {
 export async function computeStreakFromHistory(
   tx: Tx,
   userId: string,
+  timeZone: string,
   existingLongestStreak = 0
 ): Promise<StreakResult> {
   const sessions = await tx
@@ -86,6 +92,7 @@ export async function computeStreakFromHistory(
 
   return computeStreakFromDates(
     sessions.map((s) => s.completedAt!),
+    timeZone,
     existingLongestStreak
   );
 }
@@ -99,6 +106,7 @@ export async function computeStreakFromHistory(
  */
 export function computeStreakFromDates(
   completionDates: Date[],
+  timeZone: string,
   existingLongestStreak = 0,
   now: Date = new Date()
 ): StreakResult {
@@ -108,29 +116,29 @@ export function computeStreakFromDates(
 
   const sorted = [...completionDates].sort((a, b) => b.getTime() - a.getTime());
 
-  // Several workouts in one day are one day of the streak.
-  const uniqueDays = Array.from(
-    new Set(sorted.map((d) => startOfDay(d).getTime()))
-  ).sort((a, b) => b - a);
+  // Several workouts in one day are one day of the streak. Descending, so
+  // uniqueDays[0] is the most recent.
+  const uniqueDays = Array.from(new Set(sorted.map((d) => dayKeyOf(d, timeZone)))).sort((a, b) =>
+    b.localeCompare(a)
+  );
 
   // Walk back from the most recent day for as long as the days are consecutive.
   let currentStreak = 1;
   for (let i = 1; i < uniqueDays.length; i++) {
-    if (Math.round((uniqueDays[i - 1] - uniqueDays[i]) / DAY_MS) !== 1) break;
+    if (daysBetween(uniqueDays[i], uniqueDays[i - 1]) !== 1) break;
     currentStreak++;
   }
 
   // A streak whose most recent day is older than yesterday has already lapsed —
   // today has not been missed yet, so yesterday still counts.
-  const daysSinceLast = Math.round((startOfDay(now).getTime() - uniqueDays[0]) / DAY_MS);
-  if (daysSinceLast > 1) currentStreak = 0;
+  if (daysBetween(uniqueDays[0], todayKey(timeZone, now)) > 1) currentStreak = 0;
 
   // Longest run anywhere in the history, floored at whatever was already
   // recorded so a pruned history cannot lower it.
   let longestRun = 1;
   let run = 1;
   for (let i = 1; i < uniqueDays.length; i++) {
-    if (Math.round((uniqueDays[i - 1] - uniqueDays[i]) / DAY_MS) === 1) {
+    if (daysBetween(uniqueDays[i], uniqueDays[i - 1]) === 1) {
       run++;
       longestRun = Math.max(longestRun, run);
     } else {
@@ -162,6 +170,8 @@ interface RecordCompletionArgs {
   durationSeconds: number;
   /** When the workout finished — which month it lands in, not today's month. */
   completionTime: Date;
+  /** The user's IANA zone, deciding which calendar month `completionTime` falls in. */
+  timeZone: string;
   streak: StreakResult;
   /**
    * Set by the live path, which must release the in-progress workout in the same
@@ -180,7 +190,7 @@ interface RecordCompletionArgs {
  */
 export async function recordWorkoutCompletion(
   tx: Tx,
-  { userId, totals, durationSeconds, completionTime, streak, clearActiveWorkout }: RecordCompletionArgs
+  { userId, totals, durationSeconds, completionTime, timeZone, streak, clearActiveWorkout }: RecordCompletionArgs
 ): Promise<void> {
   const trainingHours = durationSeconds > 0 ? durationSeconds / 3600 : 0;
 
@@ -216,12 +226,20 @@ export async function recordWorkoutCompletion(
       },
     });
 
+  /*
+   * `getFullYear()/getMonth()` read the process zone, which is UTC in the
+   * production container. A workout finished at 8pm on January 31st in New York
+   * is already February 1st in UTC, so it was credited to the wrong month — and
+   * every month boundary shifted the same way for anyone west of Greenwich.
+   */
+  const { year, month } = monthOf(dayKeyOf(completionTime, timeZone));
+
   await tx
     .insert(monthlyStats)
     .values({
       userId,
-      year: completionTime.getFullYear(),
-      month: completionTime.getMonth() + 1,
+      year,
+      month,
       workoutsCount: 1,
       volume: totals.totalVolume,
       trainingHours,

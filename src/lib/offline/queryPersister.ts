@@ -89,5 +89,11 @@ export const PERSIST_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
  * v2: the dashboard's `recentActivity` entries carry `completedAt` +
  * `volumeLabel` instead of the pre-rendered `timeAgo` / `details` strings. A
  * cache restored from v1 would render those fields as blank.
+ *
+ * v3: day bucketing moved from the server's UTC calendar to the user's own, so
+ * the dashboard activity grid, the progress buckets and the streak can all have
+ * been cached against the wrong day. The shape is unchanged — the values are
+ * wrong — and a persisted cache would otherwise keep showing the bug it was the
+ * point of this release to fix, for up to PERSIST_MAX_AGE.
  */
-export const PERSIST_BUSTER = 'v2';
+export const PERSIST_BUSTER = 'v3';

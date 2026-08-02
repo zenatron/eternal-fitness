@@ -84,6 +84,28 @@ export function formatSessionDateTime(
   return `${label} at ${time}`;
 }
 
+/**
+ * The calendar date of an instant, in the viewer's own timezone: "Mar 4, 2026".
+ *
+ * For real timestamps only — `createdAt`, `completedAt`. A scheduled *day* is
+ * not an instant and must go through `datetime.ts` instead; formatting one here
+ * would resolve it against the viewer's zone rather than the zone it was
+ * chosen in.
+ *
+ * Replaces `formatUTCDateToLocalDateFriendly`, which read the UTC components of
+ * an instant and called them local. For anything created in the evening west of
+ * Greenwich that reported the following day.
+ */
+export function formatInstantDate(
+  dateInput?: Date | string | null,
+  options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' },
+): string {
+  if (!dateInput) return '';
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, options);
+}
+
 /** Full, unambiguous timestamp for detail rows: "Monday, March 4, 2026 at 6:00 PM". */
 export function formatFullDateTime(dateInput?: Date | string | null): string {
   if (!dateInput) return '';

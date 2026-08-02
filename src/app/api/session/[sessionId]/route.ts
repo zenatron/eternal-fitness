@@ -5,6 +5,8 @@ import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { dayKeyOf, monthOf } from '@/utils/datetime';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
@@ -182,10 +184,15 @@ export async function PUT(
       // Handle completedAt date change — move monthly stats between buckets
       const newCompletedAt = (updatePayload.completedAt as Date) ?? oldCompletedAt;
       if (oldCompletedAt && newCompletedAt) {
-        const oldYear = oldCompletedAt.getFullYear();
-        const oldMonth = oldCompletedAt.getMonth() + 1;
-        const newYear = newCompletedAt.getFullYear();
-        const newMonth = newCompletedAt.getMonth() + 1;
+        /*
+         * Has to file months the same way `recordWorkoutCompletion` does — the
+         * user's calendar — or editing a session could decrement a bucket the
+         * workout was never counted in and credit one it does not belong to,
+         * leaving both months permanently wrong.
+         */
+        const timeZone = await getUserTimeZone(userId, tx);
+        const { year: oldYear, month: oldMonth } = monthOf(dayKeyOf(oldCompletedAt, timeZone));
+        const { year: newYear, month: newMonth } = monthOf(dayKeyOf(newCompletedAt, timeZone));
 
         if (oldYear !== newYear || oldMonth !== newMonth) {
           // Decrement old month bucket
