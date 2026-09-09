@@ -1,30 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { userStats, workoutTemplates } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import {
   ActiveWorkoutSessionData,
   WorkoutTemplateData,
 } from '@/types/workout';
 import { z } from 'zod';
 import { updateSessionSchema } from '@/lib/validation/activeSession';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const startSessionSchema = z.object({
   templateId: z.string(),
   templateName: z.string(),
-  template: z.any(),
+  template: z
+    .any()
+    .refine(
+      (value) => value && typeof value === 'object' && !Array.isArray(value),
+      'Template must be an object'
+    )
+    .refine(
+      // The template is snapshotted verbatim into the user's active-workout
+      // blob and rewritten on every set sync; an unbounded payload here lets a
+      // rogue client park arbitrary bytes in a hot row. Real templates are a
+      // few tens of KB.
+      (value) => JSON.stringify(value).length <= 512 * 1024,
+      'Template is too large'
+    ),
 });
-
 
 export async function GET() {
   try {
@@ -172,10 +176,13 @@ export async function PATCH(request: NextRequest) {
 
     const currentSessionData = stats.activeWorkoutData as ActiveWorkoutSessionData;
     const now = new Date();
+    // Rows written before versioning existed read as 1; every writer since
+    // stamps an explicit version.
+    const currentVersion = currentSessionData.version ?? 1;
 
-    if (updates.version && updates.version !== currentSessionData.version) {
+    if (updates.version && updates.version !== currentVersion) {
       return errorResponse('Session data has been modified by another client', 409, {
-        currentVersion: currentSessionData.version,
+        currentVersion,
         providedVersion: updates.version,
       });
     }
@@ -203,14 +210,31 @@ export async function PATCH(request: NextRequest) {
           : updates.segmentStartedAt === null
             ? undefined
             : new Date(updates.segmentStartedAt),
-      version: currentSessionData.version + 1,
+      version: currentVersion + 1,
       lastUpdated: now,
     };
 
-    await db
+    /*
+     * Compare-and-set, not just check-then-write. The in-JS version check above
+     * cannot see a second tab that writes between this request's read and
+     * write; the WHERE clause closes that window, so exactly one of two racing
+     * PATCHes wins and the loser gets a 409 with the winner's version.
+     */
+    const updated = await db
       .update(userStats)
       .set({ activeWorkoutData: updatedSessionData })
-      .where(eq(userStats.userId, userId));
+      .where(and(
+        eq(userStats.userId, userId),
+        sql`${userStats.activeWorkoutData} ->> 'version' = ${String(currentVersion)}`,
+      ))
+      .returning({ userId: userStats.userId });
+
+    if (updated.length === 0) {
+      return errorResponse('Session data has been modified by another client', 409, {
+        currentVersion: currentVersion + 1,
+        providedVersion: updates.version ?? currentVersion,
+      });
+    }
 
     return successResponse({
       activeSession: updatedSessionData,

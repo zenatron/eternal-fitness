@@ -5,17 +5,10 @@ import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { computeStreakFromHistory, getStreakBaseline } from '@/lib/workout/completion';
 import { dayKeyOf, monthOf } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [session/{id}]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const performanceSchema = z.record(z.object({
   exerciseKey: z.string(),
@@ -275,13 +268,93 @@ export async function DELETE(
 
     const { sessionId } = await params;
 
-    const deleted = await db
-      .delete(workoutSessions)
-      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
-      .returning({ id: workoutSessions.id });
+    /*
+     * A deletion must unwind what `recordWorkoutCompletion` wound up. It used to
+     * delete the row and stop there, so every deleted workout stayed counted in
+     * lifetime totals, monthly buckets and the streaks forever — inflating the
+     * very numbers the log exists to keep honest. Mirrors the reconciliation the
+     * PUT above already does, in the same transaction.
+     */
+    const deleted = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(workoutSessions)
+        .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
 
-    if (deleted.length === 0) {
+      if (!existing) return null;
+
+      if (existing.completedAt) {
+        const volume = existing.totalVolume || 0;
+        const sets = existing.totalSets || 0;
+        const exercises = existing.totalExercises || 0;
+        const hours = (existing.duration || 0) / 3600;
+
+        await tx
+          .update(userStats)
+          .set({
+            totalWorkouts: sql`GREATEST(0, ${userStats.totalWorkouts} - 1)`,
+            totalVolume: sql`GREATEST(0, ${userStats.totalVolume} - ${volume})`,
+            totalSets: sql`GREATEST(0, ${userStats.totalSets} - ${sets})`,
+            totalExercises: sql`GREATEST(0, ${userStats.totalExercises} - ${exercises})`,
+            totalTrainingHours: sql`GREATEST(0, ${userStats.totalTrainingHours} - ${hours})`,
+          })
+          .where(eq(userStats.userId, userId));
+
+        // Filed by the user's calendar month, exactly as completion recorded it.
+        const timeZone = await getUserTimeZone(userId, tx);
+        const { year, month } = monthOf(dayKeyOf(existing.completedAt, timeZone));
+
+        await tx
+          .update(monthlyStats)
+          .set({
+            workoutsCount: sql`GREATEST(0, ${monthlyStats.workoutsCount} - 1)`,
+            volume: sql`GREATEST(0, ${monthlyStats.volume} - ${volume})`,
+            trainingHours: sql`GREATEST(0, ${monthlyStats.trainingHours} - ${hours})`,
+          })
+          .where(and(
+            eq(monthlyStats.userId, userId),
+            eq(monthlyStats.year, year),
+            eq(monthlyStats.month, month),
+          ));
+
+        // Delete first: the streak recompute below scans completed sessions,
+        // and the row must be gone before it runs or the deleted workout still
+        // counts toward the streak it is being removed from.
+        await tx
+          .delete(workoutSessions)
+          .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
+
+        // Streaks are recomputed from what remains; the longest is floored at the
+        // recorded value so history that once earned it keeps it.
+        const baseline = await getStreakBaseline(tx, userId);
+        const streak = await computeStreakFromHistory(tx, userId, timeZone, baseline);
+        await tx
+          .update(userStats)
+          .set({
+            currentStreak: streak.currentStreak,
+            longestStreak: streak.longestStreak,
+            lastWorkoutAt: streak.lastWorkoutAt,
+          })
+          .where(eq(userStats.userId, userId));
+      } else {
+        await tx
+          .delete(workoutSessions)
+          .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
+      }
+
+      return { id: sessionId };
+    });
+
+    if (!deleted) {
       return errorResponse('Session not found or access denied', 404, { sessionId });
+    }
+
+    // Re-evaluate achievements outside the transaction, matching PUT.
+    try {
+      await updateUniqueExercisesCount(userId);
+      await updateUserAchievements(userId);
+    } catch (achievementError) {
+      console.error('Error updating achievements after session delete:', achievementError);
     }
 
     return new NextResponse(null, { status: 204 });

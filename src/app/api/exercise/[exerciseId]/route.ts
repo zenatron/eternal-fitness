@@ -1,13 +1,5 @@
-import { NextResponse } from 'next/server';
 import { exercises as staticExercises } from '@/lib/exercises';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500) => {
-  return NextResponse.json({ error: { message } }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 export async function GET(
   request: Request,

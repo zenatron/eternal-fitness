@@ -18,7 +18,9 @@ export async function GET() {
       return errorResponse('Unauthorized', 401);
     }
 
-    await updateUserAchievements(userId);
+    // Pure read: every write path (completions, session edits) already
+    // re-evaluates and persists achievements, so the GET neither recomputes
+    // nor scans history. POST below forces a full recompute on demand.
     const achievementData = await getUserAchievements(userId);
 
     if (!achievementData) {

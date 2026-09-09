@@ -1,19 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { userStats, workoutTemplates } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { ActiveWorkoutSessionData, WorkoutTemplateData } from '@/types/workout';
 import { z } from 'zod';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json(data, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const recoverSessionSchema = z.object({
   templateId: z.string(),

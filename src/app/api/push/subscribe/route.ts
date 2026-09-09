@@ -1,16 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { pushSubscriptions } from '@/lib/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { getVapidPublicKey, isPushConfigured } from '@/lib/push';
 import { z } from 'zod';
-
-const successResponse = (data: unknown, status = 200) =>
-  NextResponse.json({ data }, { status });
-
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const subscribeSchema = z.object({
   endpoint: z.string().url(),

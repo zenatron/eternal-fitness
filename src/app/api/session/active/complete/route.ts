@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutSessions, userStats } from '@/lib/db/schema';
@@ -24,17 +24,9 @@ import {
   recordIdempotentResponse,
 } from '@/lib/idempotency';
 import { z } from 'zod';
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const ENDPOINT = 'session/active/complete';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json(data, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
 
 const completeSessionSchema = z.object({
   duration: z.number().optional(),

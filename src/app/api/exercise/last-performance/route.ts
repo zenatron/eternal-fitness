@@ -1,16 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutSessions } from '@/lib/db/schema';
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
-import type { WorkoutSessionData, PerformedSet } from '@/types/workout';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import type { PerformedSet, ExercisePerformance } from '@/types/workout';
 import { canonicalExerciseKey } from '@/lib/exerciseLookup';
-
-const successResponse = (data: unknown, status = 200) =>
-  NextResponse.json({ data }, { status });
-
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 /**
  * What the user did last time, per exercise.
@@ -66,7 +61,10 @@ export async function GET(request: NextRequest) {
     const sessions = await db
       .select({
         completedAt: workoutSessions.completedAt,
-        performanceData: workoutSessions.performanceData,
+        // Just the performance map — the template snapshot in the same column
+        // dominates the row size and has no bearing on "last time".
+        performance:
+          sql<Record<string, ExercisePerformance> | null>`${workoutSessions.performanceData} -> 'performance'`,
       })
       .from(workoutSessions)
       .where(
@@ -84,10 +82,10 @@ export async function GET(request: NextRequest) {
     for (const session of sessions) {
       if (wanted.size === 0) break;
 
-      const data = session.performanceData as WorkoutSessionData | null;
-      if (!data?.performance) continue;
+      const performance = session.performance;
+      if (!performance) continue;
 
-      for (const entry of Object.values(data.performance)) {
+      for (const entry of Object.values(performance)) {
         const key = canonicalExerciseKey(entry.exerciseKey ?? '');
         if (!wanted.has(key)) continue;
 

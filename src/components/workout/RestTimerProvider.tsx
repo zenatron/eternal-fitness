@@ -28,7 +28,13 @@ import { getMeta, setMeta } from '@/lib/offline/db';
  * the remaining time is correct no matter what happened while we were away.
  */
 
-interface RestTimerContextValue {
+/**
+ * The countdown value changes four times a second, so it lives in its own
+ * context. The workout tracker needs only `start`/`skip` — if it subscribed to
+ * this context it would re-render 4×/second *while the user is typing weights*,
+ * which is exactly what `useRestTimerActions` exists to avoid.
+ */
+interface RestTimerStateValue {
   /** Seconds left, or null when no rest is running. */
   remaining: number | null;
   /** Duration the current rest started from, for progress rendering. */
@@ -36,15 +42,22 @@ interface RestTimerContextValue {
   isRunning: boolean;
   /** Label of the set/exercise this rest follows. */
   label: string | null;
+  soundEnabled: boolean;
+}
+
+/** Stable for the life of the provider — none of these ever change identity. */
+interface RestTimerActionsValue {
   start: (seconds: number, label?: string) => void;
   /** Add or subtract time; the deadline moves, nothing restarts. */
   adjust: (deltaSeconds: number) => void;
   skip: () => void;
-  soundEnabled: boolean;
   setSoundEnabled: (enabled: boolean) => void;
 }
 
-const RestTimerContext = createContext<RestTimerContextValue | null>(null);
+export type RestTimerContextValue = RestTimerStateValue & RestTimerActionsValue;
+
+const RestTimerStateContext = createContext<RestTimerStateValue | null>(null);
+const RestTimerActionsContext = createContext<RestTimerActionsValue | null>(null);
 
 const SOUND_PREF_KEY = 'rest-timer-sound-enabled';
 /** Tick audibly for the final stretch so you can look up in time. */
@@ -183,28 +196,51 @@ export function RestTimerProvider({ children }: { children: React.ReactNode }) {
     setLabel(null);
   }, []);
 
-  const value = useMemo<RestTimerContextValue>(
+  const state = useMemo<RestTimerStateValue>(
     () => ({
       remaining,
       total,
       isRunning: deadline !== null,
       label,
-      start,
-      adjust,
-      skip,
       soundEnabled,
-      setSoundEnabled,
     }),
-    [remaining, total, deadline, label, start, adjust, skip, soundEnabled, setSoundEnabled]
+    [remaining, total, deadline, label, soundEnabled]
   );
 
-  return <RestTimerContext.Provider value={value}>{children}</RestTimerContext.Provider>;
+  const actions = useMemo<RestTimerActionsValue>(
+    () => ({ start, adjust, skip, setSoundEnabled }),
+    [start, adjust, skip, setSoundEnabled]
+  );
+
+  return (
+    <RestTimerActionsContext.Provider value={actions}>
+      <RestTimerStateContext.Provider value={state}>{children}</RestTimerStateContext.Provider>
+    </RestTimerActionsContext.Provider>
+  );
 }
 
+/**
+ * Full access — state *and* actions. Only components that render the countdown
+ * itself (RestTimerBar) should use this; everything else wants
+ * `useRestTimerActions`.
+ */
 export function useRestTimer(): RestTimerContextValue {
-  const context = useContext(RestTimerContext);
-  if (!context) {
+  const state = useContext(RestTimerStateContext);
+  const actions = useContext(RestTimerActionsContext);
+  if (!state || !actions) {
     throw new Error('useRestTimer must be used within a RestTimerProvider');
   }
-  return context;
+  return { ...state, ...actions };
+}
+
+/**
+ * Actions only. Subscribing to the ticking countdown state from a component
+ * that merely starts or skips rests would re-render it four times a second.
+ */
+export function useRestTimerActions(): RestTimerActionsValue {
+  const actions = useContext(RestTimerActionsContext);
+  if (!actions) {
+    throw new Error('useRestTimerActions must be used within a RestTimerProvider');
+  }
+  return actions;
 }

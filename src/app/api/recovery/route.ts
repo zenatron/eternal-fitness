@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutSessions } from '@/lib/db/schema';
-import { and, desc, eq, gte, isNotNull } from 'drizzle-orm';
-import type { WorkoutSessionData } from '@/types/workout';
+import { and, desc, eq, gte, isNotNull, sql } from 'drizzle-orm';
+import type { ExercisePerformance } from '@/types/workout';
 import { computeRegionLoad, type LoadedExercise, type RegionLoad } from '@/utils/muscleLoad';
-
-const successResponse = (data: unknown, status = 200) => NextResponse.json({ data }, { status });
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 /**
  * Per-region training load for recent sessions.
@@ -52,9 +49,11 @@ export async function GET(request: NextRequest) {
       .select({
         id: workoutSessions.id,
         completedAt: workoutSessions.completedAt,
-        // Only the performance blob is needed; the template snapshot in the same
-        // column is far larger and irrelevant here.
-        performance: workoutSessions.performanceData,
+        // Only the performance map is needed; the template snapshot in the same
+        // column is far larger and irrelevant here. Extracting it server-side
+        // keeps ~2/3 of the JSONB out of the wire payload.
+        performance:
+          sql<Record<string, ExercisePerformance> | null>`${workoutSessions.performanceData} -> 'performance'`,
       })
       .from(workoutSessions)
       .where(
@@ -69,10 +68,10 @@ export async function GET(request: NextRequest) {
     const events: RecoveryLoadEvent[] = [];
 
     for (const session of sessions) {
-      const data = session.performance as WorkoutSessionData | null;
-      if (!data?.performance) continue;
+      const performance = session.performance;
+      if (!performance) continue;
 
-      const exercises: LoadedExercise[] = Object.values(data.performance).map((entry) => ({
+      const exercises: LoadedExercise[] = Object.values(performance).map((entry) => ({
         exerciseKey: entry.exerciseKey ?? '',
         sets: entry.sets ?? [],
       }));

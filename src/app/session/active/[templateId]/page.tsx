@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use, useCallback } from 'react';
+import { useState, useEffect, use, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
@@ -32,9 +32,113 @@ const VictoryPopup = dynamic(() => import('@/components/modals/VictoryPopup'), {
 });
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
+import { useTickingNow } from '@/lib/hooks/useTickingNow';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalShell } from '@/components/ui/ModalShell';
 import toast from 'react-hot-toast';
+
+/**
+ * The only part of this page that needs to re-render every second: it runs its
+ * own tick loop and formats the clock at render time. The provider no longer
+ * ticks app-wide (see ActiveWorkoutProvider), so the whole page no longer
+ * re-renders just to move the timer by one second.
+ */
+function LiveWorkoutClock() {
+  const { formatWorkoutDuration } = useActiveWorkout();
+  useTickingNow();
+  return (
+    <p className="font-display text-2xl font-bold leading-none tabular text-surface-50 dark:text-white">
+      {formatWorkoutDuration()}
+    </p>
+  );
+}
+
+const NOTES_DEBOUNCE_MS = 600;
+
+/**
+ * Session notes with a local draft and a debounced commit.
+ *
+ * The textarea used to be wired straight into the provider, so every character
+ * re-rendered the entire workout tree and rewrote the IndexedDB blob.
+ * Autosave semantics are unchanged: the provider receives the note shortly
+ * after typing stops, immediately on blur, and on unmount — so completing the
+ * workout right after typing still captures it.
+ */
+function SessionNotesCard({ disabled }: { disabled: boolean }) {
+  const { activeWorkout, updateSessionNotes } = useActiveWorkout();
+  const serverNotes = activeWorkout?.sessionNotes || '';
+  const [draft, setDraft] = useState(serverNotes);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True between the first keystroke and the commit landing in the provider. */
+  const dirtyRef = useRef(false);
+  const latestRef = useRef(draft);
+  const updateRef = useRef(updateSessionNotes);
+  latestRef.current = draft;
+  updateRef.current = updateSessionNotes;
+
+  // Adopt notes changed elsewhere (recovery, another tab) while not editing.
+  useEffect(() => {
+    if (!dirtyRef.current) setDraft(serverNotes);
+  }, [serverNotes]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      // Flush on unmount: completing the workout tears this card down, and the
+      // completion payload reads the provider's copy of the notes.
+      if (dirtyRef.current) updateRef.current(latestRef.current);
+    };
+  }, []);
+
+  const handleChange = (value: string) => {
+    setDraft(value);
+    dirtyRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      dirtyRef.current = false;
+      updateRef.current(latestRef.current);
+    }, NOTES_DEBOUNCE_MS);
+  };
+
+  const commitNow = () => {
+    if (!dirtyRef.current) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    dirtyRef.current = false;
+    updateRef.current(latestRef.current);
+  };
+
+  return (
+    <div className="forge-card overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-600"></div>
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
+            <DocumentTextIcon className="w-6 h-6 text-accent-600 dark:text-accent-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">
+              Session Notes
+            </h3>
+            <p className="text-surface-500 dark:text-surface-600">
+              Record your thoughts, PRs, and observations
+            </p>
+          </div>
+        </div>
+
+        <textarea
+          id="sessionNotes"
+          rows={4}
+          value={draft}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={commitNow}
+          className="w-full px-4 py-3 border border-surface-300 dark:border-surface-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent dark:bg-surface-200 dark:text-white resize-none"
+          placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
+}
 
 
 
@@ -67,16 +171,13 @@ export default function ActiveSessionPage({
     activeWorkout,
     isLoading: isActiveWorkoutLoading,
     startWorkout,
-    updatePerformance,
-    updateSessionNotes,
+    updateWorkout,
     updateModifiedTemplate,
-    updateExerciseProgress,
     endWorkout,
     completeWorkout,
     recoverSession,
     hasActiveWorkout,
     getWorkoutDuration,
-    formatWorkoutDuration,
     toggleTimer,
     isTimerActive,
     flushNow,
@@ -151,14 +252,6 @@ export default function ActiveSessionPage({
   const handleTemplateModification = useCallback((newTemplate: any) => {
     updateModifiedTemplate(newTemplate);
   }, [updateModifiedTemplate]);
-
-  const handlePerformanceUpdate = useCallback((performance: { [exerciseId: string]: ExercisePerformance }) => {
-    updatePerformance(performance);
-  }, [updatePerformance]);
-
-  const handleNotesUpdate = useCallback((notes: string) => {
-    updateSessionNotes(notes);
-  }, [updateSessionNotes]);
 
   const handleCancelWorkout = async () => {
     setShowCancelConfirm(false);
@@ -473,9 +566,7 @@ export default function ActiveSessionPage({
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-display text-2xl font-bold leading-none tabular text-surface-50 dark:text-white">
-                      {formatWorkoutDuration}
-                    </p>
+                    <LiveWorkoutClock />
                     <p className="mt-1 truncate text-xs text-surface-500 dark:text-surface-600">
                       {!isTimerActive
                         ? 'Paused'
@@ -672,9 +763,8 @@ export default function ActiveSessionPage({
             <WorkoutProgressTracker
               key={`workout-tracker-${activeWorkout.templateId}-${new Date(activeWorkout.startedAt).getTime()}`}
               template={activeWorkout.modifiedTemplate || template.workoutData}
-              onPerformanceUpdate={handlePerformanceUpdate}
+              onSessionUpdate={updateWorkout}
               onTemplateModified={handleTemplateModification}
-              onExerciseProgressUpdate={updateExerciseProgress}
               initialExerciseProgress={activeWorkout.exerciseProgress}
               useMetric={profile?.useMetric}
             />
@@ -689,34 +779,7 @@ export default function ActiveSessionPage({
             animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
             transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.4 }}
           >
-          <div className="forge-card overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-600"></div>
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
-                  <DocumentTextIcon className="w-6 h-6 text-accent-600 dark:text-accent-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">
-                    Session Notes
-                  </h3>
-                  <p className="text-surface-500 dark:text-surface-600">
-                    Record your thoughts, PRs, and observations
-                  </p>
-                </div>
-              </div>
-
-              <textarea
-                id="sessionNotes"
-                rows={4}
-                value={activeWorkout?.sessionNotes || ''}
-                onChange={(e) => handleNotesUpdate(e.target.value)}
-                className="w-full px-4 py-3 border border-surface-300 dark:border-surface-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent dark:bg-surface-200 dark:text-white resize-none"
-                placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
-                disabled={isSaving}
-              />
-            </div>
-          </div>
+            <SessionNotesCard disabled={isSaving} />
         </motion.div>
         )}
       </div>

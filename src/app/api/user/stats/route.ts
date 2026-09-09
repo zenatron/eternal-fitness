@@ -2,21 +2,18 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { userStats, workoutSessions, monthlyStats } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc, gte, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, desc, sql } from 'drizzle-orm';
 import { UserPersonalRecords } from '@/types/personalRecords';
 import { exerciseDisplayName } from '@/lib/exerciseLookup';
 import { addDays, dayKeyOf, todayKey } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
+import { successResponse } from '@/lib/api/response';
 
 /**
  * How far back the top-exercise breakdown looks. Bounded because this runs on
  * every profile load; well beyond the window anyone reads meaning into.
  */
 const TOP_EXERCISE_SESSION_LIMIT = 500;
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
 
 const errorResponse = (message: string, status = 400, details?: unknown) => {
   return NextResponse.json({ error: { message, details } }, { status });
@@ -80,53 +77,75 @@ export async function GET() {
     const userId = await getUserId();
     if (!userId) return errorResponse('Unauthorized', 401);
 
-    const timeZone = await getUserTimeZone(userId);
-
-    const [stats] = await db.select().from(userStats).where(eq(userStats.userId, userId));
-
-    const recentSessions = await db.query.workoutSessions.findMany({
-      where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
-      orderBy: desc(workoutSessions.completedAt),
-      limit: 10,
-      with: { workoutTemplate: { columns: { name: true } } },
-    });
-
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-
-    const monthly = await db
-      .select()
-      .from(monthlyStats)
-      .where(and(eq(monthlyStats.userId, userId), gte(monthlyStats.createdAt, twelveMonthsAgo)))
-      .orderBy(desc(monthlyStats.year), desc(monthlyStats.month));
-
     /*
-     * Top-exercise stats are derived from the recent history only, and project
-     * just the `performance` sub-object.
-     *
-     * This previously fetched every completed session with its full
-     * `performanceData` — including a whole `templateSnapshot` per row — on
-     * every single profile page load, and grew without bound as the user
-     * trained. The snapshot was only used to look up an exercise name, which
-     * `exerciseKey` already answers.
+     * All five reads depend only on `userId`, so they run as one parallel batch —
+     * each used to be awaited in turn, five sequential round trips per profile
+     * load.
      */
-    const allSessions = await db
-      .select({
-        id: workoutSessions.id,
-        completedAt: workoutSessions.completedAt,
-        totalVolume: workoutSessions.totalVolume,
-        performance: sql<
-          Record<string, { exerciseKey: string; totalVolume?: number; sets?: unknown[] }> | null
-        >`${workoutSessions.performanceData} -> 'performance'`,
-      })
-      .from(workoutSessions)
-      .where(and(
-        eq(workoutSessions.userId, userId),
-        isNotNull(workoutSessions.completedAt),
-        isNotNull(workoutSessions.performanceData),
-      ))
-      .orderBy(desc(workoutSessions.completedAt))
-      .limit(TOP_EXERCISE_SESSION_LIMIT);
+    const [timeZone, statsRows, recentSessions, monthly, allSessions] = await Promise.all([
+      getUserTimeZone(userId),
+      db.select().from(userStats).where(eq(userStats.userId, userId)),
+
+      db.query.workoutSessions.findMany({
+        where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
+        orderBy: desc(workoutSessions.completedAt),
+        limit: 10,
+        // Only the fields rendered below; the default pulls every column,
+        // including the large performanceData blob, ten times per load.
+        columns: {
+          id: true,
+          completedAt: true,
+          duration: true,
+          totalVolume: true,
+          totalSets: true,
+        },
+        with: { workoutTemplate: { columns: { name: true } } },
+      }),
+
+      /*
+       * The twelve most recent calendar months, straight from the (year, month)
+       * the row exists to be keyed by. This previously filtered on
+       * `createdAt >= now - 12 months` — the moment the row was created, not the
+       * month it describes, so a back-filled or retro-logged month could be
+       * silently dropped from the table.
+       */
+      db
+        .select()
+        .from(monthlyStats)
+        .where(eq(monthlyStats.userId, userId))
+        .orderBy(desc(monthlyStats.year), desc(monthlyStats.month))
+        .limit(12),
+
+      /*
+       * Top-exercise stats are derived from the recent history only, and project
+       * just the `performance` sub-object.
+       *
+       * This previously fetched every completed session with its full
+       * `performanceData` — including a whole `templateSnapshot` per row — on
+       * every single profile page load, and grew without bound as the user
+       * trained. The snapshot was only used to look up an exercise name, which
+       * `exerciseKey` already answers.
+       */
+      db
+        .select({
+          id: workoutSessions.id,
+          completedAt: workoutSessions.completedAt,
+          totalVolume: workoutSessions.totalVolume,
+          performance: sql<
+            Record<string, { exerciseKey: string; totalVolume?: number; sets?: unknown[] }> | null
+          >`${workoutSessions.performanceData} -> 'performance'`,
+        })
+        .from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.userId, userId),
+          isNotNull(workoutSessions.completedAt),
+          isNotNull(workoutSessions.performanceData),
+        ))
+        .orderBy(desc(workoutSessions.completedAt))
+        .limit(TOP_EXERCISE_SESSION_LIMIT),
+    ]);
+
+    const stats = statsRows[0];
 
     const exerciseStats = new Map();
     allSessions.forEach(session => {

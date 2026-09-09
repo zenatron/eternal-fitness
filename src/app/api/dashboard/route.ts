@@ -49,40 +49,96 @@ export async function GET() {
     // which is what this route silently assumed for every user before.
     const timeZone = resolveTimeZone(user.timeZone);
 
-    const [stats] = await db
-      .select({
-        totalWorkouts: userStats.totalWorkouts,
-        totalExercises: userStats.totalExercises,
-        totalVolume: userStats.totalVolume,
-        totalTrainingHours: userStats.totalTrainingHours,
-        currentStreak: userStats.currentStreak,
-        activeWeeks: userStats.activeWeeks,
-        personalRecords: userStats.personalRecords,
-      })
-      .from(userStats)
-      .where(eq(userStats.userId, userId));
-
-    /*
-     * Must agree with how `recordWorkoutCompletion` files a workout, which is by
-     * the user's calendar month. Reading "now" in the server's zone instead meant
-     * that on the last day of a month the dashboard could query the *next*
-     * month's row — empty — and report zero progress to a user who had trained
-     * that morning.
-     */
     const { year: currentYear, month: currentMonth } = monthOf(todayKey(timeZone));
     const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
     const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
 
-    const monthly = await db
-      .select()
-      .from(monthlyStats)
-      .where(and(
-        eq(monthlyStats.userId, userId),
-        or(
-          and(eq(monthlyStats.year, currentYear), eq(monthlyStats.month, currentMonth)),
-          and(eq(monthlyStats.year, prevYear), eq(monthlyStats.month, prevMonth)),
-        ),
-      ));
+    // The first instant of the earliest day the grid shows, in the user's zone —
+    // not 30×24h before now, which clips part of the oldest day when the user is
+    // ahead of UTC.
+    const thirtyDaysAgo = startOfDayInZone(addDays(todayKey(timeZone), -29), timeZone);
+
+    /*
+     * The five data sources are independent of each other once the timezone is
+     * known, so they run as one parallel batch — each used to be awaited in
+     * sequence, five round trips on the app's heaviest endpoint.
+     */
+    const [statsRows, monthly, recentSessions, sessionsLast30Days, upcomingWorkouts] = await Promise.all([
+      db
+        .select({
+          totalWorkouts: userStats.totalWorkouts,
+          totalExercises: userStats.totalExercises,
+          totalVolume: userStats.totalVolume,
+          totalTrainingHours: userStats.totalTrainingHours,
+          currentStreak: userStats.currentStreak,
+          activeWeeks: userStats.activeWeeks,
+          personalRecords: userStats.personalRecords,
+        })
+        .from(userStats)
+        .where(eq(userStats.userId, userId)),
+
+      /*
+       * Must agree with how `recordWorkoutCompletion` files a workout, which is by
+       * the user's calendar month. Reading "now" in the server's zone instead meant
+       * that on the last day of a month the dashboard could query the *next*
+       * month's row — empty — and report zero progress to a user who had trained
+       * that morning.
+       */
+      db
+        .select()
+        .from(monthlyStats)
+        .where(and(
+          eq(monthlyStats.userId, userId),
+          or(
+            and(eq(monthlyStats.year, currentYear), eq(monthlyStats.month, currentMonth)),
+            and(eq(monthlyStats.year, prevYear), eq(monthlyStats.month, prevMonth)),
+          ),
+        )),
+
+      db.query.workoutSessions.findMany({
+        where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
+        orderBy: desc(workoutSessions.completedAt),
+        limit: 3,
+        // Only the four fields rendered by RecentActivityCard — the relational
+        // query default pulls every column, including the multi-hundred-KB
+        // performanceData blob, three times per dashboard load.
+        columns: {
+          id: true,
+          completedAt: true,
+          totalVolume: true,
+        },
+        with: { workoutTemplate: { columns: { id: true, name: true } } },
+      }),
+
+      db
+        .select({ completedAt: workoutSessions.completedAt })
+        .from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.userId, userId),
+          gte(workoutSessions.completedAt, thirtyDaysAgo),
+          isNotNull(workoutSessions.completedAt),
+        ))
+        .orderBy(asc(workoutSessions.completedAt)),
+
+      // The dashboard card shows a handful of upcoming sessions, but this fetched
+      // every incomplete row a user had ever created — including long-abandoned
+      // scheduled workouts from years back — and pulled the full session row with
+      // its JSONB for each one.
+      db.query.workoutSessions.findMany({
+        where: and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)),
+        orderBy: asc(workoutSessions.scheduledAt),
+        columns: {
+          id: true,
+          scheduledAt: true,
+          notes: true,
+          workoutTemplateId: true,
+        },
+        with: { workoutTemplate: { columns: { id: true, name: true } } },
+        limit: UPCOMING_WORKOUTS_LIMIT,
+      }),
+    ]);
+
+    const stats = statsRows[0];
 
     const currentMonthStats = monthly.find(s => s.year === currentYear && s.month === currentMonth) || null;
     const prevMonthStats = monthly.find(s => s.year === prevYear && s.month === prevMonth) || null;
@@ -90,28 +146,6 @@ export async function GET() {
     const volumeChange = prevMonthStats && prevMonthStats.volume > 0
       ? Math.round(((currentMonthStats?.volume || 0) - prevMonthStats.volume) / prevMonthStats.volume * 100)
       : (currentMonthStats?.volume || 0) > 0 ? 100 : 0;
-
-    const recentSessions = await db.query.workoutSessions.findMany({
-      where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
-      orderBy: desc(workoutSessions.completedAt),
-      limit: 3,
-      with: { workoutTemplate: { columns: { id: true, name: true } } },
-    });
-
-    // The first instant of the earliest day the grid shows, in the user's zone —
-    // not 30×24h before now, which clips part of the oldest day when the user is
-    // ahead of UTC.
-    const thirtyDaysAgo = startOfDayInZone(addDays(todayKey(timeZone), -29), timeZone);
-
-    const sessionsLast30Days = await db
-      .select({ completedAt: workoutSessions.completedAt })
-      .from(workoutSessions)
-      .where(and(
-        eq(workoutSessions.userId, userId),
-        gte(workoutSessions.completedAt, thirtyDaysAgo),
-        isNotNull(workoutSessions.completedAt),
-      ))
-      .orderBy(asc(workoutSessions.completedAt));
 
     /*
      * The grid used to build its 30 cells with `date.setDate(...)` — server-local
@@ -135,23 +169,6 @@ export async function GET() {
       const allSessionDates = sessionsLast30Days.map(s => s.completedAt).filter(Boolean) as Date[];
       currentStreak = calculateStreak(allSessionDates, timeZone);
     }
-
-    // The dashboard card shows a handful of upcoming sessions, but this fetched
-    // every incomplete row a user had ever created — including long-abandoned
-    // scheduled workouts from years back — and pulled the full session row with
-    // its JSONB for each one.
-    const upcomingWorkouts = await db.query.workoutSessions.findMany({
-      where: and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)),
-      orderBy: asc(workoutSessions.scheduledAt),
-      columns: {
-        id: true,
-        scheduledAt: true,
-        notes: true,
-        workoutTemplateId: true,
-      },
-      with: { workoutTemplate: { columns: { id: true, name: true } } },
-      limit: UPCOMING_WORKOUTS_LIMIT,
-    });
 
     let personalRecordsCount = 0;
     if (stats?.personalRecords) {
@@ -234,7 +251,7 @@ export async function GET() {
   } catch (error) {
     console.error('Dashboard API error:', error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
+      JSON.stringify({ error: { message: 'Internal Server Error' } }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

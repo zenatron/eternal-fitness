@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
+import { parseLimitParam } from '@/lib/api/response';
 
 const successResponse = (data: unknown, status = 200) => {
   return NextResponse.json({ data }, { status });
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     const equipment = searchParams.get('equipment');
     const difficulty = searchParams.get('difficulty');
     const workoutType = searchParams.get('workoutType');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseLimitParam(searchParams.get('limit'), 20);
 
     if (!query && !muscleGroup && !equipment && !difficulty && !workoutType) {
       return errorResponse('At least one search parameter is required', 400);
@@ -60,6 +61,13 @@ async function searchTemplates(userId: string, filters: {
   const { query, muscleGroup, equipment, difficulty, workoutType, limit: lim } = filters;
   const searchPattern = query ? `%${query}%` : null;
 
+  /*
+   * JSON-path values are matched with EXISTS + ILIKE rather than
+   * `jsonb_path_exists(... ? (@ like_regex $var ...))`: Postgres rejects
+   * variables inside the like_regex operand ("syntax error at or near"),
+   * so every query that used one failed outright. jsonb_path_query's *paths*
+   * contain no variables, which is why they work.
+   */
   const templates = await db.execute(sql`
     SELECT
       id, name, favorite, workout_data, total_volume,
@@ -70,8 +78,14 @@ async function searchTemplates(userId: string, filters: {
       ${searchPattern ? sql`AND (name ILIKE ${searchPattern} OR description ILIKE ${searchPattern})` : sql``}
       ${difficulty ? sql`AND difficulty = ${difficulty}` : sql``}
       ${workoutType ? sql`AND workout_type = ${workoutType}` : sql``}
-      ${muscleGroup ? sql`AND jsonb_path_exists(workout_data, '$.exercises[*].muscles[*] ? (@ like_regex $mg flag "i")', jsonb_build_object('mg', ${muscleGroup}))` : sql``}
-      ${equipment ? sql`AND jsonb_path_exists(workout_data, '$.exercises[*].equipment[*] ? (@ like_regex $eq flag "i")', jsonb_build_object('eq', ${equipment}))` : sql``}
+      ${muscleGroup ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(workout_data, '$.exercises[*].muscles[*]') AS j
+        WHERE j #>> '{}' ILIKE ${'%' + muscleGroup + '%'}
+      )` : sql``}
+      ${equipment ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(workout_data, '$.exercises[*].equipment[*]') AS j
+        WHERE j #>> '{}' ILIKE ${'%' + equipment + '%'}
+      )` : sql``}
     ORDER BY
       favorite DESC,
       total_volume DESC
@@ -95,12 +109,27 @@ async function searchSessions(userId: string, filters: {
     FROM workout_sessions
     WHERE user_id = ${userId}
       AND completed_at IS NOT NULL
-      ${searchPattern ? sql`AND (
-        jsonb_path_exists(performance_data, '$.templateSnapshot.exercises[*].name ? (@ like_regex $q flag "i")', jsonb_build_object('q', ${query}))
+      ${query ? sql`AND (
+        EXISTS (
+          SELECT 1 FROM jsonb_path_query(
+            performance_data, '$.templateSnapshot.exercises[*].name'
+          ) AS j
+          WHERE j #>> '{}' ILIKE ${'%' + query + '%'}
+        )
         OR notes ILIKE ${searchPattern}
       )` : sql``}
-      ${muscleGroup ? sql`AND jsonb_path_exists(performance_data, '$.templateSnapshot.exercises[*].muscles[*] ? (@ like_regex $mg flag "i")', jsonb_build_object('mg', ${muscleGroup}))` : sql``}
-      ${equipment ? sql`AND jsonb_path_exists(performance_data, '$.templateSnapshot.exercises[*].equipment[*] ? (@ like_regex $eq flag "i")', jsonb_build_object('eq', ${equipment}))` : sql``}
+      ${muscleGroup ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(
+          performance_data, '$.templateSnapshot.exercises[*].muscles[*]'
+        ) AS j
+        WHERE j #>> '{}' ILIKE ${'%' + muscleGroup + '%'}
+      )` : sql``}
+      ${equipment ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(
+          performance_data, '$.templateSnapshot.exercises[*].equipment[*]'
+        ) AS j
+        WHERE j #>> '{}' ILIKE ${'%' + equipment + '%'}
+      )` : sql``}
     ORDER BY completed_at DESC
     LIMIT ${lim}
   `);
@@ -125,11 +154,26 @@ async function getSearchAnalytics(userId: string, filters: {
       AND ws.completed_at IS NOT NULL
       AND ws.completed_at >= NOW() - INTERVAL '90 days'
       ${query ? sql`AND (
-        jsonb_path_exists(ws.performance_data, '$.templateSnapshot.exercises[*].name ? (@ like_regex $q flag "i")', jsonb_build_object('q', ${query}))
+        EXISTS (
+          SELECT 1 FROM jsonb_path_query(
+            ws.performance_data, '$.templateSnapshot.exercises[*].name'
+          ) AS j
+          WHERE j #>> '{}' ILIKE ${'%' + query + '%'}
+        )
         OR ws.notes ILIKE ${'%' + query + '%'}
       )` : sql``}
-      ${muscleGroup ? sql`AND jsonb_path_exists(ws.performance_data, '$.templateSnapshot.exercises[*].muscles[*] ? (@ like_regex $mg flag "i")', jsonb_build_object('mg', ${muscleGroup}))` : sql``}
-      ${equipment ? sql`AND jsonb_path_exists(ws.performance_data, '$.templateSnapshot.exercises[*].equipment[*] ? (@ like_regex $eq flag "i")', jsonb_build_object('eq', ${equipment}))` : sql``}
+      ${muscleGroup ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(
+          ws.performance_data, '$.templateSnapshot.exercises[*].muscles[*]'
+        ) AS j
+        WHERE j #>> '{}' ILIKE ${'%' + muscleGroup + '%'}
+      )` : sql``}
+      ${equipment ? sql`AND EXISTS (
+        SELECT 1 FROM jsonb_path_query(
+          ws.performance_data, '$.templateSnapshot.exercises[*].equipment[*]'
+        ) AS j
+        WHERE j #>> '{}' ILIKE ${'%' + equipment + '%'}
+      )` : sql``}
   `);
 
   return analytics[0] || {};

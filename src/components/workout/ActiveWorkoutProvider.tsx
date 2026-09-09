@@ -59,8 +59,16 @@ interface ActiveWorkoutContextValue {
   pendingCount: number;
   hasActiveWorkout: boolean;
   isTimerActive: boolean;
-  /** Live-updating "M:SS" / "H:MM:SS" string for the session clock. */
-  formatWorkoutDuration: string;
+  /**
+   * "M:SS" / "H:MM:SS" for the session clock, computed at call time.
+   *
+   * Deliberately a function rather than a per-second string: the provider used
+   * to tick once a second and rebuild the whole context value just to update
+   * this one string, re-rendering every consumer — the entire workout screen —
+   * 60 times a minute. The display components call this inside their own
+   * `useTickingNow()` loop instead, so only they re-render.
+   */
+  formatWorkoutDuration: () => string;
   /** Elapsed active seconds, excluding paused time. */
   getWorkoutDuration: () => number;
   startWorkout: (
@@ -183,7 +191,6 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [pendingCount, setPendingCount] = useState(0);
-  const [tick, setTick] = useState(0);
 
   /**
    * Edits accumulated since the last successful push. Merged rather than
@@ -410,24 +417,11 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
   }, [refreshPendingCount]);
 
   /* ── Clock ───────────────────────────────────────────────────────────── */
-
-  useEffect(() => {
-    if (!activeWorkout?.isTimerActive) return;
-
-    // One interval for the whole app. Re-rendering via a counter rather than
-    // storing the formatted string keeps this from thrashing the workout object.
-    const interval = setInterval(() => setTick((value) => value + 1), 1000);
-    return () => clearInterval(interval);
-  }, [activeWorkout?.isTimerActive]);
-
-  // Timers drift badly while a tab is backgrounded; recompute on return.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') setTick((value) => value + 1);
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
+  // None here on purpose. The clock used to tick once a second in this
+  // provider, re-rendering every consumer of the context — the whole workout
+  // screen — for the sake of one duration string. Display components run their
+  // own `useTickingNow()` instead; `formatWorkoutDuration` computes from the
+  // wall clock at call time, so a tick is all they need.
 
   /* ── Durability on the way out ───────────────────────────────────────── */
 
@@ -700,11 +694,38 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
 
-  const durationSeconds = useMemo(
-    () => elapsedSeconds(activeWorkout),
-    // `tick` is the intentional dependency: it is what re-renders the clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeWorkout, tick]
+  // No provider-level clock: `formatWorkoutDuration`/`getWorkoutDuration`
+  // compute elapsed time from the wall clock at call time, and only the
+  // components that display a duration run a `useTickingNow()` loop.
+  const formatWorkoutDuration = useCallback(
+    () => formatDuration(elapsedSeconds(activeWorkout)),
+    [activeWorkout]
+  );
+
+  /*
+   * Stable wrappers for the single-field updates. They used to be fresh arrow
+   * functions inside the context value, so every consumer that passed one down
+   * (the workout tracker, most importantly) broke memoization on every edit —
+   * the whole 950-line tracker re-rendered per keystroke even though its own
+   * props had not meaningfully changed.
+   */
+  const updateWorkout = applyUpdate;
+  const updatePerformance = useCallback(
+    (performance: { [exerciseId: string]: ExercisePerformance }) => applyUpdate({ performance }),
+    [applyUpdate]
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updateExerciseProgress = useCallback(
+    (exerciseProgress: { [exerciseId: string]: any }) => applyUpdate({ exerciseProgress }),
+    [applyUpdate]
+  );
+  const updateSessionNotes = useCallback(
+    (sessionNotes: string) => applyUpdate({ sessionNotes }),
+    [applyUpdate]
+  );
+  const updateModifiedTemplate = useCallback(
+    (modifiedTemplate: WorkoutTemplateData) => applyUpdate({ modifiedTemplate }),
+    [applyUpdate]
   );
 
   const value = useMemo<ActiveWorkoutContextValue>(
@@ -716,14 +737,14 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
       pendingCount,
       hasActiveWorkout: Boolean(activeWorkout),
       isTimerActive: activeWorkout?.isTimerActive ?? false,
-      formatWorkoutDuration: formatDuration(durationSeconds),
+      formatWorkoutDuration,
       getWorkoutDuration: () => elapsedSeconds(activeWorkout),
       startWorkout,
-      updateWorkout: applyUpdate,
-      updatePerformance: (performance) => applyUpdate({ performance }),
-      updateExerciseProgress: (exerciseProgress) => applyUpdate({ exerciseProgress }),
-      updateSessionNotes: (sessionNotes) => applyUpdate({ sessionNotes }),
-      updateModifiedTemplate: (modifiedTemplate) => applyUpdate({ modifiedTemplate }),
+      updateWorkout,
+      updatePerformance,
+      updateExerciseProgress,
+      updateSessionNotes,
+      updateModifiedTemplate,
       toggleTimer,
       endWorkout,
       completeWorkout,
@@ -735,9 +756,13 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
       isLoading,
       syncState,
       pendingCount,
-      durationSeconds,
+      formatWorkoutDuration,
       startWorkout,
-      applyUpdate,
+      updateWorkout,
+      updatePerformance,
+      updateExerciseProgress,
+      updateSessionNotes,
+      updateModifiedTemplate,
       toggleTimer,
       endWorkout,
       completeWorkout,

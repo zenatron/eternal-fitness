@@ -22,7 +22,12 @@ const nextConfig = {
     removeConsole:
       process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
   },
-  allowedDevOrigins: ['logical-teal-deeply.ngrok-free.app', 'cachyos'],
+  // Extra hostnames that reach the dev server (e.g. an ngrok tunnel for testing
+  // the PWA on a phone). Configured via env so personal hostnames stay out of
+  // the repo; comma-separated, and Next always allows localhost.
+  allowedDevOrigins: process.env.DEV_ORIGINS
+    ? process.env.DEV_ORIGINS.split(',').map((origin) => origin.trim())
+    : [],
   experimental: {
     // Rewrites barrel imports into deep per-icon imports. These packages export
     // thousands of components from a single index, and without this a single
@@ -31,14 +36,24 @@ const nextConfig = {
       '@heroicons/react/24/outline',
       '@heroicons/react/24/solid',
       '@heroicons/react/20/solid',
-      'lucide-react',
-      'react-icons',
       'framer-motion',
-      'date-fns',
     ],
   },
   async headers() {
     return [
+      {
+        // Baseline hardening: no framing (clickjacking), no MIME sniffing, and
+        // no referrer leak on outbound links. A strict CSP is deliberately not
+        // set yet — Next's inline bootstrap scripts and the pre-paint theme
+        // script would need nonces, which is its own piece of work.
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
       {
         // The worker must be re-fetched on every load or a bad deploy is
         // permanently sticky. It also needs root scope to control the whole app.

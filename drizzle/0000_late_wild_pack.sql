@@ -1,4 +1,4 @@
-CREATE TABLE "monthly_stats" (
+CREATE TABLE IF NOT EXISTS "monthly_stats" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
 	"year" integer NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE "monthly_stats" (
 	CONSTRAINT "monthly_stats_user_year_month" UNIQUE("user_id","year","month")
 );
 --> statement-breakpoint
-CREATE TABLE "user_stats" (
+CREATE TABLE IF NOT EXISTS "user_stats" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
 	"total_workouts" integer DEFAULT 0 NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE "user_stats" (
 	CONSTRAINT "user_stats_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
 	"id" text PRIMARY KEY NOT NULL,
 	"email" text NOT NULL,
 	"name" text,
@@ -51,7 +51,7 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE "workout_sessions" (
+CREATE TABLE IF NOT EXISTS "workout_sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"completed_at" timestamp with time zone,
 	"scheduled_at" timestamp with time zone,
@@ -68,7 +68,7 @@ CREATE TABLE "workout_sessions" (
 	"workout_template_id" text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "workout_templates" (
+CREATE TABLE IF NOT EXISTS "workout_templates" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -85,15 +85,30 @@ CREATE TABLE "workout_templates" (
 	"user_id" text NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "monthly_stats" ADD CONSTRAINT "monthly_stats_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_workout_template_id_workout_templates_id_fk" FOREIGN KEY ("workout_template_id") REFERENCES "public"."workout_templates"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "workout_templates" ADD CONSTRAINT "workout_templates_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "workout_sessions_user_id_idx" ON "workout_sessions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "workout_sessions_completed_at_idx" ON "workout_sessions" USING btree ("completed_at");--> statement-breakpoint
-CREATE INDEX "workout_sessions_workout_template_id_idx" ON "workout_sessions" USING btree ("workout_template_id");--> statement-breakpoint
-CREATE INDEX "workout_templates_user_id_idx" ON "workout_templates" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "workout_templates_workout_type_idx" ON "workout_templates" USING btree ("workout_type");--> statement-breakpoint
-CREATE INDEX "workout_templates_difficulty_idx" ON "workout_templates" USING btree ("difficulty");--> statement-breakpoint
-CREATE INDEX "workout_templates_favorite_idx" ON "workout_templates" USING btree ("favorite");
+DO $$ BEGIN
+	ALTER TABLE "monthly_stats" ADD CONSTRAINT "monthly_stats_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_workout_template_id_workout_templates_id_fk" FOREIGN KEY ("workout_template_id") REFERENCES "public"."workout_templates"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+	ALTER TABLE "workout_templates" ADD CONSTRAINT "workout_templates_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_sessions_user_id_idx" ON "workout_sessions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_sessions_completed_at_idx" ON "workout_sessions" USING btree ("completed_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_sessions_workout_template_id_idx" ON "workout_sessions" USING btree ("workout_template_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_templates_user_id_idx" ON "workout_templates" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_templates_workout_type_idx" ON "workout_templates" USING btree ("workout_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_templates_difficulty_idx" ON "workout_templates" USING btree ("difficulty");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "workout_templates_favorite_idx" ON "workout_templates" USING btree ("favorite");

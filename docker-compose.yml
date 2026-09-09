@@ -48,7 +48,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      # Loopback-only: the publish exists for host-side admin (psql, dumps), not
+      # for the network. The app reaches the db over the shared docker network.
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: eternal
       POSTGRES_PASSWORD: eternal

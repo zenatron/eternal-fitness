@@ -244,18 +244,23 @@ export async function updateUserAchievements(userId: string): Promise<{
   }
 }
 
+/**
+ * Reads the materialized achievement state.
+ *
+ * `progress` is computed and persisted by `updateUserAchievements`, which every
+ * write path (all completion routes and session edits) already runs — so this
+ * never re-derives anything from session history. It used to rescan the user's
+ * entire completed history on every profile/achievements load; the route above
+ * `updateUserAchievements` made that scan run *twice* per GET.
+ *
+ * Categories missing from an older stored blob read as 0, matching a fresh
+ * user; `POST /api/user/achievements` forces a full recompute when needed.
+ */
 export async function getUserAchievements(userId: string) {
   try {
     const [stats] = await db
       .select({
         achievements: userStats.achievements,
-        totalVolume: userStats.totalVolume,
-        totalWorkouts: userStats.totalWorkouts,
-        uniqueExercises: userStats.uniqueExercises,
-        totalTrainingHours: userStats.totalTrainingHours,
-        longestStreak: userStats.longestStreak,
-        personalRecords: userStats.personalRecords,
-        activeWeeks: userStats.activeWeeks,
       })
       .from(userStats)
       .where(eq(userStats.userId, userId));
@@ -271,10 +276,13 @@ export async function getUserAchievements(userId: string) {
       lastUpdated: new Date().toISOString(),
     };
 
-    // Calculate session-based progress for new categories
-    const sessionProgress = await calculateSessionBasedProgress(userId);
-
-    const currentProgress = calculateAchievementProgress(stats, sessionProgress);
+    const storedProgress = achievements.progress || {};
+    const currentProgress = Object.fromEntries(
+      (Object.keys(calculateAchievementProgress({})) as AchievementCategory[]).map((category) => [
+        category,
+        storedProgress[category] || 0,
+      ])
+    ) as Record<AchievementCategory, number>;
 
     const achievementDetails = ACHIEVEMENT_DEFINITIONS.map(achievement => {
       const isUnlocked = achievements.unlockedAchievements.includes(achievement.id);

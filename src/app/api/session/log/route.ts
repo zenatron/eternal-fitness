@@ -16,12 +16,16 @@ import { createWorkoutTemplate, calculateTemplateVolume } from '@/utils/workoutJ
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { awardWorkoutXP } from '@/lib/xp';
+import {
+  findIdempotentResponse,
+  getIdempotencyKey,
+  pruneIdempotencyKeys,
+  recordIdempotentResponse,
+} from '@/lib/idempotency';
 import { WorkoutType, Difficulty, ExercisePerformance, SetType } from '@/types/workout';
+import { errorResponse } from '@/lib/api/response';
 
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [session/log]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+const ENDPOINT = 'session/log';
 
 const performanceSetSchema = z.object({
   setId: z.string(),
@@ -119,6 +123,18 @@ export async function POST(request: Request) {
     const { templateId, completedAt, duration, notes, performance, adHocName, adHocWorkoutType, adHocExercises } = validationResult.data;
     const completionTime = new Date(completedAt);
     let templateData: any = null;
+
+    // Offline replays carry an Idempotency-Key; a replayed retro-log would
+    // double-count volume, streaks and XP exactly like a live completion.
+    const idempotencyKey = getIdempotencyKey(request);
+    if (idempotencyKey) {
+      const existing = await findIdempotentResponse(userId, idempotencyKey, ENDPOINT);
+      if (existing) {
+        return NextResponse.json({
+          data: { ...(existing.response as Record<string, unknown>), deduplicated: true },
+        }, { status: 201 });
+      }
+    }
 
     const newSession = await db.transaction(async (tx) => {
       let resolvedTemplateId: string | null = templateId || null;
@@ -285,15 +301,22 @@ export async function POST(request: Request) {
 
     const totalAwarded = achievementResult.pointsAwarded + workoutXP;
 
-    return NextResponse.json({
-      data: {
-        session: newSession,
-        achievements: achievementResult,
-        newPRs,
-        workoutXP,
-        totalAwarded,
-      },
-    }, { status: 201 });
+    const payload = {
+      session: newSession,
+      achievements: achievementResult,
+      newPRs,
+      workoutXP,
+      totalAwarded,
+    };
+
+    if (idempotencyKey) {
+      // Stored after the work is done, so a crash mid-request leaves the key
+      // unrecorded and the retry genuinely re-runs.
+      await recordIdempotentResponse(userId, idempotencyKey, ENDPOINT, payload);
+      void pruneIdempotencyKeys();
+    }
+
+    return NextResponse.json({ data: payload }, { status: 201 });
   } catch (error: any) {
     if (error.message === 'TemplateNotFound') {
       return errorResponse('Template not found or access denied', 404);

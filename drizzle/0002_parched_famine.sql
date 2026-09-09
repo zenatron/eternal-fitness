@@ -1,1 +1,1 @@
-ALTER TABLE "users" ADD COLUMN "starting_weight" double precision;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "starting_weight" double precision;

@@ -364,6 +364,27 @@ export const useUpdateSession = () => {
   });
 };
 
+/** Deletes a past session. The server reconciles lifetime/monthly/streak totals. */
+export const useDeleteSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/session/${id}`, { method: 'DELETE' });
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete session' }));
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to delete session');
+      }
+      return id;
+    },
+    onSuccess: () => {
+      // A deleted session moves the same figures a new one does, just in
+      // reverse — totals, monthly buckets, streaks, the leaderboard.
+      void invalidateWorkoutData(queryClient);
+    },
+  });
+};
+
 export interface LogPastWorkoutData {
   templateId?: string;
   completedAt: string;

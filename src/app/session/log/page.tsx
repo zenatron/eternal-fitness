@@ -439,8 +439,18 @@ export default function LogPastWorkoutPage() {
 
               <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
                 {templatesLoading ? (
-                  <div className="forge-card p-12 text-center text-surface-500 dark:text-surface-600">
-                    Loading templates...
+                  /* Skeleton rows matching the card layout, so the list doesn't
+                     jump when loading finishes. */
+                  <div className="space-y-3" aria-busy="true" aria-label="Loading templates">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="forge-card overflow-hidden animate-pulse">
+                        <div className="h-1 bg-surface-200 dark:bg-surface-400/40" />
+                        <div className="p-4 space-y-2">
+                          <div className="h-4 w-1/3 rounded bg-surface-200 dark:bg-surface-400/40" />
+                          <div className="h-3 w-2/3 rounded bg-surface-200 dark:bg-surface-400/30" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : filteredTemplates.length === 0 ? (
                   <div className="forge-card p-12 text-center text-surface-500 dark:text-surface-600">

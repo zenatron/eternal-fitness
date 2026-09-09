@@ -1,1 +1,1 @@
-ALTER TABLE "users" ADD COLUMN "accent_theme" text;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "accent_theme" text;

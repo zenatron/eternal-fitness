@@ -4,6 +4,7 @@ import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { errorResponse } from '@/lib/api/response';
 
 /**
  * Custom profile avatar: upload, serve and remove.
@@ -27,9 +28,6 @@ const AVATAR_SIZE = 256;
 const AVATAR_QUALITY = 80;
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
 
 export async function POST(request: NextRequest) {
   try {

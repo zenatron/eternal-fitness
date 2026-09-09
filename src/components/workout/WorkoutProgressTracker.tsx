@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircleIcon,
@@ -10,7 +10,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { WorkoutTemplateData, ExercisePerformance, PerformedSet } from '@/types/workout';
+import { WorkoutTemplateData, ExercisePerformance, PerformedSet, ActiveSessionUpdatePayload } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
 import { performedSetsVolume, weightUnitLabel } from '@/lib/volume';
 import {
@@ -22,7 +22,7 @@ import {
 } from '@/lib/exerciseLookup';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
-import { useRestTimer } from './RestTimerProvider';
+import { useRestTimerActions } from './RestTimerProvider';
 import { StepperInput } from './StepperInput';
 import { SetInsights } from './SetInsights';
 import { bestOneRepMax, formatOneRepMax } from '@/utils/oneRepMax';
@@ -43,9 +43,14 @@ const DEFAULT_REST_SECONDS = 90;
 
 interface WorkoutProgressTrackerProps {
   template: WorkoutTemplateData;
-  onPerformanceUpdate: (performance: { [exerciseId: string]: ExercisePerformance }) => void;
+  /**
+   * Called with the full derived session state after every edit. One callback
+   * rather than separate performance/progress handlers: two handlers meant two
+   * provider updates, two context re-renders and two IndexedDB writes per
+   * keystroke, for state that changes together and travels together.
+   */
+  onSessionUpdate: (updates: ActiveSessionUpdatePayload) => void;
   onTemplateModified?: (modifiedTemplate: WorkoutTemplateData) => void;
-  onExerciseProgressUpdate?: (progress: { [exerciseId: string]: ExerciseProgress }) => void;
   initialExerciseProgress?: { [exerciseId: string]: ExerciseProgress };
   useMetric?: boolean;
 }
@@ -69,11 +74,10 @@ interface ExerciseProgress {
   completed: boolean;
 }
 
-export default function WorkoutProgressTracker({
+function WorkoutProgressTracker({
   template,
-  onPerformanceUpdate,
+  onSessionUpdate,
   onTemplateModified,
-  onExerciseProgressUpdate,
   initialExerciseProgress,
   useMetric = false,
 }: WorkoutProgressTrackerProps) {
@@ -87,10 +91,13 @@ export default function WorkoutProgressTracker({
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
   const isInitialized = useRef(false);
   const lastPerformanceRef = useRef<string>('');
-  const onPerformanceUpdateRef = useRef(onPerformanceUpdate);
-  const onExerciseProgressUpdateRef = useRef(onExerciseProgressUpdate);
+  const lastProgressRef = useRef<{ [exerciseId: string]: ExerciseProgress } | null>(null);
+  const onSessionUpdateRef = useRef(onSessionUpdate);
 
-  const restTimer = useRestTimer();
+  // Actions only: subscribing to the countdown state here would re-render this
+  // 950-line tree four times a second while a rest runs — right when the user
+  // is typing weights into these inputs.
+  const restTimer = useRestTimerActions();
   const weightStep = useMetric ? WEIGHT_STEP_METRIC : WEIGHT_STEP_IMPERIAL;
 
   // "Last time" reference values, keyed by exercise.
@@ -99,9 +106,8 @@ export default function WorkoutProgressTracker({
   );
 
   useEffect(() => {
-    onPerformanceUpdateRef.current = onPerformanceUpdate;
-    onExerciseProgressUpdateRef.current = onExerciseProgressUpdate;
-  }, [onPerformanceUpdate, onExerciseProgressUpdate]);
+    onSessionUpdateRef.current = onSessionUpdate;
+  }, [onSessionUpdate]);
 
   useEffect(() => {
     setModifiedTemplate(template);
@@ -177,6 +183,12 @@ export default function WorkoutProgressTracker({
     });
   }, [modifiedTemplate.exercises]);
 
+  /*
+   * One effect, one provider update, one IndexedDB write per edit. This used to
+   * be two effects that each called `applyUpdate` with their half of the state,
+   * so every keystroke in a set field re-rendered every context consumer twice
+   * and wrote the whole workout blob to IndexedDB twice.
+   */
   useEffect(() => {
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
     Object.values(exerciseProgress).forEach((progress) => {
@@ -208,18 +220,18 @@ export default function WorkoutProgressTracker({
         averageRpe,
       };
     });
-    const performanceString = JSON.stringify(performance);
-    if (performanceString !== lastPerformanceRef.current) {
-      lastPerformanceRef.current = performanceString;
-      onPerformanceUpdateRef.current(performance);
-    }
-  }, [exerciseProgress, modifiedTemplate.exercises]);
 
-  useEffect(() => {
-    if (onExerciseProgressUpdateRef.current && Object.keys(exerciseProgress).length > 0) {
-      onExerciseProgressUpdateRef.current(exerciseProgress);
+    // Skip runs where nothing actually moved (e.g. a template-shape change that
+    // derives identical performance), mirroring the old diff guard.
+    const performanceString = JSON.stringify(performance);
+    if (performanceString === lastPerformanceRef.current && exerciseProgress === lastProgressRef.current) {
+      return;
     }
-  }, [exerciseProgress]);
+    lastPerformanceRef.current = performanceString;
+    lastProgressRef.current = exerciseProgress;
+
+    onSessionUpdateRef.current({ performance, exerciseProgress });
+  }, [exerciseProgress, modifiedTemplate.exercises]);
 
   const updateSetProgress = (exerciseId: string, setId: string, updates: Partial<SetProgress>) => {
     setExerciseProgress(prev => ({
@@ -951,3 +963,14 @@ export default function WorkoutProgressTracker({
     </div>
   );
 }
+
+/*
+ * Memoized: during a workout this whole tree re-renders on every keystroke the
+ * user makes in its own inputs (necessary), but it must NOT re-render from the
+ * provider echo of that same edit. All props are referentially stable across an
+ * edit — `template` only changes when the template is modified,
+ * `initialExerciseProgress` is the same object the tracker itself published,
+ * and the callbacks are stable useCallbacks — so the memo holds. The clock and
+ * notes edits stay local to their own components for the same reason.
+ */
+export default memo(WorkoutProgressTracker);

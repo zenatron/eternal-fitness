@@ -10,7 +10,7 @@ import {
   index,
   unique,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import type { WorkoutTemplateData, WorkoutSessionData, ActiveWorkoutSessionData } from '@/types/workout';
 import type { UserPersonalRecords } from '@/types/personalRecords';
 import type { UserAchievements } from '@/types/achievements';
@@ -129,6 +129,16 @@ export const workoutSessions = pgTable(
     index('workout_sessions_user_id_idx').on(table.userId),
     index('workout_sessions_completed_at_idx').on(table.completedAt),
     index('workout_sessions_workout_template_id_idx').on(table.workoutTemplateId),
+    // The hottest pattern in the app is "this user's completed sessions, newest
+    // first" — streaks, dashboard, history lists, stats and achievements all
+    // issue it. The single-column indexes above make Postgres pick one and sort
+    // or heap-fetch the rest; the composite serves the whole shape.
+    index('workout_sessions_user_completed_idx').on(table.userId, table.completedAt.desc()),
+    // The dashboard "upcoming workouts" query: scheduled, not yet completed.
+    // Partial keeps it tiny — completed rows are the vast majority.
+    index('workout_sessions_user_scheduled_idx')
+      .on(table.userId, table.scheduledAt)
+      .where(sql`completed_at IS NULL`),
   ],
 );
 

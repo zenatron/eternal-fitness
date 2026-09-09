@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUpdateSession, UpdateSessionData } from '@/lib/hooks/useMutations';
 import { DurationInput } from '@/components/ui/DurationInput';
+import { StepperInput } from '@/components/workout/StepperInput';
 import { getExerciseType } from '@/lib/exerciseSearch';
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
@@ -333,53 +334,47 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                     />
                                   </div>
                                   <div>
-                                    <label className="form-label">RPE</label>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      max="10"
-                                      value={set.actualRpe ?? ''}
-                                      onChange={(e) => updateSet(exercise.exerciseId, set.setId, { actualRpe: parseInt(e.target.value) || undefined })}
-                                      className="form-input !py-2 !px-3 text-sm"
+                                    <StepperInput
+                                      label="RPE"
+                                      value={set.actualRpe}
+                                      onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualRpe: v })}
+                                      step={1}
+                                      min={1}
+                                      max={10}
                                       placeholder="—"
+                                      compact
                                     />
                                   </div>
                                 </div>
                               ) : (
                                 <div className="grid grid-cols-3 gap-3">
-                                  <div>
-                                    <label className="form-label">Reps</label>
-                                    <input
-                                      type="number"
-                                      value={set.actualReps ?? ''}
-                                      onChange={(e) => updateSet(exercise.exerciseId, set.setId, { actualReps: parseInt(e.target.value) || undefined })}
-                                      className="form-input !py-2 !px-3 text-sm"
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="form-label">{useMetric ? 'kg' : 'lbs'}</label>
-                                    <input
-                                      type="number"
-                                      step="0.5"
-                                      value={set.actualWeight ?? ''}
-                                      onChange={(e) => updateSet(exercise.exerciseId, set.setId, { actualWeight: parseFloat(e.target.value) || undefined })}
-                                      className="form-input !py-2 !px-3 text-sm"
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="form-label">RPE</label>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      max="10"
-                                      value={set.actualRpe ?? ''}
-                                      onChange={(e) => updateSet(exercise.exerciseId, set.setId, { actualRpe: parseInt(e.target.value) || undefined })}
-                                      className="form-input !py-2 !px-3 text-sm"
-                                      placeholder="—"
-                                    />
-                                  </div>
+                                  <StepperInput
+                                    label="Reps"
+                                    value={set.actualReps}
+                                    onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualReps: v })}
+                                    step={1}
+                                    placeholder="0"
+                                    compact
+                                  />
+                                  <StepperInput
+                                    label={useMetric ? 'Weight (kg)' : 'Weight (lbs)'}
+                                    value={set.actualWeight}
+                                    onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualWeight: v })}
+                                    step={useMetric ? 2.5 : 5}
+                                    allowDecimal
+                                    placeholder="0"
+                                    compact
+                                  />
+                                  <StepperInput
+                                    label="RPE"
+                                    value={set.actualRpe}
+                                    onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualRpe: v })}
+                                    step={1}
+                                    min={1}
+                                    max={10}
+                                    placeholder="—"
+                                    compact
+                                  />
                                 </div>
                               )}
                             </div>

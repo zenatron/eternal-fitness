@@ -19,7 +19,10 @@ export const useDashboardData = () => {
       return response.json();
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: 'always',
+    // No `refetchOnWindowFocus: 'always'` here: it refetched the heaviest
+    // aggregate in the app on every tab focus even while fresh, which is the
+    // exact storm the global default (refetchOnWindowFocus: true, only when
+    // stale) was changed to fix.
   });
 
   return {

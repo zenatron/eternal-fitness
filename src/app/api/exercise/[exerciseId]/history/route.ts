@@ -1,16 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import {NextRequest} from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutSessions, userStats } from '@/lib/db/schema';
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
-import type { WorkoutSessionData, PerformedSet } from '@/types/workout';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import type { PerformedSet, ExercisePerformance } from '@/types/workout';
 import type { UserPersonalRecords, ExercisePR } from '@/types/personalRecords';
 import { canonicalExerciseKey, exerciseDisplayName, resolveExercise } from '@/lib/exerciseLookup';
 import { bestOneRepMax } from '@/utils/oneRepMax';
-
-const successResponse = (data: unknown, status = 200) => NextResponse.json({ data }, { status });
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 /**
  * Full history for one exercise.
@@ -69,7 +66,11 @@ export async function GET(
         .select({
           id: workoutSessions.id,
           completedAt: workoutSessions.completedAt,
-          performanceData: workoutSessions.performanceData,
+          // Extract just the performance map server-side: the template snapshot
+          // alongside it in the same column dominates the row size and is
+          // irrelevant to a per-exercise history.
+          performance:
+            sql<Record<string, ExercisePerformance> | null>`${workoutSessions.performanceData} -> 'performance'`,
         })
         .from(workoutSessions)
         .where(and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)))
@@ -84,10 +85,10 @@ export async function GET(
     const history: ExerciseHistoryPoint[] = [];
 
     for (const session of sessions) {
-      const data = session.performanceData as WorkoutSessionData | null;
-      if (!data?.performance) continue;
+      const performance = session.performance;
+      if (!performance) continue;
 
-      for (const entry of Object.values(data.performance)) {
+      for (const entry of Object.values(performance)) {
         if (canonicalExerciseKey(entry.exerciseKey ?? '') !== key) continue;
 
         const done = (entry.sets ?? []).filter(

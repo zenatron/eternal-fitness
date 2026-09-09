@@ -33,6 +33,8 @@ export const queryKeys = {
   dashboardConfig: ['dashboardConfig'] as const,
   /** Lifetime totals, PRs and achievements. */
   userStats: ['userStats'] as const,
+  /** Achievement unlock state and progress. Moves with workout completions. */
+  achievements: ['achievements'] as const,
   leaderboard: ['leaderboard'] as const,
   /** Prefixed by period; invalidating the prefix covers every period. */
   progress: ['progress'] as const,
@@ -47,6 +49,8 @@ export const queryKeys = {
   recovery: ['recovery'] as const,
   /** Upcoming scheduled sessions. */
   scheduledSessions: ['scheduledSessions'] as const,
+  /** Paginated completed-session history (/history). */
+  history: ['history'] as const,
   /** Static exercise library metadata. Never invalidated by a user action: it
    *  is build-time data that cannot change while the app is running. */
   exercise: ['exercise'] as const,
@@ -68,6 +72,7 @@ export function invalidateWorkoutData(queryClient: QueryClient): Promise<void> {
     queryKeys.profile,
     queryKeys.dashboardData,
     queryKeys.userStats,
+    queryKeys.achievements,
     queryKeys.leaderboard,
     queryKeys.progress,
     queryKeys.templates,
@@ -75,6 +80,7 @@ export function invalidateWorkoutData(queryClient: QueryClient): Promise<void> {
     queryKeys.exerciseHistory,
     queryKeys.recovery,
     queryKeys.scheduledSessions,
+    queryKeys.history,
   ]);
 }
 

@@ -8,8 +8,9 @@ import {
   getStreakBaseline,
   recordWorkoutCompletion,
 } from '@/lib/workout/completion';
-import { eq, and, isNotNull, desc } from 'drizzle-orm';
+import { eq, and, isNotNull, desc, lt } from 'drizzle-orm';
 import { z } from 'zod';
+import { parseLimitParam } from '@/lib/api/response';
 import {
   createWorkoutSession,
   validateWorkoutSession,
@@ -19,6 +20,14 @@ import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { awardWorkoutXP } from '@/lib/xp';
+import {
+  findIdempotentResponse,
+  getIdempotencyKey,
+  pruneIdempotencyKeys,
+  recordIdempotentResponse,
+} from '@/lib/idempotency';
+
+const ENDPOINT = 'session-json';
 
 /**
  * Normalizes client-supplied performance data into full ExercisePerformance
@@ -117,11 +126,37 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
-    if ('scheduledSessionId' in validatedData) {
-      return await completeScheduledSession(userId, validatedData);
-    } else {
-      return await createNewSession(userId, validatedData);
+    // Offline clients stamp every replayed mutation with an Idempotency-Key.
+    // This route both schedules sessions and logs completed workouts — a replay
+    // of either creates a duplicate row, so both branches are covered.
+    const idempotencyKey = getIdempotencyKey(request);
+    if (idempotencyKey) {
+      const existing = await findIdempotentResponse(userId, idempotencyKey, ENDPOINT);
+      if (existing) {
+        return successResponse(
+          { ...(existing.response as Record<string, unknown>), deduplicated: true }
+        );
+      }
     }
+
+    const response =
+      'scheduledSessionId' in validatedData
+        ? await completeScheduledSession(userId, validatedData)
+        : await createNewSession(userId, validatedData);
+
+    if (idempotencyKey && response.status < 400) {
+      // Stored only after the work succeeded, so a crash mid-request leaves the
+      // key unrecorded and the retry genuinely re-runs.
+      await recordIdempotentResponse(
+        userId,
+        idempotencyKey,
+        ENDPOINT,
+        await response.clone().json()
+      );
+      void pruneIdempotencyKeys();
+    }
+
+    return response;
   } catch (error) {
     return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }
@@ -206,7 +241,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         .returning();
 
       try {
-        await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData);
+        await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData, tx);
       } catch (error) {
         console.error('Error processing PRs:', error);
       }
@@ -364,9 +399,35 @@ export async function GET(request: Request) {
     const userId = await getUserId();
     if (!userId) return errorResponse('Unauthorized', 401);
 
+    // Keyset-paginated, projected list of completed sessions. performanceData
+    // is deliberately excluded: it embeds the full template snapshot per row
+    // and dominates the payload — set-level detail belongs to the
+    // single-session endpoint (GET /api/session/[sessionId]).
+    const { searchParams } = new URL(request.url);
+    const limit = parseLimitParam(searchParams.get('limit'));
+    const before = searchParams.get('before');
+    const beforeDate = before && !Number.isNaN(Date.parse(before)) ? new Date(before) : null;
+
     const sessions = await db.query.workoutSessions.findMany({
-      where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
+      columns: {
+        id: true,
+        completedAt: true,
+        scheduledAt: true,
+        duration: true,
+        notes: true,
+        totalVolume: true,
+        totalSets: true,
+        totalExercises: true,
+        personalRecords: true,
+        workoutTemplateId: true,
+      },
+      where: and(
+        eq(workoutSessions.userId, userId),
+        isNotNull(workoutSessions.completedAt),
+        beforeDate ? lt(workoutSessions.completedAt, beforeDate) : undefined
+      ),
       orderBy: desc(workoutSessions.completedAt),
+      limit,
       with: {
         workoutTemplate: {
           columns: { id: true, name: true },
@@ -374,7 +435,14 @@ export async function GET(request: Request) {
       },
     });
 
-    return successResponse(sessions);
+    // A full page implies there may be more; hand back the cursor the client
+    // passes as `before` to fetch the next page.
+    const nextCursor =
+      sessions.length === limit
+        ? (sessions[sessions.length - 1].completedAt?.toISOString() ?? null)
+        : null;
+
+    return successResponse({ sessions, nextCursor });
   } catch (error) {
     return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }

@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutTemplates, workoutSessions, userStats } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, desc, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { parseLimitParam } from '@/lib/api/response';
 import {
   createWorkoutSession,
   calculateSessionMetrics,
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
           .returning();
 
         try {
-          await processWorkoutSessionPRs(userId, session.id, jsonPerformance, templateData);
+          await processWorkoutSessionPRs(userId, session.id, jsonPerformance, templateData, tx);
         } catch (error) {
           console.error('Error processing PRs:', error);
         }
@@ -129,14 +130,39 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const userId = await getUserId();
     if (!userId) return errorResponse('Unauthorized', 401);
 
+    // Keyset-paginated and projected — performanceData carries a full template
+    // snapshot per row and would dominate the payload. Set-level detail belongs
+    // to GET /api/session/[sessionId].
+    const { searchParams } = new URL(request.url);
+    const limit = parseLimitParam(searchParams.get('limit'));
+    const before = searchParams.get('before');
+    const beforeDate = before && !Number.isNaN(Date.parse(before)) ? new Date(before) : null;
+
     const sessions = await db.query.workoutSessions.findMany({
-      where: and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)),
+      columns: {
+        id: true,
+        completedAt: true,
+        scheduledAt: true,
+        duration: true,
+        notes: true,
+        totalVolume: true,
+        totalSets: true,
+        totalExercises: true,
+        personalRecords: true,
+        workoutTemplateId: true,
+      },
+      where: and(
+        eq(workoutSessions.userId, userId),
+        isNotNull(workoutSessions.completedAt),
+        beforeDate ? lt(workoutSessions.completedAt, beforeDate) : undefined
+      ),
       orderBy: desc(workoutSessions.completedAt),
+      limit,
       with: {
         workoutTemplate: {
           columns: { id: true, name: true },
@@ -144,7 +170,12 @@ export async function GET() {
       },
     });
 
-    return successResponse(sessions);
+    const nextCursor =
+      sessions.length === limit
+        ? (sessions[sessions.length - 1].completedAt?.toISOString() ?? null)
+        : null;
+
+    return successResponse({ sessions, nextCursor });
   } catch (error) {
     return errorResponse('Internal Server Error', 500, error instanceof Error ? error.message : String(error));
   }

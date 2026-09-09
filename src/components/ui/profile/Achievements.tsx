@@ -6,7 +6,8 @@ import { TIER_COLORS, TIER_NAMES, AchievementCategory, localizeAchievement } fro
 import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
 
-interface AchievementData {
+/** Wire shape of one achievement as returned by GET /api/user/achievements. */
+export interface AchievementData {
   id: string;
   category: AchievementCategory;
   name: string;

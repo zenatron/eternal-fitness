@@ -382,8 +382,12 @@ gradle-app.setting
 /.clerk/
 
 # Drizzle
-/drizzle/meta/
+/drizzle/meta/*
+!/drizzle/meta/_journal.json
 # Serwist build output (generated from src/app/sw.ts at build time)
 public/sw.js
 public/sw.js.map
 public/swe-worker-*.js
+
+# ZCode workspace directory
+.zcode/

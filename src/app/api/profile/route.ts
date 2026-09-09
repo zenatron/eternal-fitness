@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -8,6 +7,7 @@ import { z } from 'zod';
 import { deleteUserById } from '@/utils/userDeletion';
 import { ACCENT_THEME_IDS } from '@/types/theme';
 import { resolveTimeZone } from '@/utils/datetime';
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, { message: 'Name is required' }),
@@ -37,21 +37,13 @@ const preferencesSchema = z.object({
   timeZone: z.string().min(1).max(64).optional(),
 });
 
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}):`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json(
-    { error: Object.assign({ message }, details ? { details } : {}) },
-    { status },
-  );
-};
-
 export async function GET() {
   try {
-    const userId = await getUserId();
+    // One `auth()` serves both guards below: `getUserId()` is just
+    // `auth()?.user?.id`, and the picture claim is read off the same session —
+    // calling both cost two JWT decodes per profile load.
+    const session = await auth();
+    const userId = session?.user?.id ?? null;
     if (!userId) return errorResponse('Unauthorized', 401);
 
     const [dbUser] = await db
@@ -86,7 +78,6 @@ export async function GET() {
      * profile load rather than being frozen at first sign-in. Only written when
      * it actually differs, to avoid a write on every request.
      */
-    const session = await auth();
     const claimPicture = session?.user?.image ?? null;
     if (claimPicture !== dbUser.image) {
       await db.update(users).set({ image: claimPicture }).where(eq(users.id, userId));

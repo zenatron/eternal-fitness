@@ -23,6 +23,7 @@ import SavedWorkouts from '@/components/ui/FavoriteWorkouts';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useHasMounted } from '@/lib/hooks/useHasMounted';
 import { useUserStats } from '@/lib/hooks/useUserStats';
+import { useAchievements } from '@/lib/hooks/useAchievements';
 
 import { StatsOverview } from '@/components/ui/profile/StatsOverview';
 import { RecentActivity } from '@/components/ui/profile/RecentActivity';
@@ -83,10 +84,22 @@ function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points
   return (
     <div className="perspective-[600px]" style={{ perspective: '600px' }}>
       <motion.div
-        className="relative w-[200px] h-[110px] cursor-pointer"
+        className="relative w-[200px] h-[110px] cursor-pointer rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ duration: 0.5, ease: 'easeInOut' }}
+        // Button semantics: the card was a click-only div, invisible to
+        // keyboards and screen readers.
+        role="button"
+        tabIndex={0}
+        aria-pressed={isFlipped}
+        aria-label={isFlipped ? 'Show level card' : 'Show XP details'}
         onClick={() => setIsFlipped(!isFlipped)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setIsFlipped(!isFlipped);
+          }
+        }}
         style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Front */}
@@ -160,28 +173,12 @@ function ProfileContent() {
   const hasMounted = useHasMounted();
   const { profile, isLoading, error } = useProfile();
   const { stats, isLoading: statsLoading, error: statsError } = useUserStats();
+  // Cached via React Query (see useAchievements) — this used to be a bare
+  // useEffect + fetch that refetched on every visit to the page.
+  const { achievements, loading: achievementsLoading } = useAchievements();
   const prefersReducedMotion = useReducedMotion();
 
   const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | 'achievements' | null>(null);
-  const [achievements, setAchievements] = useState<any>(null);
-  const [achievementsLoading, setAchievementsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAchievements = async () => {
-      try {
-        const response = await fetch('/api/user/achievements');
-        if (response.ok) {
-          const result = await response.json();
-          setAchievements(result.data);
-        }
-      } catch (error) {
-        console.error('Error fetching achievements:', error);
-      } finally {
-        setAchievementsLoading(false);
-      }
-    };
-    fetchAchievements();
-  }, []);
 
   useEffect(() => {
     const modal = searchParams.get('modal');

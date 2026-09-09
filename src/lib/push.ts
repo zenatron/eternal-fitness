@@ -102,6 +102,9 @@ export async function sendPushToUser(
           { TTL: 60 * 60 * 24, urgency: payload.urgent ? 'high' : 'normal' }
         );
         sent += 1;
+        // Keep `lastUsedAt` truthful so "prune stale rows" has real data to
+        // prune against. Fire-and-forget: delivery must not wait on bookkeeping.
+        void touchSubscription(subscription.endpoint).catch(() => {});
       } catch (error) {
         const statusCode = (error as { statusCode?: number }).statusCode;
         if (statusCode === 404 || statusCode === 410) {

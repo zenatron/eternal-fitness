@@ -15,14 +15,18 @@ import { WorkoutTemplate, WorkoutTemplateData, ExercisePerformance } from '@/typ
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { awardWorkoutXP } from '@/lib/xp';
+import {
+  findIdempotentResponse,
+  getIdempotencyKey,
+  pruneIdempotencyKeys,
+  recordIdempotentResponse,
+} from '@/lib/idempotency';
+import { errorResponse } from '@/lib/api/response';
+
+const ENDPOINT = 'template/complete';
 
 const successResponse = (data: unknown, status = 201) => {
   return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [template/{id}/complete]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
 const completeTemplateSchema = z.object({
@@ -68,6 +72,18 @@ export async function POST(
     }
 
     const { duration, notes, performance } = validationResult.data;
+
+    // Same dedupe contract as the other three completion paths: a replayed
+    // offline completion must replay its first response, not log twice.
+    const idempotencyKey = getIdempotencyKey(request);
+    if (idempotencyKey) {
+      const existing = await findIdempotentResponse(userId, idempotencyKey, ENDPOINT);
+      if (existing) {
+        return successResponse(
+          { ...(existing.response as Record<string, unknown>), deduplicated: true }
+        );
+      }
+    }
 
     const newSession = await db.transaction(async (tx) => {
       const [template] = await tx
@@ -133,7 +149,7 @@ export async function POST(
 
       if (performance && Object.keys(performance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, template.workoutData);
+          await processWorkoutSessionPRs(userId, createdSession.id, performance, template.workoutData, tx);
         } catch (prError) {
           console.error('Error processing PRs:', prError);
         }
@@ -188,11 +204,20 @@ export async function POST(
       console.error('Error awarding workout XP:', xpError);
     }
 
-    return successResponse({
+    const payload = {
       ...newSession,
       workoutXP,
       totalAwarded: workoutXP + achievementPoints,
-    });
+    };
+
+    if (idempotencyKey) {
+      // Stored after the work is done, so a crash mid-request leaves the key
+      // unrecorded and the retry genuinely re-runs.
+      await recordIdempotentResponse(userId, idempotencyKey, ENDPOINT, payload);
+      void pruneIdempotencyKeys();
+    }
+
+    return successResponse(payload);
   } catch (error: any) {
     const { templateId } = await params;
     if (error.message === 'TemplateNotFound') {

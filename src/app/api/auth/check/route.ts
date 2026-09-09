@@ -30,11 +30,13 @@ export async function GET() {
       { status: 200 },
     );
   } catch (error) {
+    // A 500 here means the auth layer itself is broken; log the detail server
+    // side, but don't reflect raw error strings back to the client.
+    console.error('Auth check failed:', error);
     return NextResponse.json(
       {
         authenticated: false,
         message: 'Error checking authentication status',
-        error: String(error),
       },
       { status: 500 },
     );

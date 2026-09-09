@@ -1,17 +1,8 @@
-import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutTemplates } from '@/lib/db/schema';
 import { eq, desc, asc } from 'drizzle-orm';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [template/]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 export async function GET() {
   try {

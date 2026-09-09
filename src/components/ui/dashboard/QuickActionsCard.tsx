@@ -1,20 +1,22 @@
 import {
   PlusIcon,
-  ClipboardDocumentListIcon,
   UserIcon,
   ClockIcon,
   TrophyIcon,
   HeartIcon,
+  ListBulletIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { DashboardCard } from './DashboardCard';
 
+// History replaces the Templates shortcut here: templates are already one tap
+// away in the bottom nav, while history previously had no surface at all.
 const actions = [
   { href: '/template/create', label: 'New Template', icon: PlusIcon },
   { href: '/session/log', label: 'Log Workout', icon: ClockIcon },
   { href: '/recovery', label: 'Recovery', icon: HeartIcon },
-  { href: '/templates', label: 'Templates', icon: ClipboardDocumentListIcon },
+  { href: '/history', label: 'History', icon: ListBulletIcon },
   { href: '/leaderboard', label: 'Leaderboard', icon: TrophyIcon },
   { href: '/profile', label: 'Profile', icon: UserIcon },
 ];

@@ -18,9 +18,10 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "docker:build": "docker build -t zenatron/eternal-fitness:v$npm_package_version -t zenatron/eternal-fitness:latest .",
-    "docker:push": "docker push zenatron/eternal-fitness:v$npm_package_version && docker push zenatron/eternal-fitness:latest",
-    "docker:release": "bun run docker:build && bun run docker:push"
+    "docker:builder": "docker buildx create --name eternal-fitness --driver docker-container --bootstrap",
+    "docker:build": "docker buildx build --builder eternal-fitness --platform linux/amd64,linux/arm64 -t zenatron/eternal-fitness:v$npm_package_version -t zenatron/eternal-fitness:latest --push .",
+    "docker:push": "echo 'multi-arch images are pushed by docker:build (--push); docker:push is a no-op'",
+    "docker:release": "bun run docker:build"
   },
   "devDependencies": {
     "@types/node": "^20.17.27",
@@ -32,7 +33,7 @@
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.1",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.26",
+    "eslint-config-next": "^15.2.4",
     "playwright": "^1.62.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
@@ -58,7 +59,6 @@
     "react-datepicker": "^8.2.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.5.2",
-    "react-icons": "^5.5.0",
     "serwist": "^9.5.12",
     "sharp": "^0.35.3",
     "tailwind-merge": "^3.0.2",

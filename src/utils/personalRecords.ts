@@ -3,6 +3,7 @@ import { PerformedSet, ExercisePerformance, WorkoutSessionData } from '@/types/w
 import { db } from '@/lib/db';
 import { userStats } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import type { Tx } from '@/lib/workout/completion';
 import { formatPRValue } from '@/utils/prFormatting';
 import { bestOneRepMax } from '@/utils/oneRepMax';
 import { volumeMultiplier } from '@/lib/volume';
@@ -221,17 +222,34 @@ export function detectSessionPRs(
   return allNewPRs;
 }
 
+/**
+ * Detects and persists PRs for a finished session.
+ *
+ * `tx` must be passed by callers that are inside a transaction. Several
+ * completion routes call this from within `db.transaction(...)`, and it used to
+ * issue its read and write on the pool *outside* that transaction — the PR
+ * write survived a rollback of the surrounding work, and could interleave with
+ * a concurrent completion's read-modify-write.
+ */
 export async function processWorkoutSessionPRs(
   userId: string,
   sessionId: string,
   performanceData: { [exerciseId: string]: ExercisePerformance },
   templateData: WorkoutSessionData['templateSnapshot'],
+  tx?: Tx,
 ): Promise<{ newPRs: PRUpdate[]; updatedUserPRs: UserPersonalRecords }> {
-  const currentPRs = await getUserPRs(userId);
+  const executor = tx ?? db;
+
+  const [statsRow] = await executor
+    .select({ personalRecords: userStats.personalRecords })
+    .from(userStats)
+    .where(eq(userStats.userId, userId));
+  const currentPRs = (statsRow?.personalRecords as UserPersonalRecords) || {};
+
   const newPRs = detectSessionPRs(performanceData, templateData, currentPRs, sessionId);
   const updatedPRs = updatePersonalRecords(currentPRs, newPRs);
 
-  await db
+  await executor
     .insert(userStats)
     .values({ userId, personalRecords: updatedPRs })
     .onConflictDoUpdate({

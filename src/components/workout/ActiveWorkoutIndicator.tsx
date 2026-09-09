@@ -11,6 +11,7 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
+import { useTickingNow } from '@/lib/hooks/useTickingNow';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const springSnappy = {
@@ -31,10 +32,13 @@ export default function ActiveWorkoutIndicator() {
   const [minimized, setMinimized] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  // This bar is small, so it is its own ticking component: the provider no
+  // longer re-renders the app once a second just to move this clock.
+  useTickingNow();
 
   if (!hasActiveWorkout || !activeWorkout) return null;
 
-  const time = formatWorkoutDuration;
+  const time = formatWorkoutDuration();
 
   const handleContinue = () =>
     router.push(`/session/active/${activeWorkout.templateId}`);

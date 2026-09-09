@@ -12,15 +12,7 @@ import {
   calculateEstimatedDuration,
 } from '@/utils/workoutJsonUtils';
 import { WorkoutType, Difficulty } from '@/types/workout';
-
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [template/{id}]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 const updateSetSchema = z.object({
   reps: z.number().int().nonnegative(),

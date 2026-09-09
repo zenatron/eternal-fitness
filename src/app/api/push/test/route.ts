@@ -1,12 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { isPushConfigured, sendPushToUser } from '@/lib/push';
-
-const successResponse = (data: unknown, status = 200) =>
-  NextResponse.json({ data }, { status });
-
-const errorResponse = (message: string, status = 500) =>
-  NextResponse.json({ error: { message } }, { status });
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 /**
  * Sends a test notification to the caller's own devices.

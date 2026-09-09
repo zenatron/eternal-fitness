@@ -11,14 +11,10 @@ import {
   calculateEstimatedDuration,
 } from '@/utils/workoutJsonUtils';
 import { WorkoutType, Difficulty } from '@/types/workout';
+import { errorResponse } from '@/lib/api/response';
 
 const successResponse = (data: unknown, status = 201) => {
   return NextResponse.json({ data }, { status });
-};
-
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [template/create]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
 };
 
 const createSetSchema = z.object({
