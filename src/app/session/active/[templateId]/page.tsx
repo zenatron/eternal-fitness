@@ -326,7 +326,13 @@ export default function ActiveSessionPage({
 
       setWorkoutCompleted(true);
 
-      const perfData = result?.session?.performanceData?.performance;
+      // completeWorkout resolves to the API envelope { data: { session,
+      // achievements, … } }. Reading `result.session` directly silently
+      // discarded every field — the victory popup showed 0 sets / 0 exercises
+      // for every live-completed workout.
+      const payload = result?.data ?? result;
+
+      const perfData = payload?.session?.performanceData?.performance;
       const totalDistance = perfData
         ? Object.values(perfData).reduce((t: number, ep: any) => {
             return t + (ep.sets || []).reduce((st: number, s: any) => st + (s.actualDistance || 0), 0);
@@ -336,15 +342,15 @@ export default function ActiveSessionPage({
       setVictoryData({
         workoutName: template?.name || 'Workout',
         durationMinutes: durationMinutes,
-        totalVolume: result?.session?.totalVolume || 0,
-        totalSets: result?.session?.totalSets || 0,
-        totalExercises: result?.session?.totalExercises || 0,
+        totalVolume: payload?.session?.totalVolume || 0,
+        totalSets: payload?.session?.totalSets || 0,
+        totalExercises: payload?.session?.totalExercises || 0,
         totalDistance,
-        newAchievementIds: result?.achievements?.newAchievements || [],
-        newPRs: result?.newPRs || [],
-        pointsAwarded: result?.achievements?.pointsAwarded || 0,
-        totalAwarded: result?.totalAwarded || result?.achievements?.pointsAwarded || 0,
-        progress: result?.achievements?.progress || {},
+        newAchievementIds: payload?.achievements?.newAchievements || [],
+        newPRs: payload?.newPRs || [],
+        pointsAwarded: payload?.achievements?.pointsAwarded || 0,
+        totalAwarded: payload?.totalAwarded || payload?.achievements?.pointsAwarded || 0,
+        progress: payload?.achievements?.progress || {},
       });
       setShowVictory(true);
       setShowCompletionPrompt(false);

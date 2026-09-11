@@ -5,34 +5,52 @@ const isDevBypass =
   process.env.AUTH_DEV_BYPASS === "true" &&
   process.env.NODE_ENV !== "production";
 
+/**
+ * The OIDC provider is only registered when its env is fully present.
+ *
+ * With it registered but unconfigured, every `auth()` call throws
+ * InvalidEndpoints — and the middleware wrapper treats the failed session read
+ * as *authenticated*, silently serving every page to anonymous visitors. With
+ * it absent, the app fails safe instead: the login page simply has nothing to
+ * sign in with.
+ */
+const isPocketIdConfigured =
+  !!process.env.AUTH_POCKETID_ISSUER &&
+  !!process.env.AUTH_POCKETID_ID &&
+  !!process.env.AUTH_POCKETID_SECRET;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const providers: any[] = [
-  {
-    id: "pocketid",
-    name: "PocketID",
-    type: "oidc",
-    issuer: process.env.AUTH_POCKETID_ISSUER,
-    clientId: process.env.AUTH_POCKETID_ID,
-    clientSecret: process.env.AUTH_POCKETID_SECRET,
-    /**
-     * `state` must be listed explicitly.
-     *
-     * Auth.js v5 defaults `checks` to `["pkce"]` and only appends `"state"`
-     * when `redirectProxyUrl` is configured (see
-     * @auth/core/lib/utils/providers.js `normalizeOAuth`). Without this the
-     * authorization request carries no `state` parameter at all, and PocketID
-     * rejects it with `invalid_state` — surfacing confusingly as a
-     * CallbackRouteError about a missing `iss`, because Auth.js then tries to
-     * validate the provider's error redirect.
-     *
-     * PKCE alone satisfies the modern OAuth spec, but PocketID enforces state
-     * as well, so both are required here.
-     */
-    checks: ["pkce", "state"],
-    authorization: {
-      params: { scope: "openid profile email" },
-    },
-  },
+  ...(isPocketIdConfigured
+    ? [
+        {
+          id: "pocketid",
+          name: "PocketID",
+          type: "oidc",
+          issuer: process.env.AUTH_POCKETID_ISSUER,
+          clientId: process.env.AUTH_POCKETID_ID,
+          clientSecret: process.env.AUTH_POCKETID_SECRET,
+          /**
+           * `state` must be listed explicitly.
+           *
+           * Auth.js v5 defaults `checks` to `["pkce"]` and only appends `"state"`
+           * when `redirectProxyUrl` is configured (see
+           * @auth/core/lib/utils/providers.js `normalizeOAuth`). Without this the
+           * authorization request carries no `state` parameter at all, and PocketID
+           * rejects it with `invalid_state` — surfacing confusingly as a
+           * CallbackRouteError about a missing `iss`, because Auth.js then tries to
+           * validate the provider's error redirect.
+           *
+           * PKCE alone satisfies the modern OAuth spec, but PocketID enforces state
+           * as well, so both are required here.
+           */
+          checks: ["pkce", "state"],
+          authorization: {
+            params: { scope: "openid profile email" },
+          },
+        },
+      ]
+    : []),
 ];
 
 if (isDevBypass) {

@@ -172,6 +172,11 @@ export const useDeleteTemplate = () => {
       // Drop the detail entry outright rather than refetching a 404.
       queryClient.removeQueries({ queryKey: templateKey(deletedTemplateId) });
       void invalidateTemplateData(queryClient);
+      // Server-side, deleting a template also deletes its sessions and unwinds
+      // the totals they were counted in — the same surface a deleted session
+      // moves, so those caches must go too or the profile keeps showing the
+      // deleted workouts indefinitely.
+      void invalidateWorkoutData(queryClient);
     },
   });
 };

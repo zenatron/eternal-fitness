@@ -342,17 +342,6 @@ self.addEventListener('sync', (event) => {
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Periodic Background Sync — streak guard
- * Chrome-only and permission-gated; a no-op elsewhere.
- * ──────────────────────────────────────────────────────────────────────────── */
-self.addEventListener('periodicsync', (event) => {
-  const periodicEvent = event as SyncEvent;
-  if (periodicEvent.tag === 'eternal-streak-check') {
-    periodicEvent.waitUntil(flushOutbox());
-  }
-});
-
-/* ────────────────────────────────────────────────────────────────────────────
  * Push notifications
  * ──────────────────────────────────────────────────────────────────────────── */
 

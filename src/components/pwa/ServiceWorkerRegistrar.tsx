@@ -46,21 +46,23 @@ export function ServiceWorkerRegistrar() {
             }
           });
         });
-
-        // Check for a new build when the app is brought back to the foreground.
-        const checkForUpdate = () => {
-          if (document.visibilityState === 'visible') {
-            void registration?.update();
-          }
-        };
-        document.addEventListener('visibilitychange', checkForUpdate);
-        return () => document.removeEventListener('visibilitychange', checkForUpdate);
       } catch (error) {
         console.error('[pwa] Service worker registration failed', error);
       }
     };
 
     void register();
+
+    // Check for a new build when the app is brought back to the foreground.
+    // Registered out here, not inside register(): a cleanup returned from an
+    // async function invoked as `void` is discarded, so the listener used to
+    // leak on every unmount.
+    const checkForUpdate = () => {
+      if (document.visibilityState === 'visible') {
+        void registration?.update();
+      }
+    };
+    document.addEventListener('visibilitychange', checkForUpdate);
 
     // The new worker took control; reload once so the page matches its assets.
     const handleControllerChange = () => {
@@ -84,6 +86,7 @@ export function ServiceWorkerRegistrar() {
     navigator.serviceWorker.addEventListener('message', handleMessage);
 
     return () => {
+      document.removeEventListener('visibilitychange', checkForUpdate);
       navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
       navigator.serviceWorker.removeEventListener('message', handleMessage);
     };

@@ -130,8 +130,12 @@ const MASKABLE_SIZES = [192, 512, 1024];
  * own link tag and its own bitmap. Portrait only — the app locks to portrait.
  */
 const SPLASH_SCREENS = [
-  { w: 1179, h: 2556, name: 'iphone-15-pro' },
-  { w: 1290, h: 2796, name: 'iphone-15-pro-max' },
+  // Modern devices first — a size present in the link list but with no matching
+  // bitmap/media-query entry is what forced iOS onto a legacy web-view height.
+  { w: 1206, h: 2622, name: 'iphone-16-pro' },        // 402×874pt @3x
+  { w: 1320, h: 2868, name: 'iphone-16-pro-max' },    // 440×956pt @3x
+  { w: 1179, h: 2556, name: 'iphone-15-pro' },        // 393×852pt @3x
+  { w: 1290, h: 2796, name: 'iphone-15-pro-max' },    // 430×932pt @3x
   { w: 1170, h: 2532, name: 'iphone-13' },
   { w: 1284, h: 2778, name: 'iphone-13-pro-max' },
   { w: 1125, h: 2436, name: 'iphone-x' },
@@ -139,6 +143,8 @@ const SPLASH_SCREENS = [
   { w: 828, h: 1792, name: 'iphone-xr' },
   { w: 750, h: 1334, name: 'iphone-8' },
   { w: 1242, h: 2208, name: 'iphone-8-plus' },
+  { w: 2064, h: 2752, name: 'ipad-pro-13-m4' },       // 1032×1376pt @2x
+  { w: 1640, h: 2360, name: 'ipad-air-11' },          // 820×1180pt @2x
   { w: 1536, h: 2048, name: 'ipad' },
   { w: 1668, h: 2224, name: 'ipad-pro-10' },
   { w: 1668, h: 2388, name: 'ipad-pro-11' },
@@ -219,9 +225,41 @@ async function main() {
       .toFile(path.join(SPLASH, `${name}.png`));
   }
 
+  // Screenshots for the manifest's richer install UI. Not real app captures —
+  // branded launch art with the app name; replace with device screenshots if
+  // store-quality install artwork ever matters.
+  const screenshots = [
+    { w: 1080, h: 1920, name: 'screenshot-narrow', label: 'Eternal Fitness' },
+    { w: 1920, h: 1080, name: 'screenshot-wide', label: 'Eternal Fitness' },
+  ];
+  for (const { w, h, name, label } of screenshots) {
+    const markSize = Math.round(Math.min(w, h) * 0.30);
+    const markPng = await sharp(Buffer.from(markSvg), { density: 384 })
+      .resize(markSize, markSize)
+      .png()
+      .toBuffer();
+    const shotSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${SURFACE_100}" />
+      <stop offset="1" stop-color="${SURFACE_0}" />
+    </linearGradient>
+  </defs>
+  <rect width="${w}" height="${h}" fill="url(#bg)" />
+  <text x="50%" y="${h / 2 + markSize / 2 + Math.round(Math.min(w, h) * 0.14)}" text-anchor="middle"
+        font-family="Oswald, Arial, sans-serif" font-weight="600"
+        font-size="${Math.round(Math.min(w, h) * 0.08)}" fill="${FORGE_400}">${label}</text>
+</svg>`;
+    const bgPng = await sharp(Buffer.from(shotSvg)).png().toBuffer();
+    await sharp(bgPng)
+      .composite([{ input: markPng, gravity: 'centre' }])
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(PUBLIC, `${name}.png`));
+  }
+
   console.log(
     `Generated ${ICON_SIZES.length} icons, ${MASKABLE_SIZES.length} maskable, ` +
-      `${SPLASH_SCREENS.length} splash screens.`
+      `${SPLASH_SCREENS.length} splash screens, ${screenshots.length} screenshots.`
   );
 }
 

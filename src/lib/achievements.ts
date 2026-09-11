@@ -1,13 +1,20 @@
 import { ACHIEVEMENT_DEFINITIONS, UserAchievements, AchievementCategory, localizeAchievement, TIER_POINTS } from '@/types/achievements';
 import { db } from '@/lib/db';
 import { userStats, workoutSessions, users, monthlyStats, workoutTemplates } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql } from 'drizzle-orm';
-import { WorkoutSessionData } from '@/types/workout';
+import { eq, sql } from 'drizzle-orm';
 import { PR_TYPES } from '@/types/personalRecords';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 
-/**
+/*
  * Calculate progress for time-of-day achievements (early bird / night owl)
  * and template mastery / monthly warrior from workout session data.
+ *
+ * Aggregated in Postgres rather than loading every session's `performance`
+ * JSONB into Node — this runs on each workout completion, and the old
+ * row-by-row scan shipped megabytes for a long training history. Hour
+ * extraction goes through the user's zone: the old `completedAt.getHours()`
+ * read the process zone, which is UTC in the container, so an early-bird
+ * workout at 6am in New York was counted as a noon workout.
  */
 async function calculateSessionBasedProgress(userId: string): Promise<{
   earlyBirdCount: number;
@@ -18,84 +25,60 @@ async function calculateSessionBasedProgress(userId: string): Promise<{
   cardioSessionsCount: number;
   cardioDurationHours: number;
 }> {
-  /*
-   * Early bird: completed before 8 AM, Night owl: completed after 10 PM.
-   *
-   * Only the two JSONB paths actually read are projected. Selecting the whole
-   * `performanceData` pulled a full `templateSnapshot` — every exercise, set
-   * and target — for every session the user has ever completed, and this runs
-   * on each workout completion, so the cost grew with their entire history.
-   */
-  const sessions = await db
-    .select({
-      completedAt: workoutSessions.completedAt,
-      workoutTemplateId: workoutSessions.workoutTemplateId,
-      performance: sql<WorkoutSessionData['performance'] | null>`
-        ${workoutSessions.performanceData} -> 'performance'
-      `,
-      // Fallback for sessions whose template has since been deleted.
-      snapshotWorkoutType: sql<string | null>`
-        ${workoutSessions.performanceData} #>> '{templateSnapshot,metadata,workoutType}'
-      `,
-      templateWorkoutType: workoutTemplates.workoutType,
-    })
-    .from(workoutSessions)
-    .leftJoin(workoutTemplates, eq(workoutSessions.workoutTemplateId, workoutTemplates.id))
-    .where(and(
-      eq(workoutSessions.userId, userId),
-      isNotNull(workoutSessions.completedAt),
-    ));
+  const timeZone = await getUserTimeZone(userId);
 
-  let earlyBirdCount = 0;
-  let nightOwlCount = 0;
-  const templateCounts: Record<string, number> = {};
-  let totalDistance = 0;
-  let cardioSessionsCount = 0;
-  let cardioDurationSeconds = 0;
+  const sessionRows = await db.execute<{
+    early_bird: number;
+    night_owl: number;
+    max_template_sessions: number;
+    cardio_sessions: number;
+  }>(sql`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE EXTRACT(hour FROM ws.completed_at AT TIME ZONE ${timeZone}) < 8
+      )::int AS early_bird,
+      COUNT(*) FILTER (
+        WHERE EXTRACT(hour FROM ws.completed_at AT TIME ZONE ${timeZone}) >= 22
+      )::int AS night_owl,
+      COALESCE((
+        SELECT MAX(n) FROM (
+          SELECT COUNT(*) AS n
+          FROM ${workoutSessions}
+          WHERE user_id = ${userId}
+            AND completed_at IS NOT NULL
+            AND workout_template_id IS NOT NULL
+          GROUP BY workout_template_id
+        ) t
+      ), 0)::int AS max_template_sessions,
+      COUNT(*) FILTER (
+        WHERE COALESCE(
+          t.workout_type,
+          ws.performance_data #>> '{templateSnapshot,metadata,workoutType}'
+        ) IN ('cardio', 'hybrid')
+      )::int AS cardio_sessions
+    FROM ${workoutSessions} ws
+    LEFT JOIN ${workoutTemplates} t ON t.id = ws.workout_template_id
+    WHERE ws.user_id = ${userId} AND ws.completed_at IS NOT NULL
+  `);
 
-  for (const session of sessions) {
-    if (session.completedAt) {
-      const hour = session.completedAt.getHours();
-      if (hour < 8) earlyBirdCount++;
-      if (hour >= 22) nightOwlCount++;
-    }
-    if (session.workoutTemplateId) {
-      templateCounts[session.workoutTemplateId] = (templateCounts[session.workoutTemplateId] || 0) + 1;
-    }
+  const [sessionAgg] = sessionRows;
 
-    // Check if this is a cardio or hybrid session
-    const workoutType = session.templateWorkoutType || session.snapshotWorkoutType;
-    const isCardio = workoutType === 'cardio' || workoutType === 'hybrid';
-
-    if (isCardio) {
-      cardioSessionsCount++;
-    }
-
-    // Sum distance and cardio duration from performance data
-    const performance = session.performance;
-    if (performance) {
-      for (const exercisePerf of Object.values(performance)) {
-        if (exercisePerf.sets) {
-          for (const set of exercisePerf.sets) {
-            if (set.completed) {
-              // Sum actual distance, falling back to target distance from template
-              if (set.actualDistance) {
-                totalDistance += set.actualDistance;
-              }
-              // Sum cardio duration (actual or target) for cardio/hybrid sessions
-              if (isCardio) {
-                if (set.actualDuration) {
-                  cardioDurationSeconds += set.actualDuration;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const maxTemplateSessions = Object.values(templateCounts).reduce((max, c) => Math.max(max, c), 0);
+  const [setAgg] = await db.execute<{ total_distance: string | number; cardio_seconds: string | number }>(sql`
+    SELECT
+      COALESCE(SUM((s.value->>'actualDistance')::numeric), 0) AS total_distance,
+      COALESCE(SUM((s.value->>'actualDuration')::numeric) FILTER (
+        WHERE COALESCE(t.workout_type, ws.performance_data #>> '{templateSnapshot,metadata,workoutType}') IN ('cardio', 'hybrid')
+      ), 0) AS cardio_seconds
+    FROM ${workoutSessions} ws
+    LEFT JOIN ${workoutTemplates} t ON t.id = ws.workout_template_id
+    CROSS JOIN LATERAL jsonb_each(ws.performance_data->'performance') p
+    CROSS JOIN LATERAL jsonb_array_elements(
+      CASE WHEN jsonb_typeof(p.value->'sets') = 'array' THEN p.value->'sets' ELSE '[]'::jsonb END
+    ) s
+    WHERE ws.user_id = ${userId}
+      AND ws.completed_at IS NOT NULL
+      AND (s.value->>'completed')::boolean IS TRUE
+  `);
 
   // Best month: query monthly_stats for highest workoutsCount
   const [bestMonth] = await db
@@ -103,11 +86,15 @@ async function calculateSessionBasedProgress(userId: string): Promise<{
     .from(monthlyStats)
     .where(eq(monthlyStats.userId, userId));
 
-  const bestMonthWorkouts = bestMonth?.maxCount ?? 0;
-
-  const cardioDurationHours = cardioDurationSeconds / 3600;
-
-  return { earlyBirdCount, nightOwlCount, maxTemplateSessions, bestMonthWorkouts, totalDistance, cardioSessionsCount, cardioDurationHours };
+  return {
+    earlyBirdCount: Number(sessionAgg?.early_bird ?? 0),
+    nightOwlCount: Number(sessionAgg?.night_owl ?? 0),
+    maxTemplateSessions: Number(sessionAgg?.max_template_sessions ?? 0),
+    bestMonthWorkouts: bestMonth?.maxCount ?? 0,
+    totalDistance: Number(setAgg?.total_distance ?? 0),
+    cardioSessionsCount: Number(sessionAgg?.cardio_sessions ?? 0),
+    cardioDurationHours: Number(setAgg?.cardio_seconds ?? 0) / 3600,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

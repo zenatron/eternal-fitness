@@ -113,7 +113,14 @@ export async function POST(request: NextRequest) {
       lastUpdated: now,
     };
 
-    await db
+    /*
+     * Conditional upsert instead of the check-then-write above: the WHERE on
+     * the conflict path only overwrites when no active workout exists, so two
+     * racing POSTs cannot both win — the loser's update matches zero rows and
+     * gets the same 409 as the pre-check. The pre-check stays for the friendly
+     * error payload; this is what actually enforces it.
+     */
+    const started = await db
       .insert(userStats)
       .values({
         userId,
@@ -137,7 +144,23 @@ export async function POST(request: NextRequest) {
           activeWorkoutData: activeSessionData,
           activeWorkoutStartedAt: now,
         },
+        setWhere: sql`${userStats.activeWorkoutId} IS NULL`,
+      })
+      .returning({ activeWorkoutId: userStats.activeWorkoutId });
+
+    if (started.length === 0) {
+      const [lost] = await db
+        .select({
+          activeWorkoutId: userStats.activeWorkoutId,
+          activeWorkoutStartedAt: userStats.activeWorkoutStartedAt,
+        })
+        .from(userStats)
+        .where(eq(userStats.userId, userId));
+      return errorResponse('User already has an active workout session', 409, {
+        activeWorkoutId: lost?.activeWorkoutId,
+        startedAt: lost?.activeWorkoutStartedAt,
       });
+    }
 
     return successResponse({
       activeSession: activeSessionData,

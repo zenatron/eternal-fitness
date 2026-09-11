@@ -6,6 +6,11 @@ import { springSnappy, springGentle } from '@/lib/motion';
 
 const devBypassEnabled =
   process.env.NEXT_PUBLIC_AUTH_DEV_BYPASS === 'true';
+// Mirrors the server-side guard in lib/auth.ts: an unconfigured PocketID
+// provider means the button would only lead to an error page. Defaults to
+// enabled so existing deployments that never set the flag keep working.
+const pocketIdEnabled =
+  process.env.NEXT_PUBLIC_AUTH_POCKETID_ENABLED !== 'false';
 
 
 const staggerVariants = {
@@ -90,16 +95,18 @@ export default function LoginPage() {
             animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
             transition={{ ...springGentle, delay: 0.15 }}
           >
-            <motion.button
-              onClick={() => signIn('pocketid')}
-              className="btn btn-primary w-full !py-3"
-              whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-              transition={springSnappy}
-              style={{ boxShadow: '0 0 15px rgb(var(--accent-500) / 0.2)' }}
-            >
-              Sign in with PocketID
-            </motion.button>
+            {pocketIdEnabled && (
+              <motion.button
+                onClick={() => signIn('pocketid')}
+                className="btn btn-primary w-full !py-3"
+                whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                transition={springSnappy}
+                style={{ boxShadow: '0 0 15px rgb(var(--accent-500) / 0.2)' }}
+              >
+                Sign in with PocketID
+              </motion.button>
+            )}
 
             {devBypassEnabled && (
               <motion.button

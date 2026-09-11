@@ -29,17 +29,12 @@
  * reference PWA (`budget-app` / "Ledger") on the same phone emits zero
  * startup-image links and shows no band.
  *
- * This is a single-variable test: flip this to `false` and nothing else changes.
- * After redeploy + delete/re-add the home-screen icon, read `innerHeight` from
- * the SafeAreaDebug overlay (`?debug=safearea` or 7 taps on the footer version):
- *   - innerHeight → 874  → splash links were capping the height. Re-enable only
- *     after adding correct modern entries (402×874, 440×956, …) AND regenerating
- *     their bitmaps, then re-confirm 874.
- *   - innerHeight → 812   → splash was not the cause. Next suspect is the
- *     viewport meta's `maximum-scale=5, user-scalable=yes` (Ledger has neither);
- *     strip those to match Ledger exactly and re-measure.
+ * The modern entries (402×874, 440×956, …) and their bitmaps are now in place,
+ * so the single-variable experiment can be re-run: set EMIT_SPLASH_LINKS=true
+ * in the environment, redeploy, delete/re-add the home-screen icon, and confirm
+ * innerHeight → 874 via the SafeAreaDebug overlay before flipping the default.
  */
-export const EMIT_SPLASH_LINKS = false;
+export const EMIT_SPLASH_LINKS = process.env.EMIT_SPLASH_LINKS === 'true';
 
 export interface SplashScreen {
   /** Logical CSS width of the device in points. */
@@ -53,6 +48,11 @@ export interface SplashScreen {
 }
 
 export const SPLASH_SCREENS: SplashScreen[] = [
+  // Modern devices first, matching scripts/generate-icons.mjs. A device that
+  // finds link tags but no matching entry falls back to a legacy web-view
+  // height — the leading hypothesis for the bottom-band bug.
+  { width: 402, height: 874, ratio: 3, name: 'iphone-16-pro' },
+  { width: 440, height: 956, ratio: 3, name: 'iphone-16-pro-max' },
   { width: 393, height: 852, ratio: 3, name: 'iphone-15-pro' },
   { width: 430, height: 932, ratio: 3, name: 'iphone-15-pro-max' },
   { width: 390, height: 844, ratio: 3, name: 'iphone-13' },
@@ -62,6 +62,8 @@ export const SPLASH_SCREENS: SplashScreen[] = [
   { width: 414, height: 896, ratio: 2, name: 'iphone-xr' },
   { width: 375, height: 667, ratio: 2, name: 'iphone-8' },
   { width: 414, height: 736, ratio: 3, name: 'iphone-8-plus' },
+  { width: 1032, height: 1376, ratio: 2, name: 'ipad-pro-13-m4' },
+  { width: 820, height: 1180, ratio: 2, name: 'ipad-air-11' },
   { width: 768, height: 1024, ratio: 2, name: 'ipad' },
   { width: 834, height: 1112, ratio: 2, name: 'ipad-pro-10' },
   { width: 834, height: 1194, ratio: 2, name: 'ipad-pro-11' },

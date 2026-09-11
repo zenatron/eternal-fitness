@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { userStats, workoutSessions, monthlyStats } from '@/lib/db/schema';
@@ -7,7 +6,7 @@ import { UserPersonalRecords } from '@/types/personalRecords';
 import { exerciseDisplayName } from '@/lib/exerciseLookup';
 import { addDays, dayKeyOf, todayKey } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
-import { successResponse } from '@/lib/api/response';
+import { errorResponse, successResponse } from '@/lib/api/response';
 
 /**
  * How far back the top-exercise breakdown looks. Bounded because this runs on
@@ -15,9 +14,7 @@ import { successResponse } from '@/lib/api/response';
  */
 const TOP_EXERCISE_SESSION_LIMIT = 500;
 
-const errorResponse = (message: string, status = 400, details?: unknown) => {
-  return NextResponse.json({ error: { message, details } }, { status });
-};
+
 
 function convertStoredPRsToDisplayFormat(personalRecords: UserPersonalRecords) {
   const displayRecords: Array<{

@@ -32,6 +32,7 @@
     "@typescript-eslint/parser": "^7.18.0",
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.1",
+    "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.2.4",
     "playwright": "^1.62.0",
@@ -76,5 +77,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "trustedDependencies": [
+    "@embedded-postgres/darwin-arm64",
+    "unrs-resolver"
+  ]
 }

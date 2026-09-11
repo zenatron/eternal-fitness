@@ -25,11 +25,29 @@ export default function manifest(): MetadataRoute.Manifest {
     // unreachable by any amount of CSS.
 
     orientation: 'portrait',
+    // Reuse the running instance instead of spawning a second window — opening
+    // the installed app mid-workout must not fork state into a fresh tab.
+    launch_handler: { client_mode: 'navigate-existing' },
     background_color: '#0a0a09',
     theme_color: '#0a0a09',
     categories: ['health', 'fitness', 'lifestyle', 'sports'],
     dir: 'ltr',
     lang: 'en',
+    // Feeds the richer install dialog on Android/desktop Chrome.
+    screenshots: [
+      {
+        src: '/screenshot-narrow.png',
+        sizes: '1080x1920',
+        type: 'image/png',
+        form_factor: 'narrow',
+      },
+      {
+        src: '/screenshot-wide.png',
+        sizes: '1920x1080',
+        type: 'image/png',
+        form_factor: 'wide',
+      },
+    ],
     icons: [
       { src: '/icons/icon-48.png', sizes: '48x48', type: 'image/png' },
       { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },

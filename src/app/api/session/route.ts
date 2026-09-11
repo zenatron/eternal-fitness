@@ -1,25 +1,25 @@
-import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutTemplates, workoutSessions, userStats } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { parseLimitParam } from '@/lib/api/response';
+import { errorResponse, parseLimitParam, successResponse } from '@/lib/api/response';
 import {
   createWorkoutSession,
   calculateSessionMetrics,
 } from '@/utils/workoutJsonUtils';
 import { ExercisePerformance, WorkoutTemplateData } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { awardWorkoutXP } from '@/lib/xp';
+import { getUserTimeZone } from '@/lib/userTimeZone';
+import {
+  computeStreakFromHistory,
+  getStreakBaseline,
+  recordWorkoutCompletion,
+} from '@/lib/workout/completion';
 
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
 
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [session]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
 
 const legacySessionSchema = z.object({
   templateId: z.string(),
@@ -120,8 +120,51 @@ export async function POST(request: Request) {
           console.error('Error processing PRs:', error);
         }
 
+        /*
+         * The shared completion bookkeeping. This legacy route predates it and
+         * silently skipped streak recompute, lifetime/monthly totals, XP and
+         * achievements — a workout logged here was invisible to every number the
+         * profile shows. See lib/workout/completion.ts for why both completion
+         * paths must go through the same writer.
+         */
+        const completionTime = session.completedAt ?? new Date();
+        const timeZone = await getUserTimeZone(userId, tx);
+        const streak = await computeStreakFromHistory(
+          tx,
+          userId,
+          timeZone,
+          await getStreakBaseline(tx, userId)
+        );
+
+        await recordWorkoutCompletion(tx, {
+          userId,
+          timeZone,
+          totals: {
+            totalVolume: metrics.totalVolume,
+            totalSets: metrics.totalSets,
+            totalExercises: metrics.totalExercises,
+          },
+          durationSeconds: duration ?? 0,
+          completionTime,
+          streak,
+        });
+
         return session;
       });
+
+      // Re-evaluate achievements and XP outside the transaction, matching the
+      // logging path.
+      try {
+        await updateUniqueExercisesCount(userId);
+        await updateUserAchievements(userId);
+      } catch (achievementError) {
+        console.error('Error updating achievements after legacy session create:', achievementError);
+      }
+      try {
+        await awardWorkoutXP(userId, { newPRs: metrics.personalRecords?.length || 0 });
+      } catch (xpError) {
+        console.error('Error awarding workout XP:', xpError);
+      }
 
       return successResponse(newSession, 201);
     }

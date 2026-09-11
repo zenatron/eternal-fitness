@@ -11,6 +11,7 @@ import {
   ArrowLeftIcon,
   Cog6ToothIcon,
   ArrowRightStartOnRectangleIcon,
+  ArrowDownTrayIcon,
   ScaleIcon,
   SparklesIcon,
   ChartBarIcon,
@@ -410,6 +411,12 @@ function ProfileContent() {
                 <button onClick={() => openModal('activity')} className="btn btn-tertiary text-sm inline-flex items-center gap-2">
                   <ChartBarIcon className="w-4 h-4" />
                   Activity
+                </button>
+              </motion.div>
+              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
+                <button onClick={() => window.open('/api/user/export', '_blank')} className="btn btn-tertiary text-sm inline-flex items-center gap-2">
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  Export Data
                 </button>
               </motion.div>
               <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>

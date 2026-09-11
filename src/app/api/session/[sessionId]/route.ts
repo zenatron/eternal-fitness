@@ -5,8 +5,8 @@ import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
-import { computeStreakFromHistory, getStreakBaseline } from '@/lib/workout/completion';
-import { dayKeyOf, monthOf } from '@/utils/datetime';
+import { computeStreakFromHistory, getStreakBaseline, unwindWorkoutCompletion } from '@/lib/workout/completion';
+import { monthOf, dayKeyOf } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
 import { errorResponse, successResponse } from '@/lib/api/response';
 
@@ -284,38 +284,20 @@ export async function DELETE(
       if (!existing) return null;
 
       if (existing.completedAt) {
-        const volume = existing.totalVolume || 0;
-        const sets = existing.totalSets || 0;
-        const exercises = existing.totalExercises || 0;
-        const hours = (existing.duration || 0) / 3600;
-
-        await tx
-          .update(userStats)
-          .set({
-            totalWorkouts: sql`GREATEST(0, ${userStats.totalWorkouts} - 1)`,
-            totalVolume: sql`GREATEST(0, ${userStats.totalVolume} - ${volume})`,
-            totalSets: sql`GREATEST(0, ${userStats.totalSets} - ${sets})`,
-            totalExercises: sql`GREATEST(0, ${userStats.totalExercises} - ${exercises})`,
-            totalTrainingHours: sql`GREATEST(0, ${userStats.totalTrainingHours} - ${hours})`,
-          })
-          .where(eq(userStats.userId, userId));
-
         // Filed by the user's calendar month, exactly as completion recorded it.
         const timeZone = await getUserTimeZone(userId, tx);
-        const { year, month } = monthOf(dayKeyOf(existing.completedAt, timeZone));
 
-        await tx
-          .update(monthlyStats)
-          .set({
-            workoutsCount: sql`GREATEST(0, ${monthlyStats.workoutsCount} - 1)`,
-            volume: sql`GREATEST(0, ${monthlyStats.volume} - ${volume})`,
-            trainingHours: sql`GREATEST(0, ${monthlyStats.trainingHours} - ${hours})`,
-          })
-          .where(and(
-            eq(monthlyStats.userId, userId),
-            eq(monthlyStats.year, year),
-            eq(monthlyStats.month, month),
-          ));
+        await unwindWorkoutCompletion(tx, {
+          userId,
+          totals: {
+            totalVolume: existing.totalVolume || 0,
+            totalSets: existing.totalSets || 0,
+            totalExercises: existing.totalExercises || 0,
+          },
+          durationSeconds: existing.duration || 0,
+          completionTime: existing.completedAt,
+          timeZone,
+        });
 
         // Delete first: the streak recompute below scans completed sessions,
         // and the row must be gone before it runs or the deleted workout still

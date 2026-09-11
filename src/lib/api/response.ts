@@ -16,7 +16,19 @@ export function errorResponse(message: string, status = 500, details?: unknown, 
     message,
     details ? JSON.stringify(details) : ''
   );
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
+  /*
+   * 5xx details can carry exception messages (connection strings, SQL fragments)
+   * to the client; the log above already has them. Anything a route wants the
+   * user to see should be a 4xx detail or the message itself. See
+   * /api/auth/check, which pioneered this rule.
+   */
+  const safeDetails = status >= 500 && details && typeof details === 'object'
+    ? Object.fromEntries(Object.entries(details as Record<string, unknown>).filter(([k]) => k !== 'error'))
+    : details;
+  return NextResponse.json(
+    { error: Object.assign({ message }, safeDetails ? { details: safeDetails } : {}) },
+    { status }
+  );
 }
 
 /**

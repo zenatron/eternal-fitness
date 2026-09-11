@@ -10,7 +10,7 @@ import {
 } from '@/lib/workout/completion';
 import { eq, and, isNotNull, desc, lt } from 'drizzle-orm';
 import { z } from 'zod';
-import { parseLimitParam } from '@/lib/api/response';
+import { errorResponse, parseLimitParam, successResponse } from '@/lib/api/response';
 import {
   createWorkoutSession,
   validateWorkoutSession,
@@ -44,14 +44,7 @@ function normalizePerformance(
   return normalized;
 }
 
-const successResponse = (data: unknown, status = 200) => {
-  return NextResponse.json({ data }, { status });
-};
 
-const errorResponse = (message: string, status = 500, details?: unknown) => {
-  console.error(`API Error (${status}) [session-json/]:`, message, details ? JSON.stringify(details) : '');
-  return NextResponse.json({ error: Object.assign({ message }, details ? { details } : {}) }, { status });
-};
 
 const performedSetSchema = z.object({
   setId: z.string(),

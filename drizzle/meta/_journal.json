@@ -50,6 +50,13 @@
       "when": 1788955200000,
       "tag": "0006_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789041600000,
+      "tag": "0007_leaderboard_search_indexes",
+      "breakpoints": true
     }
   ]
 }

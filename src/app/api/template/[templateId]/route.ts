@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutTemplates, workoutSessions } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { workoutTemplates, workoutSessions, userStats } from '@/lib/db/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { exercises as staticExercisesData } from '@/lib/exercises';
+import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
+import { computeStreakFromHistory, getStreakBaseline, unwindWorkoutCompletion } from '@/lib/workout/completion';
+import { getUserTimeZone } from '@/lib/userTimeZone';
 import {
   createWorkoutTemplate,
   validateWorkoutTemplate,
@@ -165,6 +168,14 @@ export async function DELETE(
 
     const { templateId } = await params;
 
+    /*
+     * Deleting a template deletes its history, and history is what the lifetime
+     * totals, monthly buckets and streaks were computed from. Every completed
+     * session must be unwound exactly as session deletion does (see
+     * `unwindWorkoutCompletion`), or the deleted workouts stay counted forever.
+     */
+    const timeZone = await getUserTimeZone(userId);
+
     await db.transaction(async (tx) => {
       const [existing] = await tx
         .select({ id: workoutTemplates.id })
@@ -173,9 +184,60 @@ export async function DELETE(
 
       if (!existing) throw new Error('TemplateNotFound');
 
+      const completedSessions = await tx
+        .select({
+          completedAt: workoutSessions.completedAt,
+          totalVolume: workoutSessions.totalVolume,
+          totalSets: workoutSessions.totalSets,
+          totalExercises: workoutSessions.totalExercises,
+          duration: workoutSessions.duration,
+        })
+        .from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.workoutTemplateId, templateId),
+          eq(workoutSessions.userId, userId),
+          isNotNull(workoutSessions.completedAt),
+        ));
+
+      for (const session of completedSessions) {
+        await unwindWorkoutCompletion(tx, {
+          userId,
+          totals: {
+            totalVolume: session.totalVolume || 0,
+            totalSets: session.totalSets || 0,
+            totalExercises: session.totalExercises || 0,
+          },
+          durationSeconds: session.duration || 0,
+          completionTime: session.completedAt!,
+          timeZone,
+        });
+      }
+
+      // Delete rows first: the streak recompute scans completed sessions.
       await tx.delete(workoutSessions).where(and(eq(workoutSessions.workoutTemplateId, templateId), eq(workoutSessions.userId, userId)));
       await tx.delete(workoutTemplates).where(eq(workoutTemplates.id, templateId));
+
+      if (completedSessions.length > 0) {
+        const baseline = await getStreakBaseline(tx, userId);
+        const streak = await computeStreakFromHistory(tx, userId, timeZone, baseline);
+        await tx
+          .update(userStats)
+          .set({
+            currentStreak: streak.currentStreak,
+            longestStreak: streak.longestStreak,
+            lastWorkoutAt: streak.lastWorkoutAt,
+          })
+          .where(eq(userStats.userId, userId));
+      }
     });
+
+    // Re-evaluate achievements outside the transaction, matching session delete.
+    try {
+      await updateUniqueExercisesCount(userId);
+      await updateUserAchievements(userId);
+    } catch (achievementError) {
+      console.error('Error updating achievements after template delete:', achievementError);
+    }
 
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {

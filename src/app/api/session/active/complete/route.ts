@@ -31,7 +31,7 @@ const ENDPOINT = 'session/active/complete';
 const completeSessionSchema = z.object({
   duration: z.number().optional(),
   notes: z.string().optional(),
-  completedAt: z.string().optional(),
+  completedAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const session = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [stats] = await tx
         .select({
           activeWorkoutId: userStats.activeWorkoutId,
@@ -156,22 +156,27 @@ export async function POST(request: NextRequest) {
         clearActiveWorkout: true,
       });
 
-      return createdSession;
+      // PRs inside the same transaction: outside it, a concurrent completion's
+      // read-modify-write on userStats.personalRecords could interleave and
+      // silently lose a record.
+      let txNewPRs: any[] = [];
+      try {
+        const prResult = await processWorkoutSessionPRs(
+          userId,
+          createdSession.id,
+          performanceData,
+          finalTemplate,
+          tx,
+        );
+        txNewPRs = prResult.newPRs;
+      } catch (prError) {
+        console.error('Error processing PRs for completed session:', prError);
+      }
+
+      return { session: createdSession, newPRs: txNewPRs };
     });
 
-    // Process PRs outside transaction using the proper detection system
-    let newPRs: any[] = [];
-    try {
-      const prResult = await processWorkoutSessionPRs(
-        userId,
-        session.id,
-        (session.performanceData as WorkoutSessionData).performance,
-        (session.performanceData as WorkoutSessionData).templateSnapshot,
-      );
-      newPRs = prResult.newPRs;
-    } catch (prError) {
-      console.error('Error processing PRs for completed session:', prError);
-    }
+    const { session, newPRs } = result;
 
     let achievementResult = { newAchievements: [] as string[], totalAchievements: 0, pointsAwarded: 0, progress: {} as Record<string, number> };
     try {

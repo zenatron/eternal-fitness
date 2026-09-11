@@ -23,7 +23,10 @@ services:
       - quantanet
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://eternal:eternal@db:5432/eternal_fitness
+      # Defaults match the db service below so a bare `docker compose up` keeps
+      # working; override POSTGRES_PASSWORD in the environment (or a .env file)
+      # rather than editing this file.
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-eternal}:${POSTGRES_PASSWORD:-eternal}@db:5432/${POSTGRES_DB:-eternal_fitness}
       - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_POCKETID_ID=${AUTH_POCKETID_ID}
       - AUTH_POCKETID_SECRET=${AUTH_POCKETID_SECRET}
@@ -52,13 +55,13 @@ services:
       # for the network. The app reaches the db over the shared docker network.
       - "127.0.0.1:5433:5432"
     environment:
-      POSTGRES_USER: eternal
-      POSTGRES_PASSWORD: eternal
-      POSTGRES_DB: eternal_fitness
+      POSTGRES_USER: ${POSTGRES_USER:-eternal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eternal}
+      POSTGRES_DB: ${POSTGRES_DB:-eternal_fitness}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eternal -d eternal_fitness"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eternal} -d ${POSTGRES_DB:-eternal_fitness}"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -84,6 +84,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
             },
           },
         }}
+        onSuccess={() => {
+          /*
+           * The restored cache carries its original `dataUpdatedAt`, so queries
+           * written under staleTime count as fresh on a cold launch — a workout
+           * finished elsewhere (or a template deleted and its totals unwound)
+           * stayed invisible behind a "fresh" cache until the staleTime lapsed.
+           * Restored data is a snapshot, not a guarantee: mark it all stale
+           * once. Mounted queries refetch immediately; the rest refetch on
+           * mount. Offline this fails silently back to the cache, which is the
+           * whole point of persisting it.
+           */
+          void queryClient.invalidateQueries();
+        }}
       >
         <ThemeProvider
           attribute="class"

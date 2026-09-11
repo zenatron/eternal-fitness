@@ -181,6 +181,49 @@ interface RecordCompletionArgs {
 }
 
 /**
+ * Removes one finished workout from the user's lifetime and monthly totals —
+ * the exact inverse of `recordWorkoutCompletion` below.
+ *
+ * Shared by session deletion and template deletion. Template deletion used to
+ * delete its sessions' rows without unwinding any of this, permanently
+ * inflating lifetime totals, monthly buckets and streaks — the failure mode the
+ * session-delete path already documents. Streaks are *not* touched here: the
+ * caller must recompute them from history once every row is gone.
+ */
+export async function unwindWorkoutCompletion(
+  tx: Tx,
+  { userId, totals, durationSeconds, completionTime, timeZone }: Omit<RecordCompletionArgs, 'streak' | 'clearActiveWorkout'>
+): Promise<void> {
+  const trainingHours = durationSeconds > 0 ? durationSeconds / 3600 : 0;
+
+  await tx
+    .update(userStats)
+    .set({
+      totalWorkouts: sql`GREATEST(0, ${userStats.totalWorkouts} - 1)`,
+      totalVolume: sql`GREATEST(0, ${userStats.totalVolume} - ${totals.totalVolume})`,
+      totalSets: sql`GREATEST(0, ${userStats.totalSets} - ${totals.totalSets})`,
+      totalExercises: sql`GREATEST(0, ${userStats.totalExercises} - ${totals.totalExercises})`,
+      totalTrainingHours: sql`GREATEST(0, ${userStats.totalTrainingHours} - ${trainingHours})`,
+    })
+    .where(eq(userStats.userId, userId));
+
+  const { year, month } = monthOf(dayKeyOf(completionTime, timeZone));
+
+  await tx
+    .update(monthlyStats)
+    .set({
+      workoutsCount: sql`GREATEST(0, ${monthlyStats.workoutsCount} - 1)`,
+      volume: sql`GREATEST(0, ${monthlyStats.volume} - ${totals.totalVolume})`,
+      trainingHours: sql`GREATEST(0, ${monthlyStats.trainingHours} - ${trainingHours})`,
+    })
+    .where(and(
+      eq(monthlyStats.userId, userId),
+      eq(monthlyStats.year, year),
+      eq(monthlyStats.month, month),
+    ));
+}
+
+/**
  * Adds one finished workout to the user's lifetime and monthly totals.
  *
  * An upsert rather than an update: the logging path can be the very first thing
