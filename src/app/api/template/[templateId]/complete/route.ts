@@ -12,11 +12,13 @@ import {
   recordWorkoutCompletion,
 } from '@/lib/workout/completion';
 import { WorkoutTemplate, WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
+import { recomputePerformanceVolume } from '@/lib/volume';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { awardWorkoutXP } from '@/lib/xp';
 import {
   findIdempotentResponse,
+  claimIdempotencyKey,
   getIdempotencyKey,
   pruneIdempotencyKeys,
   recordIdempotentResponse,
@@ -30,23 +32,25 @@ const successResponse = (data: unknown, status = 201) => {
 };
 
 const completeTemplateSchema = z.object({
-  duration: z.number().int().positive().optional(),
-  notes: z.string().optional(),
+  duration: z.number().int().positive().max(86400).optional(),
+  notes: z.string().max(10000).optional(),
   performance: z.record(z.object({
     exerciseKey: z.string(),
+    perSide: z.boolean().optional(),
     sets: z.array(z.object({
       setId: z.string(),
-      actualReps: z.number().optional(),
-      actualWeight: z.number().optional(),
-      actualDuration: z.number().optional(),
-      actualRpe: z.number().optional(),
+      actualReps: z.number().int().nonnegative().max(10000).optional(),
+      actualWeight: z.number().nonnegative().max(100000).optional(),
+      actualDuration: z.number().positive().max(86400).optional(),
+      actualRpe: z.number().min(1).max(10).optional(),
       completed: z.boolean(),
       skipped: z.boolean().optional(),
-      notes: z.string().optional(),
-      restTime: z.number().optional(),
+      notes: z.string().max(2000).optional(),
+      restTime: z.number().nonnegative().optional(),
     })),
-    exerciseNotes: z.string().optional(),
-    totalVolume: z.number(),
+    exerciseNotes: z.string().max(2000).optional(),
+    // Ignored — recomputed server-side from the sets (see lib/volume.ts).
+    totalVolume: z.number().optional(),
     averageRpe: z.number().optional(),
   })).optional(),
 });
@@ -85,7 +89,15 @@ export async function POST(
       }
     }
 
-    const newSession = await db.transaction(async (tx) => {
+    const templateResult = await db.transaction(async (tx) => {
+      // Claim the key inside the transaction (see claimIdempotencyKey) so a
+      // replay racing the first attempt cannot both log a session.
+      if (idempotencyKey) {
+        const claim = await claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT);
+        if (claim.status === 'replay') return { kind: 'replay' as const, response: claim.response };
+        if (claim.status === 'in-flight') return { kind: 'conflict' as const };
+      }
+
       const [template] = await tx
         .select({
           id: workoutTemplates.id,
@@ -106,18 +118,26 @@ export async function POST(
       let actualTotalVolume = plannedVolume;
       let completedSets = totalSets;
       let skippedSets = 0;
+      let effectivePerformance: { [exerciseId: string]: ExercisePerformance } = {};
 
       if (performance) {
-        actualTotalVolume = Object.values(performance).reduce((total, ep) => total + ep.totalVolume, 0);
-        completedSets = Object.values(performance).reduce((total, ep) => total + ep.sets.filter(s => s.completed).length, 0);
-        skippedSets = Object.values(performance).reduce((total, ep) => total + ep.sets.filter(s => s.skipped).length, 0);
+        // Volume is recomputed from the sets and the template's own per-side
+        // flags — client totals have historically been computed with
+        // inconsistent multipliers.
+        const recomputed = recomputePerformanceVolume(performance, template.workoutData, {
+          fallbackToLibrary: true,
+        });
+        effectivePerformance = recomputed.performance;
+        actualTotalVolume = recomputed.totalVolume;
+        completedSets = recomputed.completedSets;
+        skippedSets = recomputed.skippedSets;
       }
 
       const adherenceScore = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 100;
 
       const performanceData = {
         templateSnapshot: template.workoutData,
-        performance: performance || {},
+        performance: effectivePerformance,
         metrics: {
           totalVolume: actualTotalVolume,
           totalSets,
@@ -131,6 +151,7 @@ export async function POST(
         environment: {},
       };
 
+      let txNewPRs: any[] = [];
       const [createdSession] = await tx
         .insert(workoutSessions)
         .values({
@@ -142,17 +163,27 @@ export async function POST(
           totalVolume: actualTotalVolume,
           totalSets: completedSets,
           totalExercises: template.exerciseCount || 0,
-          personalRecords: [],
+          personalRecords: 0,
           performanceData,
         })
         .returning();
 
-      if (performance && Object.keys(performance).length > 0) {
+      if (Object.keys(effectivePerformance).length > 0) {
         try {
-          await processWorkoutSessionPRs(userId, createdSession.id, performance, template.workoutData, tx);
+          const prResult = await processWorkoutSessionPRs(userId, createdSession.id, effectivePerformance, template.workoutData, tx);
+          txNewPRs = prResult.newPRs;
         } catch (prError) {
           console.error('Error processing PRs:', prError);
         }
+      }
+
+      if (txNewPRs.length > 0) {
+        // Count, not array — every other writer stores the count in this
+        // column and readers assume it.
+        await tx
+          .update(workoutSessions)
+          .set({ personalRecords: txNewPRs.length })
+          .where(eq(workoutSessions.id, createdSession.id));
       }
 
       // Shared with the other two completion routes so the lifetime totals
@@ -180,8 +211,17 @@ export async function POST(
         streak,
       });
 
-      return createdSession;
+      return { kind: 'ok' as const, session: createdSession, txNewPRs };
     });
+
+    if (templateResult.kind === 'replay') {
+      return successResponse({ ...(templateResult.response as Record<string, unknown>), deduplicated: true });
+    }
+    if (templateResult.kind === 'conflict') {
+      return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+    }
+
+    const { session: newSession, txNewPRs } = templateResult;
 
     let achievementPoints = 0;
     try {
@@ -194,18 +234,18 @@ export async function POST(
     }
 
     // The other three completion paths (session/active/complete, session/log and
-    // session-json) all award base XP. This one did not, so finishing a workout
-    // through a template silently earned zero points and left the user's level
-    // out of step with their workout count.
+    // session-json) all award base XP plus a per-PR bonus. This one now matches:
+    // PRs are processed in the transaction above, so their bonus is owed here.
     let workoutXP = 0;
     try {
-      workoutXP = await awardWorkoutXP(userId, { newPRs: 0 });
+      workoutXP = await awardWorkoutXP(userId, { newPRs: txNewPRs.length });
     } catch (xpError) {
       console.error('Error awarding workout XP:', xpError);
     }
 
     const payload = {
       ...newSession,
+      newPRs: txNewPRs,
       workoutXP,
       totalAwarded: workoutXP + achievementPoints,
     };

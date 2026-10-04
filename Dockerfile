@@ -34,6 +34,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# The standalone bundle traces its own runtime dependencies into
+# .next/standalone/node_modules. This copy exists for ONE consumer:
+# scripts/migrate.ts, which the entrypoint runs before boot and which the
+# tracer never saw. (bun server.js is the launch path — see entrypoint.sh.)
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
@@ -43,5 +47,10 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+# /api/auth/check answers 200 JSON without a session by design, so it probes
+# the whole stack (process up, DB reachable) without auth.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -fsS http://localhost:3000/api/auth/check || exit 1
 
 ENTRYPOINT ["sh", "./scripts/entrypoint.sh"]

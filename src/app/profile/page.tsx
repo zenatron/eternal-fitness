@@ -185,6 +185,11 @@ function ProfileContent() {
     const modal = searchParams.get('modal');
     if (modal === 'records' || modal === 'exercises' || modal === 'activity' || modal === 'achievements') {
       setActiveModal(modal);
+    } else {
+      // The param disappearing (browser Back, or closeModal's pushState) must
+      // also close the modal state — one-directional sync left the modal open
+      // over a URL that no longer mentioned it.
+      setActiveModal((current) => (current !== null ? null : current));
     }
   }, [searchParams]);
 
@@ -240,12 +245,13 @@ function ProfileContent() {
    *  - The persisted IndexedDB cache can be restored before this Suspense
    *    boundary hydrates, so the client had real data while the server HTML was
    *    a skeleton. `useHasMounted` forces the first client render to match.
+   *
+   * Errors are checked first when there is no data to fall back on: useProfile
+   * leaves `profile` undefined on a failed fetch, so a `!profile` gate above
+   * the error block turned every fetch failure into an endless skeleton.
    */
-  if (!hasMounted || isLoading || statsLoading || !profile) {
-    return <ProfileSkeleton />;
-  }
-
-  if (error || statsError) {
+  if (!hasMounted || (error && !profile)) {
+    if (isLoading || statsLoading) return <ProfileSkeleton />;
     return (
       <div className="py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -253,7 +259,26 @@ function ProfileContent() {
             <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
               <span className="text-white text-xs font-bold">!</span>
             </div>
-            {String(error || statsError)}
+            {error?.message || 'Could not load your profile. Check your connection and try again.'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasMounted || isLoading || statsLoading || !profile) {
+    return <ProfileSkeleton />;
+  }
+
+  if (statsError) {
+    return (
+      <div className="py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="form-error">
+            <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold">!</span>
+            </div>
+            {statsError?.message || 'Could not load your stats.'}
           </div>
         </div>
       </div>
@@ -317,10 +342,12 @@ function ProfileContent() {
                     </p>
                   )}
                   <p className="mt-0.5 text-xs text-accent-200">
-                    {`Member since ${new Date(profile?.joinDate || '').toLocaleDateString(
-                      'en-US',
-                      { month: 'short', year: 'numeric' }
-                    )}`}
+                    {profile?.joinDate
+                      ? `Member since ${new Date(profile.joinDate).toLocaleDateString(
+                          undefined,
+                          { month: 'short', year: 'numeric' }
+                        )}`
+                      : null}
                   </p>
                 </div>
 

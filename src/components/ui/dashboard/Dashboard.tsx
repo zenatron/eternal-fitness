@@ -240,11 +240,14 @@ export default function Dashboard() {
     }
   }, [mounted, profileLoading, profile, router]);
 
-  if (!mounted || loading || configLoading || profileLoading || !data) {
-    return <DashboardSkeletonLoader />;
-  }
-
-  if (error) {
+  // Error must be checked BEFORE the data gate: useDashboardData leaves
+  // `data` undefined on a failed fetch, so gating on `!data` first rendered a
+  // shimmering skeleton forever — precisely the offline cold-start case the
+  // error card with "Try Again" below was built for.
+  if (!mounted || (error && !data)) {
+    if (!mounted || loading || configLoading || profileLoading) {
+      return <DashboardSkeletonLoader />;
+    }
     return (
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
@@ -257,7 +260,7 @@ export default function Dashboard() {
             Error Loading Dashboard
           </h2>
           <p className="text-surface-500 dark:text-surface-600 text-sm mb-4">
-            {error.message}
+            {error?.message || 'Something went wrong. Check your connection and try again.'}
           </p>
           <motion.button
             onClick={() => refetch()}
@@ -271,6 +274,10 @@ export default function Dashboard() {
         </div>
       </motion.div>
     );
+  }
+
+  if (!mounted || loading || configLoading || profileLoading || !data) {
+    return <DashboardSkeletonLoader />;
   }
 
   const enabledTiles = config.tiles

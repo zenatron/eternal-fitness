@@ -56,6 +56,8 @@ export default function ProfileSetup() {
   });
   const [error, setError] = useState<string | null>(null);
   const [shakeError, setShakeError] = useState(false);
+  /** Field-level messages, matching the edit form the user graduates to. */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -63,6 +65,9 @@ export default function ProfileSetup() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError(null);
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const selectUnit = (useMetric: boolean) => {
@@ -87,24 +92,33 @@ export default function ProfileSetup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+
+    // Bounds mirror the server's profileSchema and the edit form's zod schema:
+    // this is the first form a new user touches and it used to accept 1750cm.
+    const checks: Array<[string, boolean, string]> = [
+      ['name', !formData.name.trim(), 'Please enter your name'],
+      ['age', (() => { const n = parseInt(formData.age, 10); return Number.isNaN(n) || n < 13 || n > 120; })(), 'Please enter a valid age (13–120)'],
+      ['gender', !formData.gender, 'Please select your gender'],
+      ['height', (() => { const n = parseFloat(formData.height); return Number.isNaN(n) || n <= 0 || (formData.useMetric ? n > 300 : n > 120); })(), 'Please enter a valid height'],
+      ['weight', (() => { const n = parseFloat(formData.weight); return Number.isNaN(n) || n <= 0 || (formData.useMetric ? n > 700 : n > 1500); })(), 'Please enter a valid weight'],
+    ];
+
+    const failures = checks.filter(([, failed]) => failed);
+    if (failures.length > 0) {
+      setFieldErrors(Object.fromEntries(failures.map(([field, , message]) => [field, message])));
+      setError(failures[0][2]);
+      triggerShake();
+      return;
+    }
 
     try {
-      const age = parseInt(formData.age, 10);
-      const height = parseFloat(formData.height);
-      const weight = parseFloat(formData.weight);
-
-      if (!formData.name.trim()) throw new Error('Please enter your name');
-      if (Number.isNaN(age) || age < 13) throw new Error('Please enter a valid age (13 or older)');
-      if (!formData.gender) throw new Error('Please select your gender');
-      if (Number.isNaN(height) || height <= 0) throw new Error('Please enter a valid height');
-      if (Number.isNaN(weight) || weight <= 0) throw new Error('Please enter a valid weight');
-
       await updateProfileMutation.mutateAsync({
         name: formData.name.trim(),
-        age,
+        age: parseInt(formData.age, 10),
         gender: formData.gender,
-        height,
-        weight,
+        height: parseFloat(formData.height),
+        weight: parseFloat(formData.weight),
         useMetric: formData.useMetric,
       });
       router.replace('/profile');
@@ -184,11 +198,14 @@ export default function ProfileSetup() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="form-input"
+                      className={`form-input ${fieldErrors['name'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['name']}
                       placeholder="Your full name"
                       autoComplete="name"
                       required
                     />
+                      {fieldErrors['name'] && (
+                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter your name</p>
+                      )}
                   </div>
                   <div>
                     <label htmlFor="age" className="form-label">Age</label>
@@ -198,12 +215,15 @@ export default function ProfileSetup() {
                       name="age"
                       value={formData.age}
                       onChange={handleChange}
-                      className="form-input"
+                      className={`form-input ${fieldErrors['age'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['age']}
                       placeholder="Your age"
                       min={13}
                       max={120}
                       required
                     />
+                      {fieldErrors['age'] && (
+                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid age (13–120)</p>
+                      )}
                   </div>
                   <div className="sm:col-span-2">
                     <label htmlFor="gender" className="form-label">Gender</label>
@@ -212,7 +232,7 @@ export default function ProfileSetup() {
                       name="gender"
                       value={formData.gender}
                       onChange={handleChange}
-                      className="form-select"
+                      className={`form-select ${fieldErrors['gender'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['gender']}
                       required
                     >
                       <option value="">Select gender</option>
@@ -242,6 +262,9 @@ export default function ProfileSetup() {
                     { value: true, label: 'Metric', hint: 'kg, cm' },
                   ]}
                 />
+                      {fieldErrors['gender'] && (
+                        <p className="mt-1 text-xs text-danger-500" role="alert">Please select your gender</p>
+                      )}
               </motion.div>
 
               {/* Measurements */}
@@ -260,11 +283,14 @@ export default function ProfileSetup() {
                       name="height"
                       value={formData.height}
                       onChange={handleChange}
-                      className="form-input"
+                      className={`form-input ${fieldErrors['height'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['height']}
                       placeholder={formData.useMetric ? 'e.g. 175' : 'e.g. 69'}
                       step="0.1"
                       required
                     />
+                      {fieldErrors['height'] && (
+                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid height</p>
+                      )}
                   </div>
                   <div>
                     <label htmlFor="weight" className="form-label">
@@ -276,11 +302,14 @@ export default function ProfileSetup() {
                       name="weight"
                       value={formData.weight}
                       onChange={handleChange}
-                      className="form-input"
+                      className={`form-input ${fieldErrors['weight'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['weight']}
                       placeholder={formData.useMetric ? 'e.g. 70' : 'e.g. 154'}
                       step="0.1"
                       required
                     />
+                      {fieldErrors['weight'] && (
+                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid weight</p>
+                      )}
                   </div>
                 </div>
               </motion.div>

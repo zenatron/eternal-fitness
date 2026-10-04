@@ -41,7 +41,7 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
     },
     {
       title: 'Current Streak',
-      value: `${stats.currentStreak} days`,
+      value: `${stats.currentStreak} ${stats.currentStreak === 1 ? 'day' : 'days'}`,
       icon: FireIcon,
       color: 'from-accent-500 to-accent-600',
       bgColor: 'bg-accent-50 dark:bg-accent-900/20',
@@ -92,14 +92,10 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
           whileHover={noMotion ? {} : { y: -3, scale: 1.02 }}
           className="forge-card overflow-hidden"
         >
-          <motion.div
-            className={`h-2 bg-gradient-to-r ${stat.color}`}
-            animate={noMotion ? {} : {
-              backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-            }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-            style={{ backgroundSize: '200% 200%' }}
-          />
+          {/* Static gradient strip. Two infinite animations per card × six
+              cards ran background-position and scale recalcs forever on a page
+              users leave open; the entrance + hover carry the life here. */}
+          <div className={`h-2 bg-gradient-to-r ${stat.color}`} />
           <div className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -110,15 +106,11 @@ export function StatsOverview({ stats, useMetric }: StatsOverviewProps) {
                   {stat.value}
                 </p>
               </div>
-              <motion.div
+              <div
                 className={`p-3 rounded-xl ${stat.bgColor}`}
-                animate={noMotion ? {} : {
-                  scale: [1, 1.05, 1],
-                }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: index * 0.2 }}
               >
                 <stat.icon className={`w-8 h-8 ${stat.iconColor}`} />
-              </motion.div>
+              </div>
             </div>
           </div>
         </motion.div>

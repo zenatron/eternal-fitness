@@ -18,7 +18,7 @@ export const useTemplate = (templateId: string) => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to fetch template');
+        throw new Error(errorData?.error?.message || 'Failed to fetch template');
       }
 
       const result = await response.json();

@@ -34,6 +34,13 @@ const MEDAL_COLORS: Record<number, string> = {
   3: 'from-amber-600 to-amber-800',
 };
 
+/** Digit ink per medal — white on gold (#fde047) measured ~1.5:1. */
+const MEDAL_TEXT_COLORS: Record<number, string> = {
+  1: 'text-award-950',
+  2: 'text-surface-950',
+  3: 'text-white',
+};
+
 export default function LeaderboardPage() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
@@ -122,7 +129,7 @@ export default function LeaderboardPage() {
                   className={`forge-card p-4 text-center ${entry.isCurrentUser ? 'ring-2 ring-accent-500' : ''} ${entry.rank === 1 ? 'md:order-2 md:-mt-4 md:scale-105' : entry.rank === 2 ? 'md:order-1' : 'md:order-3'}`}
                 >
                   <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${MEDAL_COLORS[entry.rank] || 'from-surface-300 to-surface-400'} flex items-center justify-center mx-auto mb-2`}>
-                    <span className="text-white font-black text-lg">{entry.rank}</span>
+                    <span className={`font-black text-lg ${MEDAL_TEXT_COLORS[entry.rank] || 'text-white'}`}>{entry.rank}</span>
                   </div>
                   <p className="font-display font-bold text-surface-50 dark:text-white text-sm truncate">
                     {entry.name}

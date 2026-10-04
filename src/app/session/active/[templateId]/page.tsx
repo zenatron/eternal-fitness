@@ -33,6 +33,7 @@ const VictoryPopup = dynamic(() => import('@/components/modals/VictoryPopup'), {
 import { useActiveWorkout } from '@/lib/hooks/useActiveWorkout';
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
 import { useTickingNow } from '@/lib/hooks/useTickingNow';
+import { useRestTimerActions } from '@/components/workout/RestTimerProvider';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalShell } from '@/components/ui/ModalShell';
 import toast from 'react-hot-toast';
@@ -64,16 +65,22 @@ const NOTES_DEBOUNCE_MS = 600;
  * after typing stops, immediately on blur, and on unmount — so completing the
  * workout right after typing still captures it.
  */
-function SessionNotesCard({ disabled }: { disabled: boolean }) {
+function SessionNotesCard({
+  disabled,
+  notesRef,
+}: {
+  disabled: boolean;
+  /** Shared with the page so Finish can read the draft even when the debounce
+   *  has not fired — the completion path reads this, not provider state. */
+  notesRef: React.MutableRefObject<string>;
+}) {
   const { activeWorkout, updateSessionNotes } = useActiveWorkout();
   const serverNotes = activeWorkout?.sessionNotes || '';
   const [draft, setDraft] = useState(serverNotes);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** True between the first keystroke and the commit landing in the provider. */
   const dirtyRef = useRef(false);
-  const latestRef = useRef(draft);
   const updateRef = useRef(updateSessionNotes);
-  latestRef.current = draft;
   updateRef.current = updateSessionNotes;
 
   // Adopt notes changed elsewhere (recovery, another tab) while not editing.
@@ -85,18 +92,19 @@ function SessionNotesCard({ disabled }: { disabled: boolean }) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       // Flush on unmount: completing the workout tears this card down, and the
-      // completion payload reads the provider's copy of the notes.
-      if (dirtyRef.current) updateRef.current(latestRef.current);
+      // provider's copy of the notes should stay current for the sync path.
+      if (dirtyRef.current) updateRef.current(notesRef.current);
     };
-  }, []);
+  }, [notesRef]);
 
   const handleChange = (value: string) => {
     setDraft(value);
     dirtyRef.current = true;
+    notesRef.current = value;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       dirtyRef.current = false;
-      updateRef.current(latestRef.current);
+      updateRef.current(notesRef.current);
     }, NOTES_DEBOUNCE_MS);
   };
 
@@ -104,8 +112,14 @@ function SessionNotesCard({ disabled }: { disabled: boolean }) {
     if (!dirtyRef.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     dirtyRef.current = false;
-    updateRef.current(latestRef.current);
+    updateRef.current(notesRef.current);
   };
+
+  // Keep the shared ref truthful even before the first keystroke (e.g. notes
+  // adopted from the provider).
+  useEffect(() => {
+    if (!dirtyRef.current) notesRef.current = serverNotes;
+  }, [serverNotes, notesRef]);
 
   return (
     <div className="forge-card overflow-hidden">
@@ -185,6 +199,13 @@ export default function ActiveSessionPage({
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  /** Set when the user opens this page while a DIFFERENT template's workout is active. */
+  const [showCrossTemplateConfirm, setShowCrossTemplateConfirm] = useState(false);
+  /** The notes draft, shared with SessionNotesCard so Finish never loses typed-but-unsaved text. */
+  const sessionNotesRef = useRef<string>('');
+
+  // Actions only — the countdown state would re-render this whole page 4×/s.
+  const restTimer = useRestTimerActions();
 
   // Keep the screen on while a workout is running, so the phone doesn't lock
   // between every set. Released automatically when the timer is paused or the
@@ -210,23 +231,32 @@ export default function ActiveSessionPage({
 
   // Check for existing active workout on page load
   useEffect(() => {
-    if (template && !workoutCompleted && !isActiveWorkoutLoading) {
-      if (hasActiveWorkout && activeWorkout?.templateId !== template.id) {
-        // Active workout is for a different template, try to recover
-        console.warn('Active workout is for a different template. Current:', activeWorkout?.templateId, 'Expected:', template.id);
-        recoverSession(template.id, true).catch((error) => {
-          console.error('Failed to recover session:', error);
-          // If recovery fails, we'll let the user manually start a new workout
-        });
-      }
-      // If hasActiveWorkout && activeWorkout.templateId === template.id, we continue the existing workout
-      // If no active workout, we wait for user to click "Start Workout"
-    }
-  }, [template, hasActiveWorkout, activeWorkout, workoutCompleted, isActiveWorkoutLoading, recoverSession]);
+    if (!template || workoutCompleted || isActiveWorkoutLoading) return;
+    if (!hasActiveWorkout || activeWorkout?.templateId === template.id) return;
+
+    // A different template's workout is in progress. Used to force-recover
+    // silently: the recover route re-labelled the old session onto THIS
+    // template, and positional exercise IDs ('exercise-1') meant its logged
+    // sets were adopted into whatever this template's first exercise is —
+    // one tap from the templates grid, no warning. Now the user decides.
+    if (recoverPromptDismissedRef.current) return;
+    setShowCrossTemplateConfirm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template?.id, hasActiveWorkout, activeWorkout?.templateId, workoutCompleted, isActiveWorkoutLoading]);
+
+  const recoverPromptDismissedRef = useRef(false);
 
   // Function to manually start a workout
   const handleStartWorkout = useCallback(async () => {
     if (!template) return;
+
+    // A live workout for a different template must be dealt with first; the
+    // server start endpoint would (correctly) 409 this, but by then the user
+    // is already looking at a session page that cannot run.
+    if (hasActiveWorkout && activeWorkout && activeWorkout.templateId !== template.id) {
+      setShowCrossTemplateConfirm(true);
+      return;
+    }
 
     try {
       await startWorkout(template.id, template.name, template.workoutData);
@@ -245,7 +275,30 @@ export default function ActiveSessionPage({
         );
       }
     }
-  }, [template, startWorkout]);
+  }, [template, startWorkout, hasActiveWorkout, activeWorkout]);
+
+  /** Cross-template resolution: discard the old session and take this page over. */
+  const handleDiscardAndSwitch = async () => {
+    setShowCrossTemplateConfirm(false);
+    recoverPromptDismissedRef.current = true;
+    if (!template) return;
+    try {
+      restTimer.skip();
+      await recoverSession(template.id, true);
+      await startWorkout(template.id, template.name, template.workoutData);
+    } catch (error) {
+      console.error('Failed to switch workouts:', error);
+      toast.error('Could not switch workouts. Finish or discard the other one first.');
+    }
+  };
+
+  /** Keep the in-progress workout and go to it. */
+  const handleKeepCurrentWorkout = () => {
+    setShowCrossTemplateConfirm(false);
+    if (activeWorkout?.templateId) {
+      router.push(`/session/active/${activeWorkout.templateId}`);
+    }
+  };
 
   // No more state synchronization needed - everything comes from activeWorkout directly
 
@@ -255,6 +308,9 @@ export default function ActiveSessionPage({
 
   const handleCancelWorkout = async () => {
     setShowCancelConfirm(false);
+    // The rest bar is global; nothing else cancels it on discard, so the
+    // countdown outlived the workout it belonged to.
+    restTimer.skip();
     try {
       await endWorkout();
       router.push('/profile');
@@ -284,31 +340,35 @@ export default function ActiveSessionPage({
     try {
       // If user wants to save template changes
       if (options.saveTemplate !== 'none' && activeWorkout?.modifiedTemplate) {
-        if (options.saveTemplate === 'update') {
-          await fetch(`/api/template/${template.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: template.name,
-              workoutData: activeWorkout.modifiedTemplate,
-              difficulty: template.difficulty,
-              workoutType: template.workoutType,
-              favorite: template.favorite,
-            }),
-          });
-        } else {
-          await fetch('/api/template/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: `${template.name} (Modified)`,
-              description: `Modified version of ${template.name} from workout session`,
-              workoutData: activeWorkout.modifiedTemplate,
-              difficulty: template.difficulty,
-              workoutType: template.workoutType,
-              favorite: false,
-            }),
-          });
+        const response = options.saveTemplate === 'update'
+          ? await fetch(`/api/template/${template.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: template.name,
+                workoutData: activeWorkout.modifiedTemplate,
+                difficulty: template.difficulty,
+                workoutType: template.workoutType,
+                favorite: template.favorite,
+              }),
+            })
+          : await fetch('/api/template/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: `${template.name} (Modified)`,
+                description: `Modified version of ${template.name} from workout session`,
+                workoutData: activeWorkout.modifiedTemplate,
+                difficulty: template.difficulty,
+                workoutType: template.workoutType,
+                favorite: false,
+              }),
+            });
+        // A failed template save used to be swallowed silently while the
+        // workout completed as if it had saved. The workout is still logged —
+        // it is the real event — but the user is told the template side failed.
+        if (!response.ok) {
+          toast.error('The workout will be logged, but saving the template changes failed.', { duration: 6000 });
         }
       }
 
@@ -322,15 +382,29 @@ export default function ActiveSessionPage({
         await flushNow();
       }
 
-      const result = await completeWorkout(finalDurationSeconds, activeWorkout?.sessionNotes || '');
+      // Read the notes through the shared ref: the debounced draft may not
+      // have committed to the provider yet, and the unmount flush runs after
+      // completion has already torn the card down — typed notes were lost.
+      const finalNotes = sessionNotesRef.current || activeWorkout?.sessionNotes || '';
+
+      const result = await completeWorkout(finalDurationSeconds, finalNotes);
 
       setWorkoutCompleted(true);
+      restTimer.skip();
 
       // completeWorkout resolves to the API envelope { data: { session,
       // achievements, … } }. Reading `result.session` directly silently
       // discarded every field — the victory popup showed 0 sets / 0 exercises
       // for every live-completed workout.
       const payload = result?.data ?? result;
+
+      // Offline completions resolve to { queued: true } with no session data:
+      // the workout is safe in the outbox but has not reached the server. The
+      // popup used to render zeros with no explanation — tell the user their
+      // work is saved and will sync.
+      if (payload?.queued) {
+        toast.success('Saved on this device — it will sync when you reconnect.', { duration: 6000 });
+      }
 
       const perfData = payload?.session?.performanceData?.performance;
       const totalDistance = perfData
@@ -371,19 +445,37 @@ export default function ActiveSessionPage({
         const durationMinutes = Math.max(1, Math.round(finalDurationSeconds / 60));
         const response = await fetch('/api/session-json', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // Stable per scheduled session, so a lost response + retry cannot
+            // log it twice the way a bare retry could.
+            'Idempotency-Key': `scheduled-complete:${scheduledSessionId}`,
+          },
           body: JSON.stringify({
             scheduledSessionId,
             duration: finalDurationSeconds,
-            notes: activeWorkout?.sessionNotes || '',
+            notes: sessionNotesRef.current || activeWorkout?.sessionNotes || '',
             performance: activeWorkout?.performance || {},
           }),
         });
+        if (response.status === 409) {
+          // Someone (another tab, a recovered retry) already completed it —
+          // that is success from the user's point of view, not an error. The
+          // old path threw, showed an error, and left a phantom active
+          // indicator for a session that was already logged.
+          toast.success('This session was already logged.');
+          setWorkoutCompleted(true);
+          restTimer.skip();
+          endWorkout();
+          setShowVictory(true);
+          return;
+        }
         if (!response.ok) throw new Error('Failed to complete scheduled session');
         const result = await response.json();
         const sessionData = result.data;
 
         setWorkoutCompleted(true);
+        restTimer.skip();
         endWorkout();
 
         const perfData = sessionData?.session?.performanceData?.performance;
@@ -485,7 +577,15 @@ export default function ActiveSessionPage({
                 </motion.button>
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-xs uppercase tracking-[0.2em] text-accent-100">
-                    {isTimerActive ? 'Active session' : 'Session paused'}
+                    {/* "Session paused" used to render before any workout had
+                        started, because isTimerActive is false pre-start. */}
+                    {!hasActiveWorkout
+                      ? scheduledSessionId
+                        ? 'Scheduled session'
+                        : 'Ready to start'
+                      : isTimerActive
+                        ? 'Active session'
+                        : 'Session paused'}
                   </p>
                   <h1 className="truncate font-display text-2xl font-bold tracking-wide sm:text-3xl">
                     {template.name}
@@ -533,8 +633,11 @@ export default function ActiveSessionPage({
           </motion.div>
         )}
 
-        {/* Timer Controls - Only show when workout is active */}
-        {hasActiveWorkout && (
+        {/* Timer Controls - Only show when workout is active, and not while the
+            cross-template dialog owns the page: rendering the live tracker
+            under it mixed the other session's progress into THIS template's
+            exercise list, since exercise IDs are positional. */}
+        {hasActiveWorkout && !showCrossTemplateConfirm && (
           <motion.div
             className="mb-6"
             initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
@@ -686,11 +789,15 @@ export default function ActiveSessionPage({
 
               <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[
-                  { label: 'Exercises', value: template.workoutData?.exercises?.length || 0 },
+                  // Mid-workout modifications (added exercises, extra sets) are
+                  // tracked in the active workout's modifiedTemplate; the stats
+                  // used to keep reading the pristine template and disagreed
+                  // with the progress list right below them.
+                  { label: 'Exercises', value: activeWorkout?.modifiedTemplate?.exercises?.length ?? template.workoutData?.exercises?.length ?? 0 },
                   {
                     label: 'Sets',
                     value:
-                      template.workoutData?.exercises?.reduce(
+                      (activeWorkout?.modifiedTemplate ?? template.workoutData)?.exercises?.reduce(
                         (total, ex) => total + ex.sets.length,
                         0
                       ) || 0,
@@ -760,7 +867,7 @@ export default function ActiveSessionPage({
         )}
 
         {/* Workout Progress Tracker */}
-        {hasActiveWorkout && activeWorkout && (
+        {hasActiveWorkout && activeWorkout && !showCrossTemplateConfirm && (
           <motion.div
             initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
@@ -778,14 +885,14 @@ export default function ActiveSessionPage({
         )}
 
         {/* Session Notes - Only show when workout is active */}
-        {hasActiveWorkout && (
+        {hasActiveWorkout && !showCrossTemplateConfirm && (
           <motion.div
             className="mb-6"
             initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
             transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.4 }}
           >
-            <SessionNotesCard disabled={isSaving} />
+            <SessionNotesCard disabled={isSaving} notesRef={sessionNotesRef} />
         </motion.div>
         )}
       </div>
@@ -818,30 +925,33 @@ export default function ActiveSessionPage({
         <div className="space-y-3">
           <motion.button
             onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'update' })}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={isSaving}
+            whileHover={isSaving ? {} : { scale: 1.02 }}
+            whileTap={isSaving ? {} : { scale: 0.98 }}
             transition={springSnappy}
-            className="tap-control w-full px-5 py-3 bg-success-500 hover:bg-success-600 text-white rounded-xl transition-colors font-semibold text-left"
+            className="tap-control w-full px-5 py-3 bg-success-500 hover:bg-success-600 text-white rounded-xl transition-colors font-semibold text-left disabled:opacity-60"
           >
             <div className="text-sm font-bold">Save &amp; Update Template</div>
             <div className="text-xs text-success-100 mt-0.5">Log with new values and update the current template</div>
           </motion.button>
           <motion.button
             onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'none' })}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={isSaving}
+            whileHover={isSaving ? {} : { scale: 1.02 }}
+            whileTap={isSaving ? {} : { scale: 0.98 }}
             transition={springSnappy}
-            className="tap-control w-full px-5 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-xl transition-colors font-semibold text-left"
+            className="tap-control w-full px-5 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-xl transition-colors font-semibold text-left disabled:opacity-60"
           >
             <div className="text-sm font-bold">Log New Values Only</div>
             <div className="text-xs text-accent-100 mt-0.5">Log this workout with the modified values, don&apos;t change the template</div>
           </motion.button>
           <motion.button
             onClick={() => performCompletion({ useModifiedTemplate: false, saveTemplate: 'none' })}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={isSaving}
+            whileHover={isSaving ? {} : { scale: 1.02 }}
+            whileTap={isSaving ? {} : { scale: 0.98 }}
             transition={springSnappy}
-            className="tap-control w-full px-5 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-semibold text-left"
+            className="tap-control w-full px-5 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-semibold text-left disabled:opacity-60"
           >
             <div className="text-sm font-bold">Keep Original Template Values</div>
             <div className="text-xs text-surface-500 dark:text-surface-600 mt-0.5">Discard modifications and log the original template as-is</div>
@@ -878,6 +988,17 @@ export default function ActiveSessionPage({
         destructive
         onConfirm={handleCancelWorkout}
         onCancel={() => setShowCancelConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showCrossTemplateConfirm}
+        title="Another workout is in progress"
+        message={`You have "${activeWorkout?.templateName || 'a workout'}" in progress. Discard it and start "${template.name}" instead, or go back to it.`}
+        confirmLabel={`Discard & start ${template.name}`}
+        cancelLabel="Go to workout in progress"
+        destructive
+        onConfirm={handleDiscardAndSwitch}
+        onCancel={handleKeepCurrentWorkout}
       />
     </motion.div>
   );

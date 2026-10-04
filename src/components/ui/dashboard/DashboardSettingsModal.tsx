@@ -46,13 +46,15 @@ export default function DashboardSettingsModal({
     const dst = result.destination.index;
     if (src === dst) return;
 
+    // setHasChanges lives outside the updater: a state updater must be pure,
+    // and a side effect inside one double-fires under StrictMode.
     setConfig((prev) => {
       const tiles = [...prev.tiles];
       const [item] = tiles.splice(src, 1);
       tiles.splice(dst, 0, item);
-      setHasChanges(true);
       return { ...prev, tiles: tiles.map((t, i) => ({ ...t, order: i })) };
     });
+    setHasChanges(true);
   };
 
   const toggleTile = (id: string) => {

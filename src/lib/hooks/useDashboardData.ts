@@ -13,7 +13,9 @@ export const useDashboardData = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || 'Failed to fetch dashboard data');
+        // The envelope is { error: { message } } — extracting `.error` alone
+        // threw new Error("[object Object]").
+        throw new Error(errorData?.error?.message || 'Failed to fetch dashboard data');
       }
 
       return response.json();

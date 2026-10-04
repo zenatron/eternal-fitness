@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeftIcon,
   TrophyIcon,
@@ -12,9 +13,10 @@ import {
   ArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { useProfile } from '@/lib/hooks/useProfile';
+import { queryKeys } from '@/lib/queryKeys';
 import { formatPRValue, prTypeFromApi, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
 import { springSnappy, springGentle } from '@/lib/motion';
-
+import { ErrorState } from '@/components/ui/ErrorState';
 
 interface PRRecord {
   exerciseKey: string;
@@ -36,12 +38,16 @@ const label = (apiType: string) => PR_TYPE_LABELS[prTypeFromApi(apiType)];
 const icon = (apiType: string) => PR_TYPE_ICONS[prTypeFromApi(apiType)];
 
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 }
+
+/** Keystrokes are debounced into query changes; the query itself is cancelled
+ *  on change, so a slow response can no longer overwrite a newer one. */
+const SEARCH_DEBOUNCE_MS = 250;
 
 export default function PersonalRecordsPage() {
   const router = useRouter();
@@ -49,33 +55,53 @@ export default function PersonalRecordsPage() {
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
 
-  const [records, setRecords] = useState<PRRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [rawSearch, setSearch] = useState('');
+  const [search, setSearchDebounced] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (typeFilter !== 'all') params.set('type', typeFilter);
-    params.set('sort', sortBy);
+    const timer = setTimeout(() => setSearchDebounced(rawSearch), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [rawSearch]);
 
-    setIsLoading(true);
-    fetch(`/api/personal-records?${params.toString()}`)
-      .then(r => r.json())
-      .then(data => {
-        let sorted = (data.records || []) as PRRecord[];
-        if (sortDir === 'asc') {
-          if (sortBy === 'date') sorted = sorted.reverse();
-          else sorted = [...sorted].reverse();
-        }
-        setRecords(sorted);
-      })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, [search, typeFilter, sortBy, sortDir]);
+  const isStaleSearch = rawSearch !== search;
+
+  const {
+    data: records = [],
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery<PRRecord[]>({
+    queryKey: [...queryKeys.personalRecords, { search, typeFilter, sortBy }],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (typeFilter !== 'all') params.set('type', typeFilter);
+      params.set('sort', sortBy);
+      const response = await fetch(`/api/personal-records?${params.toString()}`, { signal });
+      if (!response.ok) {
+        // A 500 whose envelope parses used to fall through as `data.records
+        // === undefined` and render the empty state — an error dressed up as
+        // "no records".
+        throw new Error('Failed to load personal records');
+      }
+      const data = await response.json();
+      return (data.records ?? []) as PRRecord[];
+    },
+    staleTime: 60 * 1000,
+    placeholderData: (previous) => previous,
+  });
+
+  const sorted = useMemo(() => {
+    if (sortDir === 'asc') {
+      if (sortBy === 'date') return [...records].reverse();
+      return [...records].reverse();
+    }
+    return records;
+  }, [records, sortDir, sortBy]);
 
   const toggleSort = (option: SortOption) => {
     if (sortBy === option) {
@@ -107,6 +133,7 @@ export default function PersonalRecordsPage() {
             <div className="relative flex items-center gap-4">
               <motion.button
                 onClick={() => router.back()}
+                aria-label="Go back"
                 className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                 whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
@@ -134,7 +161,8 @@ export default function PersonalRecordsPage() {
               <input
                 type="text"
                 placeholder="Search exercises..."
-                value={search}
+                aria-label="Search personal records"
+                value={rawSearch}
                 onChange={(e) => setSearch(e.target.value)}
                 className="form-input !pl-10"
               />
@@ -143,6 +171,7 @@ export default function PersonalRecordsPage() {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
               className="form-select !py-2 w-full sm:w-44"
+              aria-label="Filter by record type"
             >
               <option value="all">All Types</option>
               {FILTER_TYPES.map((t) => (
@@ -157,8 +186,8 @@ export default function PersonalRecordsPage() {
             <button
               onClick={() => toggleSort('date')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
-                sortBy === 'date' 
-                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
+                sortBy === 'date'
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -167,8 +196,8 @@ export default function PersonalRecordsPage() {
             <button
               onClick={() => toggleSort('value')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
-                sortBy === 'value' 
-                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
+                sortBy === 'value'
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -177,8 +206,8 @@ export default function PersonalRecordsPage() {
             <button
               onClick={() => toggleSort('exercise')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
-                sortBy === 'exercise' 
-                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400' 
+                sortBy === 'exercise'
+                  ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
                   : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
               }`}
             >
@@ -187,11 +216,13 @@ export default function PersonalRecordsPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="forge-card p-12 text-center text-surface-500">
-            Loading records...
+        {isError ? (
+          <ErrorState what="your personal records" onRetry={() => refetch()} isRetrying={isFetching} />
+        ) : isLoading ? (
+          <div className="forge-card p-12 text-center text-surface-500" role="status">
+            Loading records…
           </div>
-        ) : records.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="forge-card p-12 text-center text-surface-500">
             <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-400" />
             <p className="text-lg font-display font-medium">
@@ -204,17 +235,17 @@ export default function PersonalRecordsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {records.map((record, i) => (
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isStaleSearch ? 'opacity-60 transition-opacity' : ''}`}>
+            {sorted.map((record, i) => (
               <motion.div
                 key={`${record.exerciseKey}_${record.type}`}
                 initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
                 animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-                transition={{ ...springSnappy, delay: i * 0.03 }}
+                transition={{ ...springSnappy, delay: prefersReducedMotion ? 0 : Math.min(i * 0.03, 0.3) }}
                 className="forge-card p-5 flex items-center justify-between hover:border-accent-400/30 dark:hover:border-accent-500/20"
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl">{icon(record.type)}</span>
+                  <span className="text-2xl" aria-hidden>{icon(record.type)}</span>
                   <div>
                     <Link
                       href={`/exercise/${encodeURIComponent(record.exerciseName)}`}

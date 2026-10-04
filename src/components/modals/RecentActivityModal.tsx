@@ -5,6 +5,8 @@ import { ModalShell } from '@/components/ui/ModalShell';
 import {
   XMarkIcon,
   ChartBarIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
   ChevronUpDownIcon,
   MagnifyingGlassIcon,
   ClockIcon,
@@ -154,7 +156,15 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                             >
                               <option.icon className="w-4 h-4" />
                               <span className="hidden sm:inline text-xs">{option.label}</span>
-                              <ChevronUpDownIcon className="w-3.5 h-3.5" />
+                              {sortBy === option.key ? (
+              sortDirection === 'asc' ? (
+                <ArrowUpIcon className="w-3.5 h-3.5" />
+              ) : (
+                <ArrowDownIcon className="w-3.5 h-3.5" />
+              )
+            ) : (
+              <ChevronUpDownIcon className="w-3.5 h-3.5" />
+            )}
                             </button>
                           ))}
                         </div>

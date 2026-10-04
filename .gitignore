@@ -394,3 +394,7 @@ public/swe-worker-*.js
 
 # Embedded test database (scripts/dev-postgres.mjs)
 .pgdata-test/
+.pgdata-test*
+
+# Graphify
+graphify-out/

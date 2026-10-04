@@ -1,17 +1,18 @@
 'use client';
 
 import { ThemeProvider } from 'next-themes';
-import { QueryClient, type QueryClientConfig } from '@tanstack/react-query';
+import { QueryClient, useQueryClient, type QueryClientConfig } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { SessionProvider } from 'next-auth/react';
+import { SessionProvider, useSession } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createQueryPersister,
   markHydrated,
   PERSIST_BUSTER,
   PERSIST_MAX_AGE,
 } from '@/lib/offline/queryPersister';
+import { HAD_SESSION_MARKER, wipeClientOfflineState } from '@/lib/offline/reset';
 import { TimeZoneSync } from '@/components/TimeZoneSync';
 
 const queryConfig: QueryClientConfig = {
@@ -51,6 +52,53 @@ const noopPersister = {
   removeClient: async () => {},
 };
 
+/**
+ * Wipes every piece of client state that is keyed to "whoever is signed in"
+ * when that person signs out — the outbox, the active workout, the persisted
+ * query cache, the accent theme. Without this, a queued offline completion
+ * replayed under the next user's cookie was credited to THEM, and user B could
+ * browse user A's cached history offline. See lib/offline/reset.ts.
+ */
+function SignOutWipeGuard() {
+  const { status } = useSession();
+  const queryClient = useQueryClient();
+  const prevStatusRef = useRef(status);
+
+  useEffect(() => {
+    const previous = prevStatusRef.current;
+    prevStatusRef.current = status;
+
+    if (status === 'authenticated') {
+      try {
+        window.localStorage.setItem(HAD_SESSION_MARKER, '1');
+      } catch {}
+      return;
+    }
+
+    if (status !== 'unauthenticated') return;
+
+    // Two triggers: a live sign-out (authenticated → unauthenticated) and a
+    // cold load already signed out that still finds the marker — the browser
+    // may have died between sign-out and wipe.
+    const wasAuthenticated = previous === 'authenticated';
+    let markerPresent = false;
+    try {
+      markerPresent = window.localStorage.getItem(HAD_SESSION_MARKER) === '1';
+    } catch {}
+
+    if (!wasAuthenticated && !markerPresent) return;
+
+    void (async () => {
+      await wipeClientOfflineState();
+      // Empty the in-memory cache too; the persister re-hydrates from the
+      // (now empty) database on the next sign-in.
+      queryClient.clear();
+    })();
+  }, [status, queryClient]);
+
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient(queryConfig));
 
@@ -62,6 +110,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // the first commit, which is exactly when hydration is complete.
   useEffect(() => {
     markHydrated();
+    // Ask the browser to keep our storage. Without `persist()`, IndexedDB in a
+    // non-installed browser is "best effort" and can be evicted under storage
+    // pressure — silently discarding the source of truth for offline logging.
+    // Graceful everywhere: rejected promises are ignored.
+    if (typeof navigator !== 'undefined' && 'storage' in navigator && 'persist' in navigator.storage) {
+      void navigator.storage.persist().catch(() => {});
+    }
   }, []);
 
   return (
@@ -105,6 +160,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
           disableTransitionOnChange
           enableColorScheme={false}
         >
+          {/* Needs both the session (status flips) and the query client (to
+              clear the in-memory cache), so it lives inside both providers. */}
+          <SignOutWipeGuard />
           {children}
           <Toaster
             position="top-center"

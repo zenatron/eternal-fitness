@@ -17,6 +17,7 @@ import { StepperInput } from '@/components/workout/StepperInput';
 import { getExerciseType } from '@/lib/exerciseSearch';
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
+import { performedSetsVolume, resolvePerSide, weightUnitLabel } from '@/lib/volume';
 import { WorkoutSessionData, ExercisePerformance } from '@/types/workout';
 import { springSnappy } from '@/lib/motion';
 
@@ -56,6 +57,8 @@ interface EditableExercise {
   exerciseKey: string;
   exerciseName: string;
   exerciseType: 'strength' | 'cardio' | 'flexibility';
+  /** Resolved per-side flag — decides whether volume counts the load twice. */
+  perSide?: boolean;
   sets: EditableSet[];
   exerciseNotes?: string;
 }
@@ -94,6 +97,12 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
           exerciseKey: ep.exerciseKey,
           exerciseName: templateExercise?.name || ep.exerciseKey,
           exerciseType: getExerciseType(ep.exerciseKey),
+          // Same resolution the server uses when it recomputes on save —
+          // explicit flag, then the session's template snapshot — so the
+          // number shown here is the number that will be stored. The library
+          // default is deliberately not consulted: pre-perSide sessions were
+          // saved ×1 and must stay that way.
+          perSide: resolvePerSide(ep, exerciseId, template),
           sets: ep.sets.map(s => ({
             setId: s.setId,
             actualReps: s.actualReps,
@@ -116,13 +125,13 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
     }
   }, [session]);
 
+  // Volume through the shared maths (per-side ×2 included) so the figure the
+  // user sees while editing is the figure the server will store — the two
+  // disagreed by 2× on dumbbell work before this went through lib/volume.ts.
   const totalVolume = useMemo(() => {
     return exercises.reduce((total, ex) => {
       if (ex.exerciseType === 'cardio') return total;
-      return total + ex.sets.reduce((setTotal, set) => {
-        if (!set.completed) return setTotal;
-        return setTotal + (set.actualReps || 0) * (set.actualWeight || 0);
-      }, 0);
+      return total + performedSetsVolume(ex.sets as EditableSet[], ex.perSide);
     }, 0);
   }, [exercises]);
 
@@ -151,14 +160,14 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
       const performance: UpdateSessionData['performance'] = {};
       for (const ex of exercises) {
         const isCardio = ex.exerciseType === 'cardio';
-        const exVolume = isCardio ? 0 : ex.sets.reduce((t, s) => {
-          if (!s.completed) return t;
-          return t + (s.actualReps || 0) * (s.actualWeight || 0);
-        }, 0);
+        const exVolume = isCardio ? 0 : performedSetsVolume(ex.sets as EditableSet[], ex.perSide);
         performance[ex.exerciseId] = {
           exerciseKey: ex.exerciseKey,
+          perSide: ex.perSide,
           sets: ex.sets,
           exerciseNotes: ex.exerciseNotes,
+          // Recomputed server-side; sent so older servers / consumers that
+          // read it see a number consistent with the sets.
           totalVolume: exVolume,
         };
       }
@@ -259,10 +268,7 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
             {exercises.map((exercise) => {
               const isExpanded = expandedExercise === exercise.exerciseId;
               const isCardio = exercise.exerciseType === 'cardio';
-              const exVolume = isCardio ? 0 : exercise.sets.reduce((t, s) => {
-                if (!s.completed) return t;
-                return t + (s.actualReps || 0) * (s.actualWeight || 0);
-              }, 0);
+              const exVolume = isCardio ? 0 : performedSetsVolume(exercise.sets as EditableSet[], exercise.perSide);
 
               return (
                 <div
@@ -279,7 +285,8 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                         {exercise.exerciseName}
                       </span>
                       <span className="text-xs text-surface-500 dark:text-surface-600">
-                        {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length} set
+                        {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}{' '}
+                        {exercise.sets.length === 1 ? 'set' : 'sets'}
                         {!isCardio && exVolume > 0 && ` · ${formatVolume(exVolume, useMetric)}`}
                       </span>
                     </div>
@@ -357,7 +364,7 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                     compact
                                   />
                                   <StepperInput
-                                    label={useMetric ? 'Weight (kg)' : 'Weight (lbs)'}
+                                    label={weightUnitLabel(useMetric, exercise.perSide)}
                                     value={set.actualWeight}
                                     onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualWeight: v })}
                                     step={useMetric ? 2.5 : 5}

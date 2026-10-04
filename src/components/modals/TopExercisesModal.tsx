@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
   BoltIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
   ChevronUpDownIcon,
   MagnifyingGlassIcon,
   CalendarDaysIcon,
@@ -125,7 +127,15 @@ export function TopExercisesModal({ isOpen, onClose, stats, useMetric }: TopExer
             >
               <option.icon className="w-4 h-4" />
               {option.label}
+              {sortBy === option.key ? (
+              sortDirection === 'asc' ? (
+                <ArrowUpIcon className="w-4 h-4" />
+              ) : (
+                <ArrowDownIcon className="w-4 h-4" />
+              )
+            ) : (
               <ChevronUpDownIcon className="w-4 h-4" />
+            )}
             </motion.button>
           ))}
         </div>

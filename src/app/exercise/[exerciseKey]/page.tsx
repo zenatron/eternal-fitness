@@ -3,6 +3,7 @@
 import { use, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
+import { springGentle } from '@/lib/motion';
 import { ArrowLeftIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { useExerciseHistory } from '@/lib/hooks/useExerciseHistory';
 import { useProfile } from '@/lib/hooks/useProfile';
@@ -13,7 +14,6 @@ import { formatDurationHuman } from '@/utils/durationUtils';
 import { PR_TYPES, type PRType } from '@/types/personalRecords';
 import type { ExerciseHistoryPoint } from '@/app/api/exercise/[exerciseId]/history/route';
 
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 type Metric = 'oneRepMax' | 'heaviest' | 'volume';
 
@@ -24,7 +24,7 @@ const METRICS: { id: Metric; label: string }[] = [
 ];
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 /**
@@ -89,7 +89,7 @@ function TrendChart({
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${metric} trend`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${METRICS.find((m) => m.id === metric)?.label ?? metric} trend`}>
         <polygon points={area} className="fill-accent-500/10" />
         <motion.polyline
           points={line}
@@ -301,7 +301,9 @@ export default function ExerciseHistoryPage({
                         </p>
                         <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-600">
                           e1RM
-                          {s.bestSet && ` · ${s.bestSet.weight}×${s.bestSet.reps}`}
+                          {/* "135×10" read as a bare number with no unit on a
+                              page where every other figure carries one. */}
+                          {s.bestSet && ` · ${s.bestSet.weight}${useMetric ? 'kg' : 'lb'}×${s.bestSet.reps}`}
                         </p>
                       </div>
                     )}

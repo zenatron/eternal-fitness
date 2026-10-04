@@ -1,52 +1,25 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  allow,
+  pruneBuckets,
+  AUTH_CHECK_LIMIT,
+  AUTH_CHECK_GLOBAL_LIMIT,
+  GENERAL_LIMIT,
+  PUSH_TEST_LIMIT,
+  type BucketMap,
+} from "@/lib/rateLimit";
 
 /**
- * In-memory token buckets. Middleware runs once per instance, and this app is
- * deployed as a single container, so process memory is the right place: no
- * extra moving parts, and a restart merely resets the counters.
+ * Per-identity buckets, plus a shared one for the unauthenticated auth check —
+ * x-forwarded-for is attacker-mintable behind no trusted proxy, so per-identity
+ * buckets alone did not bound the total attempt rate.
  */
-const buckets = new Map<string, { tokens: number; updated: number }>();
+const buckets: BucketMap = new Map();
+const authCheckGlobalBuckets: BucketMap = new Map();
 
-interface RateLimitRule {
-  /** Bucket refill rate, tokens per second. */
-  refillPerSecond: number;
-  capacity: number;
-}
-
-const GENERAL_LIMIT: RateLimitRule = { refillPerSecond: 10, capacity: 120 };
-// Sends real Web Push messages to third-party services on every call.
-const PUSH_TEST_LIMIT: RateLimitRule = { refillPerSecond: 1 / 60, capacity: 3 };
-// Unauthenticated auth checks are a brute-force surface.
-const AUTH_CHECK_LIMIT: RateLimitRule = { refillPerSecond: 1 / 6, capacity: 20 };
-
-function allow(key: string, rule: RateLimitRule): boolean {
-  const now = Date.now();
-  const bucket = buckets.get(key);
-  if (!bucket) {
-    buckets.set(key, { tokens: rule.capacity - 1, updated: now });
-    return true;
-  }
-  const refilled = Math.min(
-    rule.capacity,
-    bucket.tokens + ((now - bucket.updated) / 1000) * rule.refillPerSecond
-  );
-  if (refilled < 1) {
-    buckets.set(key, { tokens: refilled, updated: now });
-    return false;
-  }
-  buckets.set(key, { tokens: refilled - 1, updated: now });
-  return true;
-}
-
-// Opportunistic pruning so the map cannot grow without bound under address
-// spoofing or a large user base.
-function pruneBuckets() {
-  if (buckets.size < 10_000) return;
-  const cutoff = Date.now() - 10 * 60 * 1000;
-  for (const [key, bucket] of buckets) {
-    if (bucket.updated < cutoff) buckets.delete(key);
-  }
+function allowRequest(key: string, rule: typeof GENERAL_LIMIT, now: number): boolean {
+  return allow(buckets, key, rule, now);
 }
 
 export default auth((req) => {
@@ -58,14 +31,25 @@ export default auth((req) => {
   if (isAuthApi && !pathname.startsWith("/api/auth/check")) return NextResponse.next();
 
   if (isApiRoute) {
-    pruneBuckets();
+    pruneBuckets(buckets);
+    const now = Date.now();
     const identity = req.auth?.user?.id ?? req.headers.get("x-forwarded-for") ?? "anonymous";
-    const rule = pathname.startsWith("/api/push/test")
+    const isPushTest = pathname.startsWith("/api/push/test");
+    const isAuthCheck = pathname.startsWith("/api/auth/check");
+    const rule = isPushTest
       ? PUSH_TEST_LIMIT
-      : pathname.startsWith("/api/auth/check")
+      : isAuthCheck
         ? AUTH_CHECK_LIMIT
         : GENERAL_LIMIT;
-    if (!allow(`${identity}:${pathname.startsWith("/api/push") ? pathname : "/api"}`, rule)) {
+    const bucketKey = `${identity}:${isPushTest ? pathname : "/api"}`;
+    if (!allowRequest(bucketKey, rule, now)) {
+      return NextResponse.json(
+        { error: { message: "Too many requests. Please slow down." } },
+        { status: 429, headers: { "Retry-After": "30" } }
+      );
+    }
+    // Shared ceiling across all identities for the brute-force surface.
+    if (isAuthCheck && !allow(authCheckGlobalBuckets, "auth-check:global", AUTH_CHECK_GLOBAL_LIMIT, now)) {
       return NextResponse.json(
         { error: { message: "Too many requests. Please slow down." } },
         { status: 429, headers: { "Retry-After": "30" } }

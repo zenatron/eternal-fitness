@@ -14,11 +14,13 @@ import {
   WorkoutSessionData,
 } from '@/types/workout';
 import { calculateSessionMetrics, convertExerciseProgressToPerformance } from '@/utils/workoutJsonUtils';
+import { recomputePerformanceVolume } from '@/lib/volume';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { awardWorkoutXP } from '@/lib/xp';
 import {
   findIdempotentResponse,
+  claimIdempotencyKey,
   getIdempotencyKey,
   pruneIdempotencyKeys,
   recordIdempotentResponse,
@@ -29,8 +31,8 @@ import { errorResponse, successResponse } from '@/lib/api/response';
 const ENDPOINT = 'session/active/complete';
 
 const completeSessionSchema = z.object({
-  duration: z.number().optional(),
-  notes: z.string().optional(),
+  duration: z.number().min(0).max(86400).optional(),
+  notes: z.string().max(10000).optional(),
   completedAt: z.string().datetime({ offset: true }).optional(),
 });
 
@@ -62,6 +64,15 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await db.transaction(async (tx) => {
+      // Claim the key inside the transaction: INSERT ON CONFLICT DO NOTHING
+      // both tests and takes it in one statement, so two concurrent replays
+      // can no longer both miss the pre-flight read and both log a session.
+      if (idempotencyKey) {
+        const claim = await claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT);
+        if (claim.status === 'replay') return { kind: 'replay' as const, response: claim.response };
+        if (claim.status === 'in-flight') return { kind: 'conflict' as const };
+      }
+
       const [stats] = await tx
         .select({
           activeWorkoutId: userStats.activeWorkoutId,
@@ -102,6 +113,12 @@ export async function POST(request: NextRequest) {
       if (Object.keys(performanceData).length === 0 && activeSessionData.exerciseProgress && Object.keys(activeSessionData.exerciseProgress).length > 0) {
         performanceData = convertExerciseProgressToPerformance(activeSessionData.exerciseProgress, finalTemplate);
       }
+
+      // Recompute volume from the sets before trusting any stored total: the
+      // tracker maintains correct per-side totals, but a stale or legacy blob
+      // may not — and this number feeds lifetime stats, PRs and achievements.
+      const recomputed = recomputePerformanceVolume(performanceData, finalTemplate);
+      performanceData = recomputed.performance;
 
       const metrics = calculateSessionMetrics(performanceData);
 
@@ -173,8 +190,18 @@ export async function POST(request: NextRequest) {
         console.error('Error processing PRs for completed session:', prError);
       }
 
-      return { session: createdSession, newPRs: txNewPRs };
+      return { kind: 'ok' as const, session: createdSession, newPRs: txNewPRs };
     });
+
+    if (result.kind === 'replay') {
+      return successResponse({
+        ...(result.response as Record<string, unknown>),
+        deduplicated: true,
+      });
+    }
+    if (result.kind === 'conflict') {
+      return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+    }
 
     const { session, newPRs } = result;
 
@@ -218,6 +245,15 @@ export async function POST(request: NextRequest) {
     return successResponse(payload);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return errorResponse(`Failed to complete active session: ${errorMessage}`, 500);
+    // "No active workout session" is a normal condition, not a server error:
+    // it is what a replayed completion hits after the session was cleared
+    // elsewhere, and the outbox retries 5xx forever. 409 tells it to drop the
+    // entry; the double-log race is closed by the idempotency key above.
+    if (errorMessage === 'No active workout session found') {
+      return errorResponse('No active workout session', 409);
+    }
+    // Deliberately not interpolated into the response: exception text can
+    // carry SQL fragments. errorResponse logs the details server-side.
+    return errorResponse('Failed to complete active session', 500, { message: errorMessage });
   }
 }

@@ -9,18 +9,30 @@
  */
 import EmbeddedPostgres from 'embedded-postgres';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
+const DATA_DIR = path.join(ROOT, '.pgdata-test');
+// initdb refuses a non-empty directory, so a leftover data dir from a previous
+// run used to crash the script with a raw initdb error. An existing,
+// initialised cluster is reused as-is (the data IS the point of `persistent`).
+const dataDirExists = fs.existsSync(path.join(DATA_DIR, 'PG_VERSION'));
+if (dataDirExists) {
+  console.log('reusing existing data dir .pgdata-test (delete it for a fresh database)');
+}
+
 const pg = new EmbeddedPostgres({
-  databaseDir: path.join(ROOT, '.pgdata-test'),
+  databaseDir: DATA_DIR,
   user: 'eternal',
   password: 'eternal',
   port: 5433,
   persistent: true,
 });
 
-await pg.initialise();
+if (!dataDirExists) {
+  await pg.initialise();
+}
 await pg.start();
 try {
   await pg.createDatabase('eternal_fitness');

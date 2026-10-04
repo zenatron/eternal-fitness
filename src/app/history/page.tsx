@@ -71,7 +71,7 @@ export default function HistoryPage() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const { profile } = useProfile();
-  const useMetric = profile?.useMetric ?? true;
+  const useMetric = profile?.useMetric ?? false;
   const deleteSession = useDeleteSession();
 
   const [search, setSearch] = useState('');
@@ -79,6 +79,8 @@ export default function HistoryPage() {
   const /** Full session fetched on demand for the edit modal. */
     [editingSession, setEditingSession] = useState<FullSession | null>(null);
   const [isLoadingForEdit, setIsLoadingForEdit] = useState(false);
+  /** Which row's edit fetch is in flight — disabling every row's button greyed out the whole list for one request. */
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
 
   const {
     data,
@@ -122,6 +124,7 @@ export default function HistoryPage() {
 
   const openEditor = async (session: HistorySession) => {
     setIsLoadingForEdit(true);
+    setEditingSessionId(session.id);
     try {
       const response = await fetch(`/api/session/${session.id}`);
       if (!response.ok) throw new Error('Failed to load session');
@@ -140,6 +143,7 @@ export default function HistoryPage() {
       toast.error('Could not open that workout for editing.');
     } finally {
       setIsLoadingForEdit(false);
+      setEditingSessionId(null);
     }
   };
 
@@ -250,7 +254,7 @@ export default function HistoryPage() {
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => void openEditor(session)}
-                      disabled={isLoadingForEdit}
+                      disabled={isLoadingForEdit && editingSessionId === session.id}
                       aria-label={`Edit ${session.workoutTemplate?.name || 'workout'}`}
                       title="Edit workout"
                       className="touch-target tap-control flex items-center justify-center rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors disabled:opacity-50"
@@ -271,7 +275,10 @@ export default function HistoryPage() {
             ))}
           </ul>
 
-          {hasNextPage && !search && (
+          {/* The Load more button stays visible while searching: the empty
+              state tells the user to "load more to search further back", and
+              hiding the only control that does so left them stranded. */}
+          {hasNextPage && (
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}

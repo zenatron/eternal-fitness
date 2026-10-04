@@ -2,6 +2,7 @@ import { CalendarDaysIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { WorkoutSession } from '@/types/workout';
 import { dayKeyOf, formatCivilDayRelative } from '@/utils/datetime';
+import { formatDurationCompact } from '@/utils/durationUtils';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useTimeZone } from '@/lib/hooks/useTimeZone';
@@ -44,7 +45,9 @@ function SessionRow({ session, index }: { session: WorkoutSession; index: number
           {session.scheduledAt
             ? formatCivilDayRelative(dayKeyOf(session.scheduledAt, timeZone), timeZone)
             : 'Unscheduled'}
-          {session.duration ? ` · ${session.duration}m` : ''}
+          {/* duration is stored in SECONDS (see workoutSessions.duration) —
+              this used to append a literal "m", rendering "3600m". */}
+          {session.duration ? ` · ${formatDurationCompact(session.duration)}` : ''}
           {template?.totalVolume != null
             ? ` · ${template.totalVolume}${profile?.useMetric ? 'kg' : 'lbs'}`
             : ''}

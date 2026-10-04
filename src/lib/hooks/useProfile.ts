@@ -23,7 +23,7 @@ export const useProfile = () => {
           return null;
         }
 
-        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to fetch profile');
+        throw new Error(errorData?.error?.message || 'Failed to fetch profile');
       }
       const responseData = await response.json();
       return responseData.data;

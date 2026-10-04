@@ -43,13 +43,14 @@ export function AchievementsModal({
   const [selectedCategory, setSelectedCategory] = useState<AchievementCategory | 'all'>('all');
   const [filterUnlocked, setFilterUnlocked] = useState<'all' | 'unlocked' | 'locked'>('all');
 
-  if (!isOpen) return null;
-
   const allAchievements = Object.values(achievements).flat();
-  
-  let filteredAchievements = selectedCategory === 'all' 
-    ? allAchievements 
-    : achievements[selectedCategory] || [];
+
+  // Sorted into a fresh array: the old code called .sort() on the array held
+  // inside the React Query cache, mutating cached data as a side effect of
+  // rendering.
+  let filteredAchievements = selectedCategory === 'all'
+    ? [...allAchievements]
+    : [...(achievements[selectedCategory] || [])];
 
   if (filterUnlocked === 'unlocked') {
     filteredAchievements = filteredAchievements.filter(a => a.isUnlocked);
@@ -66,9 +67,12 @@ export function AchievementsModal({
 
   const categories = Object.keys(achievements) as AchievementCategory[];
 
+  // Always rendered through ModalShell so the AnimatePresence exit animation
+  // can run — `if (!isOpen) return null` above it made the modal vanish with
+  // no transition, the exact bug DashboardSettingsModal documents and fixed.
   return (
     <ModalShell
-      isOpen
+      isOpen={isOpen}
       onClose={onClose}
       title="Achievements"
       subtitle={`${unlockedCount} of ${totalCount} unlocked`}

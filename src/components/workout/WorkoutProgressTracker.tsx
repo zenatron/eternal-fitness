@@ -17,9 +17,9 @@ import {
   canonicalExerciseKey,
   isBarbellExercise,
   isCardioExercise,
-  searchExercises,
   type ExerciseSearchResult,
 } from '@/lib/exerciseLookup';
+import { searchExercises } from '@/lib/exerciseSearch';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
 import { useRestTimerActions } from './RestTimerProvider';
@@ -190,6 +190,13 @@ function WorkoutProgressTracker({
    * and wrote the whole workout blob to IndexedDB twice.
    */
   useEffect(() => {
+    // Templates always carry at least one exercise, so an empty map can only
+    // mean "the init effect above has set state that has not landed in this
+    // render yet". Publishing here pushed an empty performance blob to the
+    // provider (and to the server, and into IndexedDB) before the real
+    // progress overwrote it one render later — a crash/kill window on every
+    // refresh mid-workout.
+    if (Object.keys(exerciseProgress).length === 0) return;
     const performance: { [exerciseId: string]: ExercisePerformance } = {};
     Object.values(exerciseProgress).forEach((progress) => {
       const exercise = modifiedTemplate.exercises.find(ex => ex.id === progress.exerciseId);
@@ -298,15 +305,27 @@ function WorkoutProgressTracker({
     if (restSeconds <= 0) return;
 
     // Name the next thing up so a glance at the timer is enough to know what's
-    // coming, without reopening the app.
+    // coming, without reopening the app. When nothing remains in THIS
+    // exercise, look ahead to the next incomplete one — naming a finished
+    // exercise ("Next: Bench Press" with every bench set done) is worse than
+    // naming nothing.
     const remaining = exerciseProgress[exerciseId]?.sets.filter(
       s => s.setId !== setId && !s.completed && !s.skipped
     ).length ?? 0;
 
-    const nextLabel =
-      remaining > 0
-        ? `${exercise.name} · ${remaining} set${remaining === 1 ? '' : 's'} left`
-        : exercise.name;
+    let nextLabel: string;
+    if (remaining > 0) {
+      nextLabel = `${exercise.name} · ${remaining} set${remaining === 1 ? '' : 's'} left`;
+    } else {
+      const currentIndex = modifiedTemplate.exercises.findIndex(ex => ex.id === exerciseId);
+      const nextExercise = modifiedTemplate.exercises
+        .slice(currentIndex + 1)
+        .find(ex => {
+          const progress = exerciseProgress[ex.id];
+          return progress ? progress.sets.some(s => !s.completed && !s.skipped) : true;
+        });
+      nextLabel = nextExercise ? nextExercise.name : 'Workout complete';
+    }
 
     restTimer.start(restSeconds, nextLabel);
   };
@@ -343,6 +362,7 @@ function WorkoutProgressTracker({
   const addExercise = (exerciseData: ExerciseSearchResult) => {
     const newExerciseId = `exercise-${Date.now()}`;
     const newSetId = 'set-1';
+    const isCardio = exerciseData.exerciseType === 'cardio';
     const newExercise = {
       id: newExerciseId,
       // The library's own key, so lookups downstream resolve. The previous
@@ -353,8 +373,19 @@ function WorkoutProgressTracker({
       name: exerciseData.name,
       muscles: exerciseData.muscles,
       equipment: exerciseData.equipment,
-      sets: [{ id: newSetId, type: 'standard' as const, targetReps: 10, targetWeight: 0, restTime: 60 }],
-      restBetweenSets: 60,
+      // Carried from the library like the template builder does — without it a
+      // dumbbell press added on the fly logged half its volume.
+      perSide: exerciseData.perSide,
+      sets: [{
+        id: newSetId,
+        type: 'standard' as const,
+        targetReps: isCardio ? undefined : 10,
+        targetWeight: 0,
+        targetDuration: isCardio ? 300 : undefined,
+        // Cardio sets rest 0s, matching the builder's default.
+        restTime: isCardio ? 0 : 60,
+      }],
+      restBetweenSets: isCardio ? 0 : 60,
     };
     const updatedTemplate = { ...modifiedTemplate, exercises: [...modifiedTemplate.exercises, newExercise] };
     setModifiedTemplate(updatedTemplate);
@@ -382,8 +413,15 @@ function WorkoutProgressTracker({
 
   // Ranked search across the whole ~220-exercise library, replacing the
   // hardcoded 12-item list that used to be the only in-workout option.
+  // The fuzzy scorer the template builder and log page use, mapped from its
+  // tuple shape into the object addExercise expects. The in-workout picker used
+  // the plain-includes search, so "db press" found nothing mid-workout while
+  // working fine everywhere else.
   const filteredExercises = useMemo(
-    () => searchExercises(exerciseSearch),
+    () =>
+      searchExercises(exerciseSearch)
+        .slice(0, 40)
+        .map(([key, exercise]) => ({ key, ...exercise })),
     [exerciseSearch]
   );
 

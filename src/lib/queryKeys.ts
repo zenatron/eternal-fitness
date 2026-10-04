@@ -51,6 +51,9 @@ export const queryKeys = {
   scheduledSessions: ['scheduledSessions'] as const,
   /** Paginated completed-session history (/history). */
   history: ['history'] as const,
+  /** Filterable personal-records list (/personal-records). Moves with
+   *  workout completions and edits, like userStats. */
+  personalRecords: ['personal-records'] as const,
   /** Static exercise library metadata. Never invalidated by a user action: it
    *  is build-time data that cannot change while the app is running. */
   exercise: ['exercise'] as const,
@@ -81,6 +84,7 @@ export function invalidateWorkoutData(queryClient: QueryClient): Promise<void> {
     queryKeys.recovery,
     queryKeys.scheduledSessions,
     queryKeys.history,
+    queryKeys.personalRecords,
   ]);
 }
 

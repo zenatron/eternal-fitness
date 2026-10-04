@@ -8,20 +8,22 @@ import {
   getStreakBaseline,
   recordWorkoutCompletion,
 } from '@/lib/workout/completion';
-import { eq, and, isNotNull, desc, lt } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { errorResponse, parseLimitParam, successResponse } from '@/lib/api/response';
+import { buildBeforeCursorFilter, encodeBeforeCursor } from '@/lib/api/pagination';
 import {
   createWorkoutSession,
   validateWorkoutSession,
-  calculateExerciseVolume,
 } from '@/utils/workoutJsonUtils';
+import { recomputePerformanceVolume } from '@/lib/volume';
 import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
 import { awardWorkoutXP } from '@/lib/xp';
 import {
   findIdempotentResponse,
+  claimIdempotencyKey,
   getIdempotencyKey,
   pruneIdempotencyKeys,
   recordIdempotentResponse,
@@ -32,16 +34,17 @@ const ENDPOINT = 'session-json';
 /**
  * Normalizes client-supplied performance data into full ExercisePerformance
  * objects, computing per-exercise totalVolume server-side from the sets so we
- * never trust a client-provided volume.
+ * never trust a client-provided volume — and resolving the per-side multiplier
+ * from the flag, the template snapshot, or (last resort, fresh writes only) the
+ * exercise library, so dumbbell volume matches the live path.
  */
 function normalizePerformance(
   performance: Record<string, z.infer<typeof exercisePerformanceSchema>>,
+  templateData?: WorkoutTemplateData | null
 ): { [exerciseId: string]: ExercisePerformance } {
-  const normalized: { [exerciseId: string]: ExercisePerformance } = {};
-  for (const [exerciseId, ep] of Object.entries(performance)) {
-    normalized[exerciseId] = { ...ep, totalVolume: calculateExerciseVolume(ep.sets) };
-  }
-  return normalized;
+  return recomputePerformanceVolume(performance, templateData, {
+    fallbackToLibrary: true,
+  }).performance;
 }
 
 
@@ -64,8 +67,9 @@ const performedSetSchema = z.object({
 
 const exercisePerformanceSchema = z.object({
   exerciseKey: z.string(),
+  perSide: z.boolean().optional(),
   sets: z.array(performedSetSchema),
-  exerciseNotes: z.string().optional(),
+  exerciseNotes: z.string().max(2000).optional(),
   performanceRating: z.number().min(1).max(5).optional(),
   difficultyRating: z.number().min(1).max(5).optional(),
 });
@@ -134,8 +138,8 @@ export async function POST(request: Request) {
 
     const response =
       'scheduledSessionId' in validatedData
-        ? await completeScheduledSession(userId, validatedData)
-        : await createNewSession(userId, validatedData);
+        ? await completeScheduledSession(userId, validatedData, idempotencyKey)
+        : await createNewSession(userId, validatedData, idempotencyKey);
 
     if (idempotencyKey && response.status < 400) {
       // Stored only after the work succeeded, so a crash mid-request leaves the
@@ -155,7 +159,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function createNewSession(userId: string, data: z.infer<typeof createSessionSchema>) {
+async function createNewSession(userId: string, data: z.infer<typeof createSessionSchema>, idempotencyKey: string | null) {
   const { templateId, scheduledAt, duration, notes, performance, environment } = data;
   const isScheduling = !!scheduledAt;
 
@@ -177,6 +181,17 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
   const templateData = template.workoutData as WorkoutTemplateData;
 
   if (isScheduling) {
+    // Scheduling has no natural transaction, so the key claim gets its own:
+    // the claim row commits immediately, and a replay hits `replay` below.
+    if (idempotencyKey) {
+      const claim = await db.transaction((tx) => claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT));
+      if (claim.status === 'replay') {
+        return successResponse({ ...(claim.response as Record<string, unknown>), deduplicated: true }, 201);
+      }
+      if (claim.status === 'in-flight') {
+        return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+      }
+    }
     const [newSession] = await db
       .insert(workoutSessions)
       .values({
@@ -208,7 +223,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
       return errorResponse('Performance data required for completed session', 400);
     }
 
-    const normalizedPerformance = normalizePerformance(performance);
+    const normalizedPerformance = normalizePerformance(performance, templateData);
     const sessionData = createWorkoutSession(templateData, normalizedPerformance);
     if (!validateWorkoutSession(sessionData)) {
       return errorResponse('Invalid workout session structure', 500);
@@ -217,6 +232,15 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
     const completionTime = new Date();
 
     const newSession = await db.transaction(async (tx) => {
+      if (idempotencyKey) {
+        const claim = await claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT);
+        if (claim.status === 'replay') {
+          return { kind: 'replay' as const, response: claim.response };
+        }
+        if (claim.status === 'in-flight') {
+          return { kind: 'conflict' as const };
+        }
+      }
       const [session] = await tx
         .insert(workoutSessions)
         .values({
@@ -225,7 +249,9 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
           notes,
           duration,
           totalVolume: sessionData.metrics.totalVolume,
-          totalSets: sessionData.metrics.totalSets,
+          // Completed, not attempted — the convention shared with the live and
+          // retro-log paths (see WorkoutTotals in lib/workout/completion.ts).
+          totalSets: sessionData.metrics.completedSets,
           totalExercises: sessionData.metrics.totalExercises,
           personalRecords: sessionData.metrics.personalRecords.length,
           completedAt: completionTime,
@@ -259,14 +285,21 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         ),
       });
 
-      return session;
+      return { kind: 'ok' as const, session };
     });
 
-    return successResponse(newSession, 201);
+    if (newSession.kind === 'replay') {
+      return successResponse({ ...(newSession.response as Record<string, unknown>), deduplicated: true }, 201);
+    }
+    if (newSession.kind === 'conflict') {
+      return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+    }
+
+    return successResponse(newSession.session, 201);
   }
 }
 
-async function completeScheduledSession(userId: string, data: z.infer<typeof completeScheduledSessionSchema>) {
+async function completeScheduledSession(userId: string, data: z.infer<typeof completeScheduledSessionSchema>, idempotencyKey: string | null) {
   const { scheduledSessionId, duration, notes, performance, environment } = data;
 
   const scheduledSession = await db.query.workoutSessions.findFirst({
@@ -286,7 +319,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
   }
 
   const templateData = scheduledSession.workoutTemplate!.workoutData as WorkoutTemplateData;
-  const normalizedPerformance = normalizePerformance(performance);
+  const normalizedPerformance = normalizePerformance(performance, templateData);
   const sessionData = createWorkoutSession(templateData, normalizedPerformance);
 
   if (!validateWorkoutSession(sessionData)) {
@@ -298,14 +331,36 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
   const completionTime = new Date();
 
   const updatedSession = await db.transaction(async (tx) => {
+    // Claim the key inside the transaction (see claimIdempotencyKey): a replay
+    // racing the first attempt previously passed the pre-flight read on both
+    // sides and double-counted the workout.
+    if (idempotencyKey) {
+      const claim = await claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT);
+      if (claim.status === 'replay') return { kind: 'replay' as const, response: claim.response };
+      if (claim.status === 'in-flight') return { kind: 'conflict' as const };
+    }
+
+    // The completed check must be part of the write, not just the earlier
+    // read: two concurrent completions (double-tap, two devices, a replay
+    // racing the first attempt) both passed the pre-check and double-counted
+    // the workout. An empty update result means we lost the race — report it
+    // as 409 so the client's outbox drops the entry instead of retrying.
+    const claimed = await tx
+      .update(workoutSessions)
+      .set({ completedAt: completionTime })
+      .where(and(eq(workoutSessions.id, scheduledSessionId), isNull(workoutSessions.completedAt)))
+      .returning({ id: workoutSessions.id });
+    if (claimed.length === 0) {
+      return { kind: 'lost-race' as const };
+    }
+
     const [session] = await tx
       .update(workoutSessions)
       .set({
-        completedAt: completionTime,
         duration,
         notes,
         totalVolume: sessionData.metrics.totalVolume,
-        totalSets: sessionData.metrics.totalSets,
+        totalSets: sessionData.metrics.completedSets,
         totalExercises: sessionData.metrics.totalExercises,
         personalRecords: sessionData.metrics.personalRecords.length,
         performanceData: sessionData,
@@ -333,15 +388,30 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       ),
     });
 
-    return session;
+    return { kind: 'ok' as const, session };
   });
+
+  if (updatedSession.kind === 'replay') {
+    return NextResponse.json(
+      { data: { ...(updatedSession.response as Record<string, unknown>), deduplicated: true } },
+      { status: 200 }
+    );
+  }
+  if (updatedSession.kind === 'conflict') {
+    return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+  }
+  if (updatedSession.kind === 'lost-race') {
+    return errorResponse('Scheduled session already completed', 409, { scheduledSessionId });
+  }
+
+  const session = updatedSession.session;
 
   // Process PRs outside transaction
   let newPRs: any[] = [];
   try {
     const prResult = await processWorkoutSessionPRs(
       userId,
-      updatedSession.id,
+      session.id,
       normalizedPerformance,
       templateData,
     );
@@ -350,7 +420,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       await db
         .update(workoutSessions)
         .set({ personalRecords: newPRs.length })
-        .where(eq(workoutSessions.id, updatedSession.id));
+        .where(eq(workoutSessions.id, session.id));
     }
   } catch (prError) {
     console.error('Error processing PRs for scheduled session:', prError);
@@ -378,7 +448,7 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
 
   return NextResponse.json({
     data: {
-      session: updatedSession,
+      session,
       achievements: achievementResult,
       newPRs,
       workoutXP,
@@ -399,7 +469,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = parseLimitParam(searchParams.get('limit'));
     const before = searchParams.get('before');
-    const beforeDate = before && !Number.isNaN(Date.parse(before)) ? new Date(before) : null;
 
     const sessions = await db.query.workoutSessions.findMany({
       columns: {
@@ -417,9 +486,12 @@ export async function GET(request: Request) {
       where: and(
         eq(workoutSessions.userId, userId),
         isNotNull(workoutSessions.completedAt),
-        beforeDate ? lt(workoutSessions.completedAt, beforeDate) : undefined
+        buildBeforeCursorFilter(before, workoutSessions.completedAt, workoutSessions.id)
       ),
-      orderBy: desc(workoutSessions.completedAt),
+      // Ties on completedAt are real (a completion and its retro-log land in
+      // the same transaction), so the keyset is (completedAt, id) — a cursor
+      // on the timestamp alone would skip a row whenever it tied.
+      orderBy: [desc(workoutSessions.completedAt), desc(workoutSessions.id)],
       limit,
       with: {
         workoutTemplate: {
@@ -429,11 +501,11 @@ export async function GET(request: Request) {
     });
 
     // A full page implies there may be more; hand back the cursor the client
-    // passes as `before` to fetch the next page.
+    // passes as `before` to fetch the next page. The client treats this as an
+    // opaque string, so the format can evolve.
+    const last = sessions.length === limit ? sessions[sessions.length - 1] : null;
     const nextCursor =
-      sessions.length === limit
-        ? (sessions[sessions.length - 1].completedAt?.toISOString() ?? null)
-        : null;
+      last && last.completedAt ? encodeBeforeCursor(last.completedAt, last.id) : null;
 
     return successResponse({ sessions, nextCursor });
   } catch (error) {

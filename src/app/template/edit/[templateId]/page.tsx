@@ -33,10 +33,17 @@ export default function EditTemplatePage({
       tags: workoutData.metadata?.tags || [],
       exercises: workoutData.exercises.map((exercise) => ({
         exerciseKey: exercise.exerciseKey,
+        // Carry the explicit override so editing doesn't silently revert it to
+        // the library default (the PUT route resolves
+        // `perSide ?? libraryDefault`, which halved/doubled volume for anyone
+        // who had overridden the flag).
+        perSide: exercise.perSide,
         sets: exercise.sets.map((set) => ({
           reps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min || 0,
           weight: set.targetWeight || 0,
           duration: set.targetDuration,
+          // Cardio distances were dropped here, wiping them on every save.
+          distance: set.targetDistance,
           type: set.type || 'working',
           restTime: set.restTime,
           notes: set.notes,

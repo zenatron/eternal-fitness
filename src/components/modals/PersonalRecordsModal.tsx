@@ -5,6 +5,8 @@ import { useState, useMemo } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
   TrophyIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
   ChevronUpDownIcon,
   MagnifyingGlassIcon,
   CalendarDaysIcon,
@@ -136,7 +138,15 @@ export function PersonalRecordsModal({ isOpen, onClose, stats, useMetric }: Pers
                         >
                           <option.icon className="w-4 h-4" />
                           {option.label}
-                          <ChevronUpDownIcon className="w-4 h-4" />
+                          {sortBy === option.key ? (
+              sortDirection === 'asc' ? (
+                <ArrowUpIcon className="w-4 h-4" />
+              ) : (
+                <ArrowDownIcon className="w-4 h-4" />
+              )
+            ) : (
+              <ChevronUpDownIcon className="w-4 h-4" />
+            )}
                         </motion.button>
                       ))}
                     </div>

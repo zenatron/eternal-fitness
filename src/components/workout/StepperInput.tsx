@@ -67,6 +67,13 @@ export function StepperInput({
   const isFocusedRef = useRef(false);
   const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /**
+   * The value is read through a ref inside applyDelta: the hold-to-repeat
+   * interval closes over the callback from the press-time render, so closing
+   * over the prop computed `clamp(staleValue + delta)` on every tick after the
+   * first — hold-to-repeat stepped once and then no-op'd for its whole run.
+   */
+  const valueRef = useRef(value);
 
   // Track external changes (prefill, undo) unless the user is mid-edit.
   useEffect(() => {
@@ -88,16 +95,23 @@ export function StepperInput({
 
   const applyDelta = useCallback(
     (delta: number) => {
-      const base = value ?? 0;
+      const base = valueRef.current ?? 0;
       const next = clamp(base + delta);
-      if (next === value) return;
+      if (next === valueRef.current) return;
+      // Kept in step with the optimistic value so rapid ticks accumulate
+      // rather than recompute from a stale base.
+      valueRef.current = next;
       setDraft(next.toString());
       onChange(next);
       // Confirms the press without needing to look at the screen.
       vibrate(12);
     },
-    [value, clamp, onChange]
+    [clamp, onChange]
   );
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const stopRepeat = useCallback(() => {
     if (repeatTimerRef.current) {
@@ -121,6 +135,21 @@ export function StepperInput({
   );
 
   useEffect(() => stopRepeat, [stopRepeat]);
+
+  /**
+   * Click activation (keyboard Enter/Space, and assistive tech) must step the
+   * value, but a pointer press already did via onPointerDown and also fires a
+   * click — skip clicks that immediately follow a pointer release so the value
+   * does not jump two steps per tap.
+   */
+  const lastPointerUpRef = useRef(0);
+  const handleActivate = useCallback(
+    (delta: number) => {
+      if (Date.now() - lastPointerUpRef.current < 300) return;
+      applyDelta(delta);
+    },
+    [applyDelta]
+  );
 
   const handleTextChange = (raw: string) => {
     // Permit only what the mode allows, so a stray letter cannot land in state.
@@ -175,9 +204,13 @@ export function StepperInput({
               event.preventDefault();
               startRepeat(-step);
             }}
-            onPointerUp={stopRepeat}
+            onPointerUp={() => {
+              lastPointerUpRef.current = Date.now();
+              stopRepeat();
+            }}
             onPointerLeave={stopRepeat}
             onPointerCancel={stopRepeat}
+            onClick={() => handleActivate(-step)}
             disabled={value !== undefined && min !== undefined && value <= min}
           >
             <MinusIcon className="h-5 w-5" />
@@ -225,9 +258,13 @@ export function StepperInput({
               event.preventDefault();
               startRepeat(step);
             }}
-            onPointerUp={stopRepeat}
+            onPointerUp={() => {
+              lastPointerUpRef.current = Date.now();
+              stopRepeat();
+            }}
             onPointerLeave={stopRepeat}
             onPointerCancel={stopRepeat}
+            onClick={() => handleActivate(step)}
             disabled={value !== undefined && max !== undefined && value >= max}
           >
             <PlusIcon className="h-5 w-5" />

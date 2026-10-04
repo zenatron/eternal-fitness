@@ -21,12 +21,27 @@ export function errorResponse(message: string, status = 500, details?: unknown, 
    * to the client; the log above already has them. Anything a route wants the
    * user to see should be a 4xx detail or the message itself. See
    * /api/auth/check, which pioneered this rule.
+   *
+   * The guard covers string details too: many routes pass `error.message` as
+   * `details`, which is exactly the leak this is here to prevent — an object
+   * gets its `error` key stripped, a string is suppressed outright.
    */
-  const safeDetails = status >= 500 && details && typeof details === 'object'
-    ? Object.fromEntries(Object.entries(details as Record<string, unknown>).filter(([k]) => k !== 'error'))
-    : details;
+  let safeDetails: unknown;
+  if (status >= 500) {
+    if (typeof details === 'string') {
+      safeDetails = undefined;
+    } else if (details && typeof details === 'object') {
+      safeDetails = Object.fromEntries(
+        Object.entries(details as Record<string, unknown>).filter(([k]) => k !== 'error')
+      );
+    } else {
+      safeDetails = details;
+    }
+  } else {
+    safeDetails = details;
+  }
   return NextResponse.json(
-    { error: Object.assign({ message }, safeDetails ? { details: safeDetails } : {}) },
+    { error: Object.assign({ message }, safeDetails !== undefined && safeDetails !== null ? { details: safeDetails } : {}) },
     { status }
   );
 }

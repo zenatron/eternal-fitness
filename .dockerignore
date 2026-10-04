@@ -6,3 +6,10 @@ node_modules
 .env
 .env.*
 !.env.example
+# Local artifacts that must never reach the build context: a live test
+# database, the code-graph output, build bookkeeping.
+.pgdata-test
+.pgdata-test.bak-*
+graphify-out
+tsconfig.tsbuildinfo
+gui-test-screenshots

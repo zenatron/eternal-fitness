@@ -10,13 +10,15 @@ import { resolveTimeZone } from '@/utils/datetime';
 import { errorResponse, successResponse } from '@/lib/api/response';
 
 const profileSchema = z.object({
-  name: z.string().trim().min(1, { message: 'Name is required' }),
-  age: z.number().int().positive().nullable().optional(),
-  gender: z.string().nullable().optional(),
-  height: z.number().positive().nullable().optional(),
-  weight: z.number().positive().nullable().optional(),
+  name: z.string().trim().min(1, { message: 'Name is required' }).max(80),
+  age: z.number().int().positive().max(120).nullable().optional(),
+  gender: z.string().max(40).nullable().optional(),
+  // Heights/weights land here already converted to the user's unit (see the
+  // edit form), so the bounds cover both systems generously.
+  height: z.number().positive().max(300).nullable().optional(),
+  weight: z.number().positive().max(1000).nullable().optional(),
   useMetric: z.boolean().optional(),
-  weightGoal: z.number().positive().nullable().optional(),
+  weightGoal: z.number().positive().max(1000).nullable().optional(),
 });
 
 /**

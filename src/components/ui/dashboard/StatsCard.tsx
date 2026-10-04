@@ -57,22 +57,19 @@ export function StatsCard({ data }: StatsCardProps) {
               Volume vs last month
             </span>
             <motion.span
-              className="text-sm font-display font-bold text-accent-500"
+              className={`text-sm font-display font-bold ${
+                data.totalVolume.percentIncrease >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-500'
+              }`}
               initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.5 }}
               whileInView={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.2 }}
             >
-              +{data.totalVolume.percentIncrease}%
+              {/* Signed delta: the API computes negatives, and rendering them
+                  after a hard-coded "+" produced the celebrated "+-35%". */}
+              {data.totalVolume.percentIncrease >= 0 ? '+' : ''}
+              {data.totalVolume.percentIncrease}%
             </motion.span>
-          </div>
-          <div className="h-2 bg-surface-900 dark:bg-surface-400 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-accent-500 rounded-full transition-[width] duration-700 ease-out"
-              style={{
-                width: `${Math.min(data.totalVolume.percentIncrease * 2, 100)}%`,
-              }}
-            />
           </div>
         </div>
 

@@ -52,7 +52,14 @@ export async function POST(request: NextRequest) {
 
     let output: Buffer;
     try {
-      output = await sharp(input, { animated: false })
+      output = await sharp(input, {
+        animated: false,
+        // A 10MB PNG can legally expand to a ~1GB raster in memory (a
+        // "decompression bomb"); the byte cap alone does not bound that. 50MP
+        // is far above any legitimate avatar photo — a modern phone camera
+        // produces ~12MP — while making the blast radius finite.
+        limitInputPixels: 50_000_000,
+      })
         .rotate() // apply EXIF orientation before stripping metadata
         .resize(AVATAR_SIZE, AVATAR_SIZE, {
           fit: 'cover',

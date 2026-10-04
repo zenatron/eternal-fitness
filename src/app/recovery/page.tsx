@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
+import { springGentle } from '@/lib/motion';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { BodyMap } from '@/components/recovery/BodyMap';
 import { TrainingSuggestions } from '@/components/recovery/TrainingSuggestions';
@@ -16,7 +17,6 @@ import {
   fatiguedRegions,
 } from '@/utils/recovery';
 
-const springGentle = { type: 'spring' as const, stiffness: 200, damping: 25, mass: 0.9 };
 
 /**
  * Selecting a region from the lists as well as the diagram.

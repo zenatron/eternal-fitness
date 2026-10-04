@@ -19,9 +19,13 @@ export interface IdempotencyHit {
   response: unknown;
 }
 
+/** The transaction handle drizzle passes to `db.transaction(fn)`. */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Returns the stored response if this key has already been processed for the
- * user, otherwise null.
+ * user, otherwise null. Cheap pre-flight outside the write transaction, so a
+ * replay does not have to open one just to discover it is a replay.
  */
 export async function findIdempotentResponse(
   userId: string,
@@ -43,12 +47,62 @@ export async function findIdempotentResponse(
   return { response: existing.response };
 }
 
+export type IdempotencyClaim =
+  | { status: 'claimed' }
+  | { status: 'replay'; response: unknown }
+  | { status: 'in-flight' };
+
+/**
+ * Atomically claims a key *inside the caller's transaction*.
+ *
+ * `INSERT … ON CONFLICT DO NOTHING` tests and takes the key in one statement,
+ * closing the check-then-act window the find→record pair had: two concurrent
+ * requests with the same key could both miss the pre-flight read and both run
+ * the write, double-logging a workout. The losing transaction now simply finds
+ * the key taken.
+ *
+ * - `claimed` — proceed with the write in this transaction; the claim commits
+ *   or rolls back with it.
+ * - `replay` — a previous attempt committed and stored its response.
+ * - `in-flight` — the row exists with no stored response. Either another
+ *   transaction holds the key right now (its claim rolls back if it fails) or
+ *   a past attempt committed but crashed before recording the response — in
+ *   which case the write DID happen. Both cases resolve the same way for the
+ *   client: the entry is done and must not be retried (409).
+ */
+export async function claimIdempotencyKey(
+  tx: Tx,
+  userId: string,
+  key: string,
+  endpoint: string
+): Promise<IdempotencyClaim> {
+  const inserted = await tx
+    .insert(idempotencyKeys)
+    .values({ userId, key, endpoint, response: null })
+    .onConflictDoNothing()
+    .returning({ id: idempotencyKeys.id });
+  if (inserted.length > 0) return { status: 'claimed' };
+
+  const [existing] = await tx
+    .select({ response: idempotencyKeys.response })
+    .from(idempotencyKeys)
+    .where(
+      and(
+        eq(idempotencyKeys.userId, userId),
+        eq(idempotencyKeys.key, key),
+        eq(idempotencyKeys.endpoint, endpoint)
+      )
+    );
+  if (existing?.response != null) return { status: 'replay', response: existing.response };
+  return { status: 'in-flight' };
+}
+
 /**
  * Records the outcome of a successful write.
  *
- * `onConflictDoNothing` matters here: two replays racing each other would
- * otherwise collide on the unique constraint and turn a duplicate — which we
- * have just successfully absorbed — into a 500.
+ * An upsert because the row may already exist from `claimIdempotencyKey` (with
+ * a null response waiting to be filled). `onConflictDoNothing` would leave that
+ * null in place forever, turning every future replay into a false "in-flight".
  */
 export async function recordIdempotentResponse(
   userId: string,
@@ -60,7 +114,10 @@ export async function recordIdempotentResponse(
     await db
       .insert(idempotencyKeys)
       .values({ userId, key, endpoint, response })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: [idempotencyKeys.userId, idempotencyKeys.key],
+        set: { response },
+      });
   } catch (error) {
     // Never fail the request over bookkeeping — the write itself succeeded.
     console.error('Failed to record idempotency key:', error);

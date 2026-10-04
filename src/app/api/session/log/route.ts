@@ -10,7 +10,7 @@ import {
   recordWorkoutCompletion,
 } from '@/lib/workout/completion';
 import { z } from 'zod';
-import { performedSetsVolume } from '@/lib/volume';
+import { performedSetsVolume, recomputePerformanceVolume } from '@/lib/volume';
 import { exercises as staticExercisesData } from '@/lib/exercises';
 import { createWorkoutTemplate, calculateTemplateVolume } from '@/utils/workoutJsonUtils';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
@@ -18,33 +18,40 @@ import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achiev
 import { awardWorkoutXP } from '@/lib/xp';
 import {
   findIdempotentResponse,
+  claimIdempotencyKey,
   getIdempotencyKey,
   pruneIdempotencyKeys,
   recordIdempotentResponse,
 } from '@/lib/idempotency';
 import { WorkoutType, Difficulty, ExercisePerformance, SetType } from '@/types/workout';
+import type { ExercisePerformanceInput } from '@/types/workout';
 import { errorResponse } from '@/lib/api/response';
 
 const ENDPOINT = 'session/log';
 
 const performanceSetSchema = z.object({
   setId: z.string(),
-  actualReps: z.number().optional(),
-  actualWeight: z.number().optional(),
-  actualDuration: z.number().optional(),
-  actualDistance: z.number().optional(),
-  actualRpe: z.number().optional(),
+  actualReps: z.number().int().nonnegative().max(10000).optional(),
+  actualWeight: z.number().nonnegative().max(100000).optional(),
+  actualDuration: z.number().positive().max(86400).optional(),
+  actualDistance: z.number().positive().max(1000000).optional(),
+  actualRpe: z.number().min(1).max(10).optional(),
   completed: z.boolean(),
   skipped: z.boolean().optional(),
-  notes: z.string().optional(),
-  restTime: z.number().optional(),
+  notes: z.string().max(2000).optional(),
+  restTime: z.number().nonnegative().optional(),
 });
 
 const performanceSchema = z.record(z.object({
   exerciseKey: z.string(),
+  perSide: z.boolean().optional(),
   sets: z.array(performanceSetSchema),
-  exerciseNotes: z.string().optional(),
-  totalVolume: z.number(),
+  exerciseNotes: z.string().max(2000).optional(),
+  // Accepted for backwards compatibility and then ignored: the server
+  // recomputes volume from the sets (see recomputePerformanceVolume), because
+  // client totals have historically been computed with inconsistent per-side
+  // multipliers.
+  totalVolume: z.number().optional(),
   averageRpe: z.number().optional(),
 }));
 
@@ -63,11 +70,11 @@ const adHocExerciseSchema = z.object({
 const logSessionSchema = z.object({
   templateId: z.string().optional(),
   completedAt: z.string().datetime({ offset: true }),
-  duration: z.number().int().positive(),
-  notes: z.string().optional(),
+  duration: z.number().int().positive().max(86400),
+  notes: z.string().max(10000).optional(),
   performance: performanceSchema.optional(),
   // For ad-hoc workouts (no templateId)
-  adHocName: z.string().optional(),
+  adHocName: z.string().max(120).optional(),
   adHocWorkoutType: z.string().optional().default('strength'),
   adHocExercises: z.array(adHocExerciseSchema).optional(),
 }).refine(
@@ -122,6 +129,12 @@ export async function POST(request: Request) {
 
     const { templateId, completedAt, duration, notes, performance, adHocName, adHocWorkoutType, adHocExercises } = validationResult.data;
     const completionTime = new Date(completedAt);
+    // A future timestamp would anchor the streak on a day that hasn't happened
+    // and park volume in a future monthly bucket. Small skew (±5 min) is
+    // tolerated for client clocks.
+    if (completionTime.getTime() > Date.now() + 5 * 60 * 1000) {
+      return errorResponse('completedAt cannot be in the future', 400);
+    }
     let templateData: any = null;
 
     // Offline replays carry an Idempotency-Key; a replayed retro-log would
@@ -136,7 +149,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const newSession = await db.transaction(async (tx) => {
+    const txResult = await db.transaction(async (tx) => {
+      // Claim the key inside the transaction so a replay racing the first
+      // attempt cannot both run the write (see claimIdempotencyKey).
+      if (idempotencyKey) {
+        const claim = await claimIdempotencyKey(tx, userId, idempotencyKey, ENDPOINT);
+        if (claim.status === 'replay') return { kind: 'replay' as const, response: claim.response };
+        if (claim.status === 'in-flight') return { kind: 'conflict' as const };
+      }
+
       let resolvedTemplateId: string | null = templateId || null;
 
       if (templateId) {
@@ -172,28 +193,30 @@ export async function POST(request: Request) {
 
       // When no explicit performance is provided (ad-hoc), synthesize it from template data
       // so that achievement tracking and PR detection have actual values to work with
-      let effectivePerformance: { [exerciseId: string]: ExercisePerformance } = performance || {};
-      if (Object.keys(effectivePerformance).length === 0 && templateData?.exercises) {
+      let effectivePerformance: { [exerciseId: string]: ExercisePerformance } = {};
+      const clientPerformance: { [exerciseId: string]: ExercisePerformanceInput } = performance || {};
+      if (Object.keys(clientPerformance).length > 0) {
+        effectivePerformance = clientPerformance as { [exerciseId: string]: ExercisePerformance };
+      } else if (templateData?.exercises) {
         effectivePerformance = buildPerformanceFromTemplate(templateData);
       }
 
-      let totalVolume = 0;
-      let completedSets = 0;
-      let totalSets = 0;
-      let totalExercises = 0;
-      let skippedSets = 0;
+      // Volume is recomputed from the sets, never taken from the client: the
+      // retro-log page used to send bare reps×weight, halving dumbbell volume
+      // relative to the live path. The per-side flag resolves from the entry,
+      // the template snapshot, or the library (fresh writes only).
+      const recomputed = recomputePerformanceVolume(effectivePerformance, templateData, {
+        fallbackToLibrary: true,
+      });
+      effectivePerformance = recomputed.performance;
 
-      if (Object.keys(effectivePerformance).length > 0) {
-        totalVolume = Object.values(effectivePerformance).reduce((t, ep) => t + ep.totalVolume, 0);
-        completedSets = Object.values(effectivePerformance).reduce(
-          (t, ep) => t + ep.sets.filter(s => s.completed).length, 0
-        );
-        totalSets = Object.values(effectivePerformance).reduce((t, ep) => t + ep.sets.length, 0);
-        totalExercises = Object.keys(effectivePerformance).length;
-        skippedSets = Object.values(effectivePerformance).reduce(
-          (t, ep) => t + ep.sets.filter(s => s.skipped).length, 0
-        );
-      } else if (templateData) {
+      let totalVolume = recomputed.totalVolume;
+      let completedSets = recomputed.completedSets;
+      let totalSets = recomputed.totalSets;
+      let totalExercises = recomputed.totalExercises;
+      let skippedSets = recomputed.skippedSets;
+
+      if (totalExercises === 0 && templateData) {
         totalVolume = calculateTemplateVolume(templateData.exercises || []);
         totalSets = (templateData.exercises || []).reduce(
           (t: number, ex: any) => t + (ex.sets?.length || 0), 0
@@ -255,8 +278,19 @@ export async function POST(request: Request) {
         streak,
       });
 
-      return createdSession;
+      return { kind: 'ok' as const, session: createdSession };
     });
+
+    if (txResult.kind === 'replay') {
+      return NextResponse.json(
+        { data: { ...(txResult.response as Record<string, unknown>), deduplicated: true } },
+        { status: 201 }
+      );
+    }
+    if (txResult.kind === 'conflict') {
+      return errorResponse('A request with this Idempotency-Key is already in progress or has already completed', 409);
+    }
+    const newSession = txResult.session;
 
     // Process PRs outside transaction
     let newPRs: any[] = [];

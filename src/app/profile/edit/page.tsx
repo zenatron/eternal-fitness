@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
@@ -16,6 +16,7 @@ import { AvatarUploader } from '@/components/ui/profile/AvatarUploader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Spinner } from '@/components/ui/Spinner';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { convertLengthField, convertMassField } from '@/utils/units';
 import { motion, useReducedMotion } from 'framer-motion';
 import { z } from 'zod';
@@ -65,19 +66,28 @@ export default function EditProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [shakeError, setShakeError] = useState(false);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
+  /**
+   * Seeds the form once per signed-in profile, not on every query refetch:
+   * the avatar uploader invalidates the profile query, and the refetch used
+   * to resolve with a fresh object identity mid-edit, resetting the form and
+   * silently discarding whatever the user had typed.
+   */
+  const seededProfileRef = useRef<string | null>(null);
   useEffect(() => {
-    if (profile) {
-      setFormData({
-        name: profile.name || '',
-        height: profile.height ? String(profile.height) : '',
-        weight: profile.weight ? String(profile.weight) : '',
-        age: profile.age ? String(profile.age) : '',
-        gender: profile.gender || '',
-        useMetric: profile.useMetric !== undefined ? profile.useMetric : true,
-        weightGoal: profile.weightGoal ? String(profile.weightGoal) : '',
-      });
-    }
+    if (!profile) return;
+    if (seededProfileRef.current === profile.id) return;
+    seededProfileRef.current = profile.id;
+    setFormData({
+      name: profile.name || '',
+      height: profile.height ? String(profile.height) : '',
+      weight: profile.weight ? String(profile.weight) : '',
+      age: profile.age ? String(profile.age) : '',
+      gender: profile.gender || '',
+      useMetric: profile.useMetric !== undefined ? profile.useMetric : true,
+      weightGoal: profile.weightGoal ? String(profile.weightGoal) : '',
+    });
   }, [profile]);
 
   // Snapshot the hydrated values so we can detect unsaved changes.
@@ -141,7 +151,10 @@ export default function EditProfilePage() {
   };
 
   const handleBack = () => {
-    if (isDirty && !window.confirm('Discard your unsaved changes?')) return;
+    if (isDirty) {
+      setConfirmDiscardOpen(true);
+      return;
+    }
     router.push('/profile');
   };
 
@@ -301,7 +314,7 @@ export default function EditProfilePage() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.name ? '!border-danger-400 !focus:border-danger-500' : ''}`}
+                      className={`form-input ${fieldErrors.name ? '!border-danger-400 focus:!border-danger-500' : ''}`}
                       placeholder="Your full name"
                       autoComplete="name"
                       aria-invalid={!!fieldErrors.name}
@@ -316,7 +329,7 @@ export default function EditProfilePage() {
                       name="age"
                       value={formData.age}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.age ? '!border-danger-400 !focus:border-danger-500' : ''}`}
+                      className={`form-input ${fieldErrors.age ? '!border-danger-400 focus:!border-danger-500' : ''}`}
                       placeholder="Your age"
                       min={13}
                       max={120}
@@ -389,7 +402,7 @@ export default function EditProfilePage() {
                       name="height"
                       value={formData.height}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.height ? '!border-danger-400 !focus:border-danger-500' : ''}`}
+                      className={`form-input ${fieldErrors.height ? '!border-danger-400 focus:!border-danger-500' : ''}`}
                       placeholder={formData.useMetric ? 'e.g. 175' : 'e.g. 69'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.height}
@@ -406,7 +419,7 @@ export default function EditProfilePage() {
                       name="weight"
                       value={formData.weight}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.weight ? '!border-danger-400 !focus:border-danger-500' : ''}`}
+                      className={`form-input ${fieldErrors.weight ? '!border-danger-400 focus:!border-danger-500' : ''}`}
                       placeholder={formData.useMetric ? 'e.g. 70' : 'e.g. 154'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.weight}
@@ -424,7 +437,7 @@ export default function EditProfilePage() {
                       name="weightGoal"
                       value={formData.weightGoal}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.weightGoal ? '!border-danger-400 !focus:border-danger-500' : ''}`}
+                      className={`form-input ${fieldErrors.weightGoal ? '!border-danger-400 focus:!border-danger-500' : ''}`}
                       placeholder={formData.useMetric ? 'Target weight in kg' : 'Target weight in lbs'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.weightGoal}
@@ -466,6 +479,20 @@ export default function EditProfilePage() {
               </motion.button>
             </div>
           </form>
+
+          <ConfirmDialog
+            open={confirmDiscardOpen}
+            title="Discard unsaved changes?"
+            message="Your edits to this profile have not been saved."
+            confirmLabel="Discard changes"
+            cancelLabel="Keep editing"
+            destructive
+            onConfirm={() => {
+              setConfirmDiscardOpen(false);
+              router.push('/profile');
+            }}
+            onCancel={() => setConfirmDiscardOpen(false)}
+          />
         </div>
       </motion.div>
     </div>

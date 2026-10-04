@@ -269,7 +269,12 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
       onSuccess?.();
       router.push('/templates');
     } catch (error) {
-      toast.error(mode === 'edit' ? 'Failed to update template' : 'Failed to create template');
+      // The server's 400 carries the zod issue list; surfacing the first
+      // specific problem beats a bare "Failed to create template" that gives
+      // the user nothing to fix.
+      const detail = (error as Error)?.message;
+      const fallback = mode === 'edit' ? 'Failed to update template' : 'Failed to create template';
+      toast.error(detail && detail !== 'Failed to update template' && detail !== 'Failed to create template' ? detail : fallback, { duration: 6000 });
       console.error('Template save error:', error);
     }
   };

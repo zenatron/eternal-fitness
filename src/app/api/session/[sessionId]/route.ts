@@ -9,28 +9,33 @@ import { computeStreakFromHistory, getStreakBaseline, unwindWorkoutCompletion } 
 import { monthOf, dayKeyOf } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
 import { errorResponse, successResponse } from '@/lib/api/response';
+import { recomputePerformanceVolume } from '@/lib/volume';
 
 const performanceSchema = z.record(z.object({
   exerciseKey: z.string(),
+  perSide: z.boolean().optional(),
   sets: z.array(z.object({
     setId: z.string(),
-    actualReps: z.number().optional(),
-    actualWeight: z.number().optional(),
-    actualDuration: z.number().optional(),
-    actualRpe: z.number().optional(),
+    actualReps: z.number().int().nonnegative().max(10000).optional(),
+    actualWeight: z.number().nonnegative().max(100000).optional(),
+    actualDuration: z.number().positive().max(86400).optional(),
+    actualRpe: z.number().min(1).max(10).optional(),
     completed: z.boolean(),
     skipped: z.boolean().optional(),
-    notes: z.string().optional(),
-    restTime: z.number().optional(),
+    notes: z.string().max(2000).optional(),
+    restTime: z.number().nonnegative().optional(),
   })),
-  exerciseNotes: z.string().optional(),
-  totalVolume: z.number(),
+  exerciseNotes: z.string().max(2000).optional(),
+  // Accepted for compatibility, then ignored: volume is recomputed from the
+  // sets (see recomputePerformanceVolume) so a routine edit can neither
+  // corrupt totals nor smuggle arbitrary numbers into lifetime stats.
+  totalVolume: z.number().optional(),
   averageRpe: z.number().optional(),
 }));
 
 const updateSessionSchema = z.object({
-  duration: z.number().int().positive().optional(),
-  notes: z.string().optional(),
+  duration: z.number().int().positive().max(86400).optional(),
+  notes: z.string().max(10000).optional(),
   completedAt: z.string().datetime({ offset: true }).optional(),
   scheduledAt: z.string().datetime({ offset: true }).nullable().optional(),
   performance: performanceSchema.optional(),
@@ -106,36 +111,52 @@ export async function PUT(
         updatePayload.completedAt = new Date(validatedData.completedAt);
         updatePayload.scheduledAt = null;
       } else if (validatedData.scheduledAt !== undefined) {
+        if (validatedData.scheduledAt && oldCompletedAt) {
+          // A completed workout is in every lifetime total, monthly bucket and
+          // streak day; un-completing it here would leave those numbers
+          // counting a session that no query can see. Rescheduling a done
+          // workout is a delete-and-relog, not a field edit.
+          throw new Error('CannotUncomplete');
+        }
         updatePayload.scheduledAt = validatedData.scheduledAt ? new Date(validatedData.scheduledAt) : null;
-        if (updatePayload.scheduledAt) updatePayload.completedAt = null;
       }
 
       if (validatedData.performance) {
-        const perf = validatedData.performance;
-        const newVolume = Object.values(perf).reduce((t, ep) => t + ep.totalVolume, 0);
-        const newCompletedSets = Object.values(perf).reduce(
-          (t, ep) => t + ep.sets.filter(s => s.completed).length, 0
-        );
-        const newTotalSets = Object.values(perf).reduce((t, ep) => t + ep.sets.length, 0);
-        const newExercises = Object.keys(perf).length;
-        const skippedSets = Object.values(perf).reduce(
-          (t, ep) => t + ep.sets.filter(s => s.skipped).length, 0
-        );
+        // Recompute volume from the sets — the edit modal used to send bare
+        // reps×weight, which silently halved dumbbell volume (and lifetime
+        // stats with it, via the diff below). The stored per-side flag and the
+        // session's own template snapshot decide the multiplier; the library
+        // is deliberately NOT consulted, so legacy rows keep their saved
+        // totals (see volume.ts, "Deliberately not retroactive").
+        const existingTemplateSnapshot = (existing.performanceData as unknown as { templateSnapshot?: { exercises?: { id?: string; exerciseKey?: string; perSide?: boolean }[] } })?.templateSnapshot ?? null;
+        const recomputed = recomputePerformanceVolume(validatedData.performance, existingTemplateSnapshot);
+        const perf = recomputed.performance;
+        const newVolume = recomputed.totalVolume;
+        const newCompletedSets = recomputed.completedSets;
+        const newTotalSets = recomputed.totalSets;
+        const newExercises = recomputed.totalExercises;
+        const skippedSets = recomputed.skippedSets;
         const adherenceScore = newTotalSets > 0 ? Math.round((newCompletedSets / newTotalSets) * 100) : 100;
 
         const existingPerfData = (existing.performanceData as unknown as Record<string, unknown>) || {};
+        const existingMetrics = (existingPerfData.metrics as Record<string, unknown>) || {};
         updatePayload.performanceData = {
           ...existingPerfData,
           performance: perf,
           metrics: {
+            ...existingMetrics,
             totalVolume: newVolume,
             totalSets: newTotalSets,
             totalExercises: newExercises,
             completedSets: newCompletedSets,
             skippedSets,
             adherenceScore,
-            personalRecords: [],
-            volumeRecords: [],
+            // The PR/volume record lists on the session row are display
+            // history, not live state (userStats owns the real records);
+            // recomputing them from an edited set list would silently rewrite
+            // which session "set" a record. Keep whatever was recorded.
+            personalRecords: existingMetrics.personalRecords ?? [],
+            volumeRecords: existingMetrics.volumeRecords ?? [],
           },
         };
         updatePayload.totalVolume = newVolume;
@@ -253,6 +274,9 @@ export async function PUT(
     const { sessionId } = await params;
     if (error.message === 'SessionNotFound') {
       return errorResponse('Session not found or access denied', 404, { sessionId });
+    }
+    if (error.message === 'CannotUncomplete') {
+      return errorResponse('A completed workout cannot be turned back into a scheduled one — delete it and reschedule instead', 400);
     }
     return errorResponse('Internal Server Error updating session', 500, { sessionId, error: error instanceof Error ? error.message : String(error) });
   }

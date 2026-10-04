@@ -252,7 +252,21 @@ export async function getUserAchievements(userId: string) {
       .from(userStats)
       .where(eq(userStats.userId, userId));
 
-    if (!stats) return null;
+    // A brand-new user has no userStats row yet (it is created on their first
+    // completion); that is an empty trophy case, not a server error — the
+    // route used to turn this null into a 500 on every profile load.
+    if (!stats) {
+      return {
+        achievements: {} as Record<AchievementCategory, typeof ACHIEVEMENT_DEFINITIONS>,
+        unlockedCount: 0,
+        totalCount: ACHIEVEMENT_DEFINITIONS.length,
+        currentProgress: Object.fromEntries(
+          (Object.keys(calculateAchievementProgress({})) as AchievementCategory[]).map(
+            (category) => [category, 0]
+          )
+        ) as Record<AchievementCategory, number>,
+      };
+    }
 
     const [user] = await db.select({ useMetric: users.useMetric }).from(users).where(eq(users.id, userId));
     const useMetric = user?.useMetric ?? true;

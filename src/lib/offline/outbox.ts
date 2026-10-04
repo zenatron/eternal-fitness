@@ -156,6 +156,15 @@ export async function requestSync(): Promise<void> {
 
 const MAX_ATTEMPTS = 8;
 
+/** Statuses worth another attempt: transient server state, not a bad payload. */
+function isRetryableStatus(status: number): boolean {
+  // 429 is rate limiting (this app's own middleware returns it under replay
+  // bursts) and 408 is an explicit request timeout — both are "try again",
+  // the canonical statuses a queue exists for. Everything else in 4xx really
+  // is a payload the server will always refuse.
+  return status >= 500 || status === 429 || status === 408;
+}
+
 /**
  * In-page replay, used where Background Sync is unavailable and on regaining
  * connectivity while a tab is open.
@@ -180,7 +189,11 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
           method: entry.method,
           headers: {
             ...entry.headers,
-            'Idempotency-Key': entry.idempotencyKey,
+            // The completion path queues its own stable Idempotency-Key in
+            // entry.headers; overwriting it with the per-entry random key
+            // defeated the server's dedupe in exactly the lost-response
+            // scenario the stable key exists for.
+            'Idempotency-Key': entry.headers['Idempotency-Key'] ?? entry.idempotencyKey,
             'X-Replayed-From-Outbox': '1',
           },
           body: entry.body,
@@ -190,7 +203,18 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
         if (response.ok) {
           await db.delete('outbox', entry.id);
           sent += 1;
-        } else if (response.status >= 400 && response.status < 500) {
+        } else if (isRetryableStatus(response.status)) {
+          // Honour the attempts cap on the retry path too, or one immortal
+          // 5xx blocks every entry behind it forever.
+          if (entry.attempts + 1 >= MAX_ATTEMPTS) {
+            await db.delete('outbox', entry.id);
+            failed += 1;
+          } else {
+            await db.put('outbox', { ...entry, attempts: entry.attempts + 1 });
+            failed += 1;
+            break;
+          }
+        } else {
           // The server refused the payload itself. Retrying cannot help, and
           // leaving it queued would block every later write behind it.
           console.warn(
@@ -198,10 +222,6 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
           );
           await db.delete('outbox', entry.id);
           failed += 1;
-        } else {
-          await db.put('outbox', { ...entry, attempts: entry.attempts + 1 });
-          failed += 1;
-          break;
         }
       } catch {
         if (entry.attempts + 1 >= MAX_ATTEMPTS) {
@@ -219,58 +239,4 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
 
   if (sent > 0 || failed > 0) notifyChanged();
   return { sent, failed };
-}
-
-/**
- * Wraps fetch so a failed mutation is queued instead of lost.
- *
- * Returns the response when the request succeeds. When the network is
- * unavailable it enqueues and returns null, which callers treat as "accepted
- * locally, will sync later" — the optimistic local state has already been
- * written by that point.
- */
-export async function fetchOrQueue(
-  url: string,
-  init: RequestInit & { description: string; dedupeKey?: string }
-): Promise<Response | null> {
-  const { description, dedupeKey, ...requestInit } = init;
-
-  // Skip the doomed round-trip when the browser already knows we're offline.
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    await enqueue({
-      url,
-      method: requestInit.method ?? 'POST',
-      body: requestInit.body ? JSON.parse(requestInit.body as string) : undefined,
-      description,
-      dedupeKey,
-    });
-    return null;
-  }
-
-  try {
-    const response = await fetch(url, { ...requestInit, credentials: 'same-origin' });
-
-    // 5xx is transient — queue it. 4xx is a real rejection the caller must see.
-    if (response.status >= 500) {
-      await enqueue({
-        url,
-        method: requestInit.method ?? 'POST',
-        body: requestInit.body ? JSON.parse(requestInit.body as string) : undefined,
-        description,
-        dedupeKey,
-      });
-      return null;
-    }
-
-    return response;
-  } catch {
-    await enqueue({
-      url,
-      method: requestInit.method ?? 'POST',
-      body: requestInit.body ? JSON.parse(requestInit.body as string) : undefined,
-      description,
-      dedupeKey,
-    });
-    return null;
-  }
 }

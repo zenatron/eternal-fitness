@@ -23,6 +23,19 @@ export async function GET() {
         useMetric: users.useMetric,
         points: users.points,
         createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        // Health and preference data: exactly what a portability export exists
+        // for. The avatar itself is excluded (binary, re-uploadable) but the
+        // OIDC picture URL is not.
+        age: users.age,
+        gender: users.gender,
+        height: users.height,
+        weight: users.weight,
+        weightGoal: users.weightGoal,
+        startingWeight: users.startingWeight,
+        accentTheme: users.accentTheme,
+        image: users.image,
+        avatarUpdatedAt: users.avatarUpdatedAt,
       }).from(users).where(eq(users.id, userId)),
       db.select().from(userStats).where(eq(userStats.userId, userId)),
       db.select().from(workoutSessions).where(eq(workoutSessions.userId, userId)),

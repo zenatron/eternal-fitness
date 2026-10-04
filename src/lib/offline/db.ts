@@ -85,6 +85,13 @@ export function getDB(): Promise<IDBPDatabase<EternalDB>> {
         console.warn('[offline] Upgrade blocked by another open tab');
       },
     });
+    // A failed open used to be cached forever: one transient rejection
+    // (private-mode quirk, Safari's 7-day eviction, corruption) turned every
+    // later call into a silent no-op for the whole tab session. Drop the
+    // promise so the next call retries the open.
+    dbPromise.catch(() => {
+      dbPromise = null;
+    });
   }
   return dbPromise;
 }
@@ -131,7 +138,17 @@ export async function writeActiveWorkout(
     await db.put('activeWorkout', record);
     return record;
   } catch (error) {
-    console.error('[offline] Failed to persist active workout', error);
+    // Quota exhaustion is the one failure mode the user can act on (clear
+    // space, unpersisted storage evicted under pressure); it deserves a
+    // distinct message over the generic catch below.
+    const isQuota =
+      error instanceof DOMException &&
+      (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+    if (isQuota) {
+      console.error('[offline] Storage quota exceeded — workout progress may not survive a reload', error);
+    } else {
+      console.error('[offline] Failed to persist active workout', error);
+    }
     return undefined;
   }
 }

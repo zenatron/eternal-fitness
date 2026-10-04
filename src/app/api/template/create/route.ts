@@ -19,30 +19,33 @@ const successResponse = (data: unknown, status = 201) => {
 
 const createSetSchema = z.object({
   reps: z.number().int().nonnegative(),
-  weight: z.number().nonnegative().optional(),
-  duration: z.number().positive().optional(),
-  distance: z.number().positive().optional(),
+  weight: z.number().nonnegative().max(100000).optional(),
+  duration: z.number().positive().max(86400).optional(),
+  distance: z.number().positive().max(1000000).optional(),
   type: z.enum(['standard', 'warmup', 'working', 'dropset', 'superset', 'amrap', 'emom', 'tabata', 'rest']).optional().default('standard'),
-  restTime: z.number().positive().optional(),
-  notes: z.string().optional(),
+  // nonnegative, not positive: cardio sets rest 0s by design (the builder
+  // sends 0 for every cardio set), and rejecting that made any template
+  // containing a cardio exercise impossible to save.
+  restTime: z.number().nonnegative().max(3600).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 const createExerciseSchema = z.object({
   exerciseKey: z.string().min(1, 'Exercise key is required'),
   sets: z.array(createSetSchema).min(1, 'Each exercise must have at least one set'),
-  instructions: z.string().optional(),
-  restBetweenSets: z.number().positive().optional(),
+  instructions: z.string().max(5000).optional(),
+  restBetweenSets: z.number().nonnegative().max(3600).optional(),
   /** Weight is per limb; volume counts it twice. See lib/volume.ts. */
   perSide: z.boolean().optional(),
 });
 
 const createTemplateSchema = z.object({
-  name: z.string().trim().min(1, { message: 'Template name is required' }),
-  description: z.string().optional(),
+  name: z.string().trim().min(1, { message: 'Template name is required' }).max(120),
+  description: z.string().max(5000).optional(),
   favorite: z.boolean().optional().default(false),
   workoutType: z.enum(['strength', 'cardio', 'hybrid', 'flexibility', 'sports']).optional().default('strength'),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional().default('intermediate'),
-  tags: z.array(z.string()).optional().default([]),
+  tags: z.array(z.string().max(50)).max(20).optional().default([]),
   exercises: z.array(createExerciseSchema).min(1, { message: 'Template must have at least one exercise' }),
 });
 

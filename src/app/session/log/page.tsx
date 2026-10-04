@@ -24,9 +24,11 @@ import { DurationInput } from '@/components/ui/DurationInput';
 import { TemplateSummary } from '@/components/ui/TemplateSummary';
 import { StepperInput } from '@/components/workout/StepperInput';
 import { getExerciseType } from '@/lib/exerciseSearch';
+import { resolveExercise } from '@/lib/exerciseLookup';
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { formatVolume } from '@/utils/formatters';
 import { formatSessionDateTime } from '@/utils/relativeTime';
+import { performedSetsVolume } from '@/lib/volume';
 import { WorkoutTemplate } from '@/types/workout';
 import { springSnappy, springGentle } from '@/lib/motion';
 
@@ -66,6 +68,8 @@ interface ExerciseEntry {
   exerciseKey: string;
   name: string;
   exerciseType: 'strength' | 'cardio' | 'flexibility';
+  /** Dumbbell/unilateral work: the entered weight counts twice (lib/volume.ts). */
+  perSide?: boolean;
   sets: SetEntry[];
 }
 
@@ -133,6 +137,7 @@ export default function LogPastWorkoutPage() {
           exerciseKey: ex.exerciseKey,
           name: ex.name,
           exerciseType: exType,
+          perSide: ex.perSide,
           sets: ex.sets.map((s, i) => ({
             id: s.id || `set-${i + 1}`,
             reps: isCardio ? 0 : typeof s.targetReps === 'number' ? s.targetReps : s.targetReps?.min || 0,
@@ -173,6 +178,7 @@ export default function LogPastWorkoutPage() {
         exerciseKey,
         name,
         exerciseType: exType,
+        perSide: resolveExercise(exerciseKey)?.perSide,
         sets: [
           {
             id: 'set-1',
@@ -233,14 +239,22 @@ export default function LogPastWorkoutPage() {
     );
   };
 
-  const totalVolume = useMemo(
-    () =>
-      exercises.reduce((total, ex) => {
-        if (ex.exerciseType === 'cardio') return total;
-        return total + ex.sets.reduce((t, s) => (s.completed ? t + s.reps * s.weight : t), 0);
-      }, 0),
-    [exercises]
-  );
+  /** Volume through the shared maths so dumbbell work counts both sides. */
+  const volumeFor = (ex: ExerciseEntry): number => {
+    if (ex.exerciseType === 'cardio') return 0;
+    return performedSetsVolume(
+      ex.sets.map((s) => ({
+        setId: s.id,
+        actualReps: s.reps,
+        actualWeight: s.weight,
+        completed: s.completed,
+        skipped: !s.completed && s.reps === 0 && !s.weight,
+      })),
+      ex.perSide
+    );
+  };
+
+  const totalVolume = useMemo(() => exercises.reduce((total, ex) => total + volumeFor(ex), 0), [exercises]);
 
   const completedSetCount = useMemo(
     () => exercises.reduce((t, ex) => t + ex.sets.filter((s) => s.completed).length, 0),
@@ -258,11 +272,9 @@ export default function LogPastWorkoutPage() {
       const performance: Record<string, any> = {};
       for (const ex of exercises) {
         const isCardio = ex.exerciseType === 'cardio';
-        const exVolume = isCardio
-          ? 0
-          : ex.sets.reduce((t, s) => (s.completed ? t + s.reps * s.weight : t), 0);
         performance[ex.id] = {
           exerciseKey: ex.exerciseKey,
+          perSide: ex.perSide,
           sets: ex.sets.map((s) => ({
             setId: s.id,
             actualReps: isCardio ? 0 : s.reps,
@@ -273,7 +285,9 @@ export default function LogPastWorkoutPage() {
             completed: s.completed,
             skipped: !s.completed,
           })),
-          totalVolume: exVolume,
+          // Recomputed server-side from the sets; included so the payload is
+          // self-consistent for any consumer that reads it.
+          totalVolume: volumeFor(ex),
         };
       }
 

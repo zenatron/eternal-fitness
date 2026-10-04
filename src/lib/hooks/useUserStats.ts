@@ -78,7 +78,7 @@ export const useUserStats = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to fetch user stats');
+        throw new Error(errorData?.error?.message || 'Failed to fetch user stats');
       }
 
       const result = await response.json();

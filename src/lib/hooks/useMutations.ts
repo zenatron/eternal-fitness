@@ -69,7 +69,7 @@ export const useToggleFavorite = () => {
           `useToggleFavorite: Failed POST request for ${templateId}/favorite:`,
           errorData,
         );
-        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to toggle favorite status');
+        throw new Error(errorData?.error?.message || 'Failed to toggle favorite status');
       }
 
       return response.json();
@@ -184,6 +184,30 @@ export const useDeleteTemplate = () => {
 /**
  * Hook for creating a new template
  */
+/**
+ * Builds the most useful message possible from an API error envelope. When the
+ * server attached a zod issue list (400 `details`), lead with the first
+ * specific problem and where it lives — "exercises.2.restBetweenSets: Number
+ * must be greater than or equal to 0" beats "Invalid template data".
+ */
+function apiErrorMessage(
+  errorData: unknown,
+  fallback: string
+): string {
+  const envelope = errorData as {
+    error?: { message?: string; details?: unknown } | string;
+  } | undefined;
+  const err = envelope?.error;
+  const details = typeof err === 'object' ? err?.details : undefined;
+  if (Array.isArray(details) && details.length > 0) {
+    const issue = details[0] as { path?: (string | number)[]; message?: string };
+    const where = issue.path?.length ? `${issue.path.join('.')}: ` : '';
+    if (issue.message) return `${where}${issue.message}`;
+  }
+  if (typeof err === 'string') return err;
+  return err?.message || fallback;
+}
+
 export const useCreateTemplate = () => {
   const queryClient = useQueryClient();
 
@@ -197,8 +221,8 @@ export const useCreateTemplate = () => {
       if (!response.ok) {
         const errorData = await response
           .json()
-          .catch(() => ({ error: 'Failed to create template' }));
-        throw new Error(errorData.error?.message || errorData.error || 'Failed to create template');
+          .catch(() => undefined);
+        throw new Error(apiErrorMessage(errorData, 'Failed to create template'));
       }
       const result = await response.json();
       return result.data;
@@ -231,8 +255,8 @@ export const useUpdateTemplate = () => {
       if (!response.ok) {
         const errorData = await response
           .json()
-          .catch(() => ({ error: 'Failed to update template' }));
-        throw new Error(errorData.error?.message || errorData.error || 'Failed to update template');
+          .catch(() => undefined);
+        throw new Error(apiErrorMessage(errorData, 'Failed to update template'));
       }
       const result = await response.json();
       return result.data;
@@ -269,7 +293,7 @@ export const useUpdateProfile = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to update profile');
+        throw new Error(errorData?.error?.message || 'Failed to update profile');
       }
 
       return response.json();
@@ -304,7 +328,7 @@ export const useDeduplicateExercises = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to deduplicate exercises');
+        throw new Error(errorData?.error?.message || 'Failed to deduplicate exercises');
       }
 
       return response.json();
@@ -326,6 +350,8 @@ export interface UpdateSessionData {
   completedAt?: string;
   performance?: Record<string, {
     exerciseKey: string;
+    /** Dumbbell/unilateral work: the entered weight counts twice (lib/volume.ts). */
+    perSide?: boolean;
     sets: Array<{
       setId: string;
       actualReps?: number;
@@ -338,7 +364,8 @@ export interface UpdateSessionData {
       restTime?: number;
     }>;
     exerciseNotes?: string;
-    totalVolume: number;
+    // Recomputed server-side from the sets; the client's value is advisory.
+    totalVolume?: number;
     averageRpe?: number;
   }>;
 }

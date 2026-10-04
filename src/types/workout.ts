@@ -198,6 +198,16 @@ export interface ExercisePerformance {
   difficultyRating?: number; // compared to expected
 }
 
+/**
+ * The wire shape of an ExercisePerformance before the server has recomputed
+ * it: `totalVolume` is optional because the client's number is not trusted —
+ * the server derives it from the sets (see recomputePerformanceVolume in
+ * lib/volume.ts). Every zod performance schema decodes into this.
+ */
+export type ExercisePerformanceInput = Omit<ExercisePerformance, 'totalVolume'> & {
+  totalVolume?: number;
+};
+
 export interface PerformedSet {
   setId: string; // matches template set ID
 

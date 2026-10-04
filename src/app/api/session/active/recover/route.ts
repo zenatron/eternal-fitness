@@ -66,18 +66,34 @@ export async function POST(request: NextRequest) {
     if (template && (issues.length === 0 || forceRecover)) {
       const templateData = template.workoutData as WorkoutTemplateData;
 
+      // Exercise IDs are positional ('exercise-1', 'set-1'), so performance
+      // logged under a DIFFERENT template cannot be re-labelled onto this one:
+      // its bench-press sets would be adopted as this template's exercise-1,
+      // whatever that is. Re-attaching logged sets only makes sense when the
+      // template matches; a cross-template recover (force) starts clean.
+      const sameTemplate = currentSessionData.templateId === templateId;
+      // Dates round-trip as JSON strings; the timestamp columns need real
+      // Date objects or the update throws and recovery 500s forever.
+      const startedAt = currentSessionData.startedAt
+        ? new Date(currentSessionData.startedAt)
+        : new Date();
+      const lastPauseTime = currentSessionData.lastPauseTime
+        ? new Date(currentSessionData.lastPauseTime)
+        : undefined;
       const recoveredSessionData: ActiveWorkoutSessionData = {
         templateId: template.id,
         templateName: template.name,
         originalTemplate: templateData,
-        startedAt: currentSessionData.startedAt || new Date(),
+        startedAt,
         pausedTime: currentSessionData.pausedTime || 0,
         isTimerActive: currentSessionData.isTimerActive ?? true,
-        lastPauseTime: currentSessionData.lastPauseTime,
-        modifiedTemplate: currentSessionData.modifiedTemplate || templateData,
-        performance: currentSessionData.performance || {},
-        exerciseProgress: currentSessionData.exerciseProgress || {},
-        sessionNotes: currentSessionData.sessionNotes || '',
+        lastPauseTime,
+        modifiedTemplate: sameTemplate
+          ? currentSessionData.modifiedTemplate || templateData
+          : templateData,
+        performance: sameTemplate ? currentSessionData.performance || {} : {},
+        exerciseProgress: sameTemplate ? currentSessionData.exerciseProgress || {} : {},
+        sessionNotes: sameTemplate ? currentSessionData.sessionNotes || '' : '',
         version: (currentSessionData.version || 0) + 1,
         lastUpdated: new Date(),
       };
@@ -115,6 +131,7 @@ export async function POST(request: NextRequest) {
       message: 'Active workout session cleared due to unrecoverable issues',
     });
   } catch (error) {
+    console.error('Failed to recover active session:', error);
     return errorResponse('Failed to recover active session', 500);
   }
 }

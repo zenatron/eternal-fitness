@@ -161,7 +161,9 @@ export default async function RootLayout({
                 <RestTimerBar />
                 <ServiceWorkerRegistrar />
                 <InstallPrompt />
-                <SafeAreaDebug />
+                {/* Development-only diagnostics: a debug overlay that can be
+                    toggled from the UI has no place in a production bundle. */}
+                {process.env.NODE_ENV === 'development' && <SafeAreaDebug />}
               </RestTimerProvider>
             </ActiveWorkoutProvider>
             </AccentProvider>

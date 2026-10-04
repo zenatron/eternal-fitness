@@ -72,14 +72,29 @@ export function ServiceWorkerRegistrar() {
     };
     navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
-    // The worker reports back after replaying queued mutations.
+    // The worker reports back after replaying queued mutations. Failures are
+    // surfaced too: the old handler only spoke up when something SENT, so
+    // entries dropped on an expired session or a rate limit left the
+    // OfflineIndicator claiming changes were saved that no longer existed.
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'OUTBOX_FLUSHED' && event.data.sent > 0) {
-        const count = event.data.sent as number;
+      if (event.data?.type !== 'OUTBOX_FLUSHED') return;
+      const sent = event.data.sent as number;
+      const failed = event.data.failed as number;
+      if (sent > 0) {
         toast.success(
-          count === 1 ? 'Synced 1 pending change' : `Synced ${count} pending changes`,
+          sent === 1 ? 'Synced 1 pending change' : `Synced ${sent} pending changes`,
           { id: 'outbox-sync' }
         );
+      }
+      if (failed > 0) {
+        toast.error(
+          failed === 1
+            ? '1 pending change could not be synced and was removed.'
+            : `${failed} pending changes could not be synced and were removed.`,
+          { id: 'outbox-failed', duration: 6000 }
+        );
+      }
+      if (sent > 0 || failed > 0) {
         window.dispatchEvent(new CustomEvent(OUTBOX_CHANGED_EVENT));
       }
     };
@@ -98,6 +113,16 @@ export function ServiceWorkerRegistrar() {
     const handleOnline = () => void flushOutbox();
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
+  // Drain on load while ALREADY online. Entries stranded by a given-up sync
+  // event used to sit until a connectivity flap or the next mutation — on
+  // browsers without Background Sync, possibly forever.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!navigator.onLine) return;
+    const timer = setTimeout(() => void flushOutbox(), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   const applyUpdate = () => {

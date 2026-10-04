@@ -292,10 +292,30 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
     } catch {
       // Network failure. The edits are already durable in IndexedDB; queue them
       // so Background Sync replays them once there is a connection again.
+      //
+      // The queue's dedupe collapses everything under this key to "the newest
+      // entry wins", which is only correct if each entry is a FULL snapshot.
+      // The delta batch alone is not: a second failed batch deleting the first
+      // meant the first batch's edits existed in neither the queue nor on the
+      // server. The local store always holds the complete merged state, so
+      // that is what gets queued — replaying it is idempotent.
+      const stored = await readActiveWorkout();
+      const snapshot: ActiveSessionUpdatePayload = stored
+        ? {
+            performance: stored.data.performance,
+            modifiedTemplate: stored.data.modifiedTemplate,
+            exerciseProgress: stored.data.exerciseProgress,
+            sessionNotes: stored.data.sessionNotes,
+            isTimerActive: stored.data.isTimerActive,
+            accumulatedSeconds: stored.data.accumulatedSeconds,
+            lastPauseTime: stored.data.lastPauseTime,
+            segmentStartedAt: stored.data.segmentStartedAt,
+          }
+        : updates;
       await enqueue({
         url: '/api/session/active',
         method: 'PATCH',
-        body: updates,
+        body: snapshot,
         description: 'Workout progress',
         // Only the newest snapshot is worth sending — collapse superseded ones.
         dedupeKey: 'active-session-patch',

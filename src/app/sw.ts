@@ -208,6 +208,35 @@ self.addEventListener('fetch', (event) => {
 
 serwist.addEventListeners();
 
+/*
+ * Runtime caches carry the VERSION in their name, but Serwist's built-in
+ * cleanup only evicts ITS OWN precache — the old api-v1 / pages-v1 /
+ * active-session-v1 / fonts-v1 generations were dead weight on every client
+ * forever. Evict anything that follows our `<name>-vN` convention but does
+ * not match the current version.
+ */
+self.addEventListener('activate', (event) => {
+  const eviction = (async () => {
+    const names = await caches.keys();
+    const current = new Set([
+      `api-${VERSION}`,
+      `pages-${VERSION}`,
+      `static-${VERSION}`,
+      `active-session-${VERSION}`,
+      `fonts-${VERSION}`,
+    ]);
+    await Promise.all(
+      names
+        .filter(
+          (name) =>
+            /^(api|pages|static|active-session|fonts)-v\d+$/.test(name) && !current.has(name)
+        )
+        .map((name) => caches.delete(name))
+    );
+  })();
+  event.waitUntil(eviction);
+});
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Background Sync — replay the outbox
  *
@@ -277,6 +306,11 @@ async function bumpAttempts(db: IDBDatabase, entry: OutboxEntry): Promise<void> 
 /** Give up on an entry rather than retrying forever and burning battery. */
 const MAX_ATTEMPTS = 8;
 
+/** Transient server state worth another attempt (see outbox.ts twin). */
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 429 || status === 408;
+}
+
 async function flushOutbox(): Promise<{ sent: number; failed: number }> {
   const db = await openOutbox();
   const entries = await readOutbox(db);
@@ -291,24 +325,37 @@ async function flushOutbox(): Promise<{ sent: number; failed: number }> {
         method: entry.method,
         headers: {
           ...entry.headers,
-          'Idempotency-Key': entry.idempotencyKey,
+          // Preserve the caller's stable Idempotency-Key (queued in
+          // entry.headers by the completion path) — replacing it with the
+          // per-entry random key defeated the server's dedupe, double-logging
+          // a workout whose first attempt had actually succeeded.
+          'Idempotency-Key': entry.headers['Idempotency-Key'] ?? entry.idempotencyKey,
           'X-Replayed-From-Outbox': '1',
         },
         body: entry.body,
         credentials: 'same-origin',
       });
 
-      // 4xx means the server rejected the payload itself — replaying will never
-      // succeed, so drop it rather than blocking everything behind it.
-      // 5xx and network errors are worth another attempt.
-      if (response.ok || (response.status >= 400 && response.status < 500)) {
+      if (response.ok) {
         await deleteEntry(db, entry.id);
-        if (response.ok) sent += 1;
-        else failed += 1;
+        sent += 1;
+      } else if (isRetryableStatus(response.status)) {
+        // Rate limiting and server errors are "try again later", not poison.
+        // The cap is enforced HERE too: the old code only counted network
+        // errors, so one immortal 5xx blocked every entry behind it forever.
+        if (entry.attempts + 1 >= MAX_ATTEMPTS) {
+          await deleteEntry(db, entry.id);
+          failed += 1;
+        } else {
+          await bumpAttempts(db, entry);
+          failed += 1;
+          break;
+        }
       } else {
-        await bumpAttempts(db, entry);
+        // 4xx: the server rejected the payload itself — replaying will never
+        // succeed, so drop it rather than blocking everything behind it.
+        await deleteEntry(db, entry.id);
         failed += 1;
-        break;
       }
     } catch {
       if (entry.attempts + 1 >= MAX_ATTEMPTS) {
@@ -324,10 +371,29 @@ async function flushOutbox(): Promise<{ sent: number; failed: number }> {
 
   db.close();
 
-  if (sent > 0) {
+  // Failed entries are surfaced, not just counted: the old code only notified
+  // when something sent, so entries silently dropped on an expired session or
+  // a rate-limit burst left the OfflineIndicator claiming changes were saved
+  // that no longer existed anywhere.
+  if (sent > 0 || failed > 0) {
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) {
       client.postMessage({ type: 'OUTBOX_FLUSHED', sent, failed });
+    }
+  }
+
+  // Background Sync only re-fires when the waitUntil promise REJECTS; this
+  // one always resolves. After a partial failure nothing would retry until
+  // the next mutation, so re-arm the sync explicitly.
+  if (failed > 0 && 'sync' in self.registration) {
+    try {
+      await (
+        self.registration as ServiceWorkerRegistration & {
+          sync: { register: (tag: string) => Promise<void> };
+        }
+      ).sync.register(OUTBOX_SYNC_TAG);
+    } catch {
+      // Best effort; the page-side drains on `online` regardless.
     }
   }
 
