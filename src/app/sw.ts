@@ -11,8 +11,8 @@
  *  - App shell / navigations: network-first, falling back to cache and then to
  *    the /offline page. A gym basement is the target environment.
  *  - Build assets: cache-first — they are content-hashed and immutable.
- *  - Read APIs: stale-while-revalidate so the dashboard paints instantly, with
- *    a cache fallback that carries an explicit staleness header.
+ *  - Read APIs: network-first, with a cache fallback that carries an explicit
+ *    staleness header. Instant paint comes from the persisted query cache.
  *  - Write APIs: never cached. Failed writes are handed to the outbox in
  *    IndexedDB and replayed via Background Sync (see lib/offline/outbox.ts).
  */
@@ -24,7 +24,6 @@ import {
   NetworkFirst,
   NetworkOnly,
   Serwist,
-  StaleWhileRevalidate,
 } from 'serwist';
 
 declare global {
@@ -42,8 +41,11 @@ const OFFLINE_URL = '/offline';
  *
  * v2: v1 could mediate the OAuth handshake and cache redirect responses from
  * it. Bumping evicts anything poisoned by that.
+ *
+ * v3: API reads moved from stale-while-revalidate to network-first, and the
+ * page cache stopped holding /api/ navigations; evicts entries from both.
  */
-const VERSION = 'v2';
+const VERSION = 'v3';
 
 /**
  * Requests the service worker must not touch at all.
@@ -104,17 +106,25 @@ const serwist = new Serwist({
       }),
     },
 
-    // ── Read APIs: stale-while-revalidate ──
-    // Dashboard, templates, progress, PRs. Painting instantly from cache and
-    // refreshing behind the scenes is exactly right for this data — a
-    // few-seconds-old volume total is harmless.
+    // ── Read APIs: network-first, cache as the offline fallback ──
+    // This was stale-while-revalidate, which answers from cache *first*. Every
+    // React Query refetch after a mutation — invalidated precisely because the
+    // data changed — was handed the pre-mutation response, so a new template,
+    // a finished workout or a deleted session did not appear until a second
+    // refetch. Development has no service worker, which is why it never showed
+    // there. Instant offline paint is the persisted React Query cache's job
+    // (lib/offline/queryPersister.ts); this cache only has to answer when the
+    // network cannot.
     {
       matcher: ({ url, request }) =>
         url.pathname.startsWith('/api/') &&
         request.method === 'GET' &&
-        !isAuthRequest(url),
-      handler: new StaleWhileRevalidate({
+        !isAuthRequest(url) &&
+        // A data export must always be fresh and never sit in a cache.
+        url.pathname !== '/api/user/export',
+      handler: new NetworkFirst({
         cacheName: `api-${VERSION}`,
+        networkTimeoutSeconds: 8,
         plugins: [
           new ExpirationPlugin({
             maxEntries: 64,
@@ -177,7 +187,10 @@ const serwist = new Serwist({
     {
       // Auth navigations are excluded: the OAuth callback is a navigation, and
       // caching or replaying it breaks the handshake.
-      matcher: ({ request, url }) => request.mode === 'navigate' && !isAuthRequest(url),
+      // /api/ navigations (the data export opened in a new tab) are excluded
+      // too: the page cache would otherwise hold a copy of the user's data.
+      matcher: ({ request, url }) =>
+        request.mode === 'navigate' && !isAuthRequest(url) && !url.pathname.startsWith('/api/'),
       handler: new NetworkFirst({
         cacheName: `pages-${VERSION}`,
         networkTimeoutSeconds: 4,

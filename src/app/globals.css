@@ -285,7 +285,10 @@
     @apply bg-surface-0 text-surface-900;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  /* Only page titles default to the condensed display face. Applying it to
+     every heading level put Oswald on each card title and form section, so
+     nothing stood out; components that want it on a lower heading opt in. */
+  h1 {
     @apply font-display;
   }
 }
@@ -294,19 +297,11 @@
 @layer components {
   /* ── Button System ── */
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-display font-semibold tracking-wide uppercase text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-0;
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg font-body font-semibold text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-0 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply bg-accent-500 hover:bg-accent-600 text-white focus:ring-accent-500 shadow-sm;
-  }
-
-  .dark .btn-primary {
-    box-shadow: 0 0 12px rgb(var(--accent-500) / 0.2);
-  }
-
-  .dark .btn-primary:hover {
-    box-shadow: 0 0 20px rgb(var(--accent-500) / 0.35);
+    @apply bg-accent-500 hover:bg-accent-600 active:bg-accent-700 text-white focus-visible:ring-accent-500;
   }
 
   .btn-secondary {
@@ -314,7 +309,7 @@
   }
 
   .btn-tertiary {
-    @apply bg-transparent hover:bg-surface-900 dark:hover:bg-surface-200 text-surface-600 dark:text-surface-800 border border-surface-300 dark:border-surface-400 focus:ring-surface-400;
+    @apply bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-surface-300 dark:text-surface-900 border border-black/10 dark:border-white/10 focus-visible:ring-surface-400;
   }
 
   .btn-quaternary {
@@ -356,11 +351,11 @@
 
   /* ── Form System (site-wide consistency) ── */
   .form-label {
-    @apply block text-sm font-semibold text-surface-600 dark:text-surface-800 mb-1.5 font-display uppercase tracking-wider text-xs;
+    @apply block text-xs font-medium text-surface-500 dark:text-surface-700 mb-1.5;
   }
 
   .form-input {
-    @apply w-full px-4 py-3 bg-white dark:bg-surface-100 border-2 border-surface-200 dark:border-surface-300 rounded-lg text-surface-50 dark:text-white placeholder-surface-500 dark:placeholder-surface-600;
+    @apply w-full px-3.5 py-2.5 bg-white dark:bg-surface-100 border border-black/15 dark:border-white/10 rounded-lg text-surface-50 dark:text-white placeholder-surface-500 dark:placeholder-surface-600;
     @apply focus:outline-none focus:border-accent-500 dark:focus:border-accent-400 focus:ring-4 focus:ring-accent-500/10 dark:focus:ring-accent-400/10;
     @apply transition-all duration-200;
   }
@@ -371,7 +366,7 @@
   }
 
   .form-section {
-    @apply bg-surface-950 dark:bg-surface-100/60 rounded-lg p-6 border border-surface-200 dark:border-surface-300;
+    @apply bg-white dark:bg-surface-100 rounded-xl p-5 border border-black/[0.08] dark:border-white/[0.06];
   }
 
   .form-error {
@@ -399,8 +394,6 @@
       rgb(var(--accent-700)),
       rgb(var(--accent-600))
     );
-    background-size: 400% 400%;
-    animation: gradient-shift 12s ease infinite;
   }
 
   .greeting-gradient-subtle {
@@ -427,23 +420,31 @@
   }
 
   /* Heat glow effect on hover */
+  /* Retired effect, kept as a no-op so stray usages do nothing. */
   .heat-glow {
     position: relative;
-    transition: box-shadow 0.4s var(--ease-out-quart);
   }
 
-  .dark .heat-glow:hover {
-    box-shadow: var(--accent-glow);
-  }
-
-  /* Card with warm border on hover */
+  /* Plain surface. It used to light up with an accent border and glow on
+     hover — on every card, including ones that are not interactive, which
+     told the user nothing and made the whole app shimmer under the pointer. */
   .forge-card {
-    @apply bg-white dark:bg-surface-100 border border-surface-200 dark:border-surface-300 rounded-lg transition-all duration-300;
+    @apply bg-white dark:bg-surface-100 border border-black/[0.08] dark:border-white/[0.06] rounded-xl;
   }
 
-  .dark .forge-card:hover {
-    border-color: rgb(var(--accent-500) / 0.4);
-    box-shadow: 0 0 20px rgb(var(--accent-500) / 0.08), 0 4px 16px rgb(0 0 0 / 0.3);
+  /* A titled block inside a page: quiet label, then content. */
+  .section-title {
+    @apply font-body text-[13px] font-semibold text-surface-300 dark:text-surface-900;
+  }
+
+  /* Small all-caps label for figures ("VOLUME", "SETS"): reserved for data,
+     not for headings. */
+  .stat-label {
+    @apply text-[11px] font-medium uppercase tracking-[0.06em] text-surface-500 dark:text-surface-600;
+  }
+
+  .stat-value {
+    @apply font-display text-2xl font-semibold leading-none text-surface-50 dark:text-white tabular;
   }
 
   /* Page transition classes */
@@ -630,11 +631,11 @@
    in the global sheet, so the two land in different CSS chunks and their load
    order is not ours to rely on — specificity is. */
 .datepicker-forge .react-datepicker {
-  @apply border-surface-200 bg-white font-body dark:border-surface-300 dark:bg-surface-200;
+  @apply border-black/10 bg-white font-body dark:border-surface-300 dark:bg-surface-200;
 }
 
 .datepicker-forge .react-datepicker__header {
-  @apply border-surface-200 bg-surface-950 dark:border-surface-300 dark:bg-surface-100;
+  @apply border-black/10 bg-surface-950 dark:border-surface-300 dark:bg-surface-100;
 }
 
 .datepicker-forge .react-datepicker__current-month,

@@ -31,7 +31,7 @@ export default function NotFound() {
           animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           transition={{ ...springGentle, delay: 0.1 }}
         >
-          <h2 className="text-3xl font-display font-bold text-surface-600 dark:text-surface-900 tracking-wide uppercase">
+          <h2 className="text-3xl font-semibold text-surface-600 dark:text-surface-900">
             Page Not Found
           </h2>
           <p className="text-xl text-surface-500 dark:text-surface-700">

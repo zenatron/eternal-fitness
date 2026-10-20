@@ -59,7 +59,7 @@ export function BottomNav() {
        * bar, and especially its safe-area strip, read as dead black space
        * rather than as a distinct surface. surface-100 is visibly a bar.
        */
-      className="fixed inset-x-0 z-40 border-t border-surface-200/80 bg-white backdrop-blur-md dark:border-surface-300/60 dark:bg-surface-100 md:hidden px-safe"
+      className="fixed inset-x-0 z-40 border-t border-black/10 bg-white backdrop-blur-md dark:border-surface-300/60 dark:bg-surface-100 md:hidden px-safe"
       style={{
         // Pulled below the viewport and padded back up by the same amount: the
         // bar sits exactly where bottom:0 would put it, but its background
@@ -98,11 +98,12 @@ export function BottomNav() {
                 <motion.span
                   whileTap={prefersReducedMotion ? {} : { scale: 0.85 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  className={
-                    'primary' in item && item.primary
-                      ? 'flex h-7 w-7 items-center justify-center rounded-full bg-accent-500 text-white shadow-sm shadow-accent-500/30'
-                      : ''
-                  }
+                  // Every icon slot is the same 28px box, so the labels share a
+                  // baseline — the primary circle used to be taller than its
+                  // neighbours and pushed "Log" below the others.
+                  className={`flex h-7 w-7 items-center justify-center ${
+                    'primary' in item && item.primary ? 'rounded-full bg-accent-500 text-white' : ''
+                  }`}
                 >
                   <Icon
                     className={
@@ -117,7 +118,7 @@ export function BottomNav() {
                   />
                 </motion.span>
                 <span
-                  className={`text-[10px] font-display uppercase tracking-wide ${
+                  className={`text-[11px] font-medium leading-none ${
                     isActive
                       ? 'text-accent-600 dark:text-accent-400'
                       : 'text-surface-500 dark:text-surface-700'

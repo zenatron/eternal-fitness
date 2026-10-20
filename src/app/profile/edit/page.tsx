@@ -256,25 +256,21 @@ export default function EditProfilePage() {
 
         <div className="forge-card overflow-hidden">
           {/* Header */}
-          <div className="greeting-gradient px-8 py-10 text-white relative overflow-hidden">
-            <div className="relative flex items-center gap-5">
-              <AvatarUploader
-                avatarUrl={profile?.avatarUrl}
-                imageUrl={profile?.image}
-                name={profile?.name}
-                email={profile?.email}
-                size={80}
-              />
-              <div>
-                <h1 className="text-3xl font-display font-bold tracking-wide">Edit Profile</h1>
-                <p className="text-accent-100 text-sm mt-1">
-                  Update your personal information and preferences
-                </p>
-              </div>
+          <div className="flex items-center gap-4 border-b border-black/[0.06] px-5 py-5 dark:border-white/[0.06] sm:px-8">
+            <AvatarUploader
+              avatarUrl={profile?.avatarUrl}
+              imageUrl={profile?.image}
+              name={profile?.name}
+              email={profile?.email}
+              size={64}
+            />
+            <div className="min-w-0">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-surface-50 dark:text-white">Edit profile</h1>
+              <p className="text-sm text-surface-500 dark:text-surface-600">Tap the photo to change it.</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-8 p-5 sm:p-8">
             {/* Error */}
             {error && (
               <motion.div
@@ -454,7 +450,7 @@ export default function EditProfilePage() {
                 fold on a phone for anyone editing the fields near the top. The
                 dirty state is stated rather than left to be inferred from
                 whether the button looks pressable. */}
-            <div className="sticky bottom-4 -mx-2 rounded-xl border border-surface-200 bg-white/95 p-3 backdrop-blur dark:border-surface-300 dark:bg-surface-100/95">
+            <div className="sticky bottom-4 -mx-2 rounded-xl border border-black/10 bg-white/95 p-3 backdrop-blur dark:border-surface-300 dark:bg-surface-100/95">
               <motion.button
                 type="submit"
                 className="btn btn-primary inline-flex w-full items-center justify-center gap-2 !py-3 disabled:cursor-not-allowed disabled:opacity-50"

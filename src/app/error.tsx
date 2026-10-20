@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
-import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
+import { springBouncy, springGentle } from '@/lib/motion';
 
 /**
  * Route-level error boundary. Render crashes used to fall through to Next's
@@ -55,7 +55,7 @@ export default function ErrorBoundaryPage({
 
           <div className="space-y-2">
             <motion.h1
-              className="text-2xl font-display font-bold text-surface-50 dark:text-white tracking-wide uppercase"
+              className="text-2xl font-semibold text-surface-50 dark:text-white"
               initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
               animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
               transition={{ ...springGentle, delay: 0.15 }}

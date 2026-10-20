@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
-  XMarkIcon,
   ChartBarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -17,13 +16,12 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationCompact } from '@/utils/durationUtils';
 import { formatFullDateTime } from '@/utils/relativeTime';
 import { EditSessionModal } from './EditSessionModal';
 import { springSnappy } from '@/lib/motion';
-
 
 interface RecentActivityModalProps {
   isOpen: boolean;
@@ -45,7 +43,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
   const filteredAndSortedSessions = useMemo(() => {
     if (!stats?.recentSessions) return [];
 
-    let filtered = stats.recentSessions.filter(session =>
+    const filtered = stats.recentSessions.filter(session =>
       session.templateName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -100,7 +98,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
         totalExercises: fullSession.totalExercises || 0,
         notes: fullSession.notes,
         performanceData: fullSession.performanceData,
-        templateName: fullSession.workoutTemplate?.name || session.templateName,
+        templateName: fullSession.workoutTemplate?.name || fullSession.snapshotName || session.templateName,
       });
     } catch (error) {
       console.error('Failed to load session for editing:', error);
@@ -214,7 +212,7 @@ export function RecentActivityModal({ isOpen, onClose, stats, useMetric }: Recen
                                   <button
                                     onClick={() => handleEditSession(session)}
                                     disabled={loadingSessionId === session.id}
-                                    className="p-2 text-surface-400 hover:text-accent-500 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                    className="p-2 text-surface-600 hover:text-accent-500 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 rounded-lg transition-colors disabled:opacity-50"
                                     title="Edit workout"
                                   >
                                     {loadingSessionId === session.id ? (

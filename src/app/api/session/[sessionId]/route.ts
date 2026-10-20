@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { workoutSessions, userStats, monthlyStats } from '@/lib/db/schema';
+import { workoutSessions, userStats, monthlyStats, users } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -10,6 +10,9 @@ import { monthOf, dayKeyOf } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
 import { errorResponse, successResponse } from '@/lib/api/response';
 import { recomputePerformanceVolume } from '@/lib/volume';
+import { rebuildPersonalRecords } from '@/utils/personalRecords';
+import { calculateWorkoutXP } from '@/lib/xp';
+import { snapshotNameSql } from '@/lib/sessionName';
 
 const performanceSchema = z.record(z.object({
   exerciseKey: z.string(),
@@ -18,7 +21,10 @@ const performanceSchema = z.record(z.object({
     setId: z.string(),
     actualReps: z.number().int().nonnegative().max(10000).optional(),
     actualWeight: z.number().nonnegative().max(100000).optional(),
-    actualDuration: z.number().positive().max(86400).optional(),
+    actualDuration: z.number().nonnegative().max(86400).optional(),
+    // Must be listed: zod strips unknown keys, so leaving it out meant every
+    // edit of a cardio session silently deleted its distances.
+    actualDistance: z.number().nonnegative().max(1000000).optional(),
     actualRpe: z.number().min(1).max(10).optional(),
     completed: z.boolean(),
     skipped: z.boolean().optional(),
@@ -53,6 +59,7 @@ export async function GET(
 
     const session = await db.query.workoutSessions.findFirst({
       where: and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)),
+      extras: { snapshotName: snapshotNameSql.as('snapshot_name') },
       with: {
         workoutTemplate: {
           columns: { id: true, name: true },
@@ -108,7 +115,13 @@ export async function PUT(
       if (validatedData.notes !== undefined) updatePayload.notes = validatedData.notes;
 
       if (validatedData.completedAt) {
-        updatePayload.completedAt = new Date(validatedData.completedAt);
+        // A scheduled session becomes a workout through the completion paths,
+        // which write lifetime totals, streaks and records. Stamping a date on
+        // it here would make it count in history but nowhere else.
+        if (!oldCompletedAt) throw new Error('NotCompleted');
+        const nextCompletedAt = new Date(validatedData.completedAt);
+        if (nextCompletedAt.getTime() > Date.now() + 5 * 60 * 1000) throw new Error('FutureDate');
+        updatePayload.completedAt = nextCompletedAt;
         updatePayload.scheduledAt = null;
       } else if (validatedData.scheduledAt !== undefined) {
         if (validatedData.scheduledAt && oldCompletedAt) {
@@ -181,7 +194,11 @@ export async function PUT(
       const setsDiff = newSets - oldSets;
       const exercisesDiff = newExercises - oldExercises;
 
-      const hasStatsDiff = volumeDiff !== 0 || hoursDiff !== 0 || setsDiff !== 0 || exercisesDiff !== 0;
+      // Only completed sessions are in the lifetime totals; editing a scheduled
+      // one used to apply its diff to numbers that never included it.
+      const hasStatsDiff =
+        !!oldCompletedAt &&
+        (volumeDiff !== 0 || hoursDiff !== 0 || setsDiff !== 0 || exercisesDiff !== 0);
 
       if (hasStatsDiff) {
         await tx
@@ -258,6 +275,28 @@ export async function PUT(
         }
       }
 
+      if (oldCompletedAt && newCompletedAt) {
+        const dateMoved = newCompletedAt.getTime() !== oldCompletedAt.getTime();
+        // Moving a workout to another day can make or break a streak.
+        if (dateMoved) {
+          const timeZone = await getUserTimeZone(userId, tx);
+          const streak = await computeStreakFromHistory(tx, userId, timeZone, await getStreakBaseline(tx, userId));
+          await tx
+            .update(userStats)
+            .set({
+              currentStreak: streak.currentStreak,
+              longestStreak: streak.longestStreak,
+              lastWorkoutAt: streak.lastWorkoutAt,
+            })
+            .where(eq(userStats.userId, userId));
+        }
+        // Records are a running maximum over history: a corrected set or a
+        // re-dated session can change which records stand and when they were set.
+        if (dateMoved || validatedData.performance) {
+          await rebuildPersonalRecords(tx, userId);
+        }
+      }
+
       return updated;
     });
 
@@ -274,6 +313,12 @@ export async function PUT(
     const { sessionId } = await params;
     if (error.message === 'SessionNotFound') {
       return errorResponse('Session not found or access denied', 404, { sessionId });
+    }
+    if (error.message === 'NotCompleted') {
+      return errorResponse('Only a completed workout can be given a completion date here', 400);
+    }
+    if (error.message === 'FutureDate') {
+      return errorResponse('completedAt cannot be in the future', 400);
     }
     if (error.message === 'CannotUncomplete') {
       return errorResponse('A completed workout cannot be turned back into a scheduled one — delete it and reschedule instead', 400);
@@ -342,6 +387,16 @@ export async function DELETE(
             lastWorkoutAt: streak.lastWorkoutAt,
           })
           .where(eq(userStats.userId, userId));
+
+        // Records set in the deleted session must go with it.
+        await rebuildPersonalRecords(tx, userId);
+
+        // Take back what completing it awarded, or delete-and-relog farms XP.
+        const xp = calculateWorkoutXP({ newPRs: Number(existing.personalRecords ?? 0) });
+        await tx
+          .update(users)
+          .set({ points: sql`GREATEST(0, ${users.points} - ${xp})` })
+          .where(eq(users.id, userId));
       } else {
         await tx
           .delete(workoutSessions)

@@ -59,7 +59,10 @@ export async function POST(request: NextRequest) {
           : updates.segmentStartedAt === null
             ? undefined
             : new Date(updates.segmentStartedAt),
-      version: current.version + 1,
+      // `?? 1` matches PATCH's reading of legacy rows; a bare `+ 1` on a
+      // missing version stored null, and PATCH's compare-and-set can never
+      // match null — every later sync would 409 forever.
+      version: (current.version ?? 1) + 1,
       lastUpdated: new Date(),
     };
 

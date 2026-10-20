@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CheckCircleIcon,
   XMarkIcon,
   PlusIcon,
   TrashIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
+import { CheckIcon } from '@heroicons/react/20/solid';
 import { WorkoutTemplateData, ExercisePerformance, PerformedSet, ActiveSessionUpdatePayload } from '@/types/workout';
 import { formatVolume } from '@/utils/formatters';
 import { performedSetsVolume, weightUnitLabel } from '@/lib/volume';
@@ -29,7 +29,6 @@ import { bestOneRepMax, formatOneRepMax } from '@/utils/oneRepMax';
 import { playSetComplete } from '@/lib/workout/feedback';
 import { useLastPerformance } from '@/lib/hooks/useLastPerformance';
 import { springSnappy, springBouncy } from '@/lib/motion';
-
 
 /**
  * Weight increments differ by unit: 2.5kg is the smallest pair of plates in a
@@ -61,6 +60,7 @@ interface SetProgress {
   actualReps?: number;
   actualWeight?: number;
   actualDuration?: number;
+  actualDistance?: number;
   actualRpe?: number;
   notes?: string;
   skipped?: boolean;
@@ -109,6 +109,21 @@ function WorkoutProgressTracker({
     onSessionUpdateRef.current = onSessionUpdate;
   }, [onSessionUpdate]);
 
+  /*
+   * Open the first exercise with work left, once, when progress first loads.
+   * Everything used to start collapsed, so the first thing every workout asked
+   * for was a tap to find out what to do.
+   */
+  const autoExpandedRef = useRef(false);
+  useEffect(() => {
+    if (autoExpandedRef.current || Object.keys(exerciseProgress).length === 0) return;
+    autoExpandedRef.current = true;
+    const next = modifiedTemplate.exercises.find((exercise) =>
+      exerciseProgress[exercise.id]?.sets.some((set) => !set.completed && !set.skipped)
+    );
+    if (next) setExpandedExercise(next.id);
+  }, [exerciseProgress, modifiedTemplate.exercises]);
+
   useEffect(() => {
     setModifiedTemplate(template);
   }, [template]);
@@ -128,6 +143,7 @@ function WorkoutProgressTracker({
             actualReps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min,
             actualWeight: set.targetWeight,
             actualDuration: set.targetDuration,
+            actualDistance: set.targetDistance,
           })),
           completed: false,
         };
@@ -152,6 +168,7 @@ function WorkoutProgressTracker({
               actualReps: typeof set.targetReps === 'number' ? set.targetReps : set.targetReps?.min,
               actualWeight: set.targetWeight,
               actualDuration: set.targetDuration,
+              actualDistance: set.targetDistance,
             })),
             completed: false,
           };
@@ -206,7 +223,11 @@ function WorkoutProgressTracker({
         actualReps: setProgress.actualReps,
         actualWeight: setProgress.actualWeight,
         actualDuration: setProgress.actualDuration,
+        // Never captured live before: cardio distance only existed for
+        // retro-logged workouts, so live runs set no distance PRs.
+        actualDistance: setProgress.actualDistance,
         actualRpe: setProgress.actualRpe,
+        restTime: setProgress.restTime,
         completed: setProgress.completed,
         skipped: setProgress.skipped || false,
         notes: setProgress.notes,
@@ -283,6 +304,20 @@ function WorkoutProgressTracker({
 
     playSetComplete();
     startRestAfterSet(exerciseId, setId);
+
+    // Last set of this exercise done: move straight on to the next one with
+    // work left, so the next tap is a set rather than a hunt for the card.
+    const othersDone = (exerciseProgress[exerciseId]?.sets ?? []).every(
+      (set) => set.setId === setId || set.completed || set.skipped
+    );
+    if (othersDone) {
+      const currentIndex = modifiedTemplate.exercises.findIndex((ex) => ex.id === exerciseId);
+      const next = [
+        ...modifiedTemplate.exercises.slice(currentIndex + 1),
+        ...modifiedTemplate.exercises.slice(0, currentIndex),
+      ].find((ex) => exerciseProgress[ex.id]?.sets.some((set) => !set.completed && !set.skipped));
+      if (next) setExpandedExercise(next.id);
+    }
   };
 
   /**
@@ -351,7 +386,7 @@ function WorkoutProgressTracker({
       ...prev,
       [exerciseId]: {
         ...prev[exerciseId],
-        sets: [...prev[exerciseId].sets, { setId: newSetId, completed: false, actualReps: typeof lastSet.targetReps === 'number' ? lastSet.targetReps : lastSet.targetReps?.min, actualWeight: lastSet.targetWeight, actualDuration: lastSet.targetDuration }],
+        sets: [...prev[exerciseId].sets, { setId: newSetId, completed: false, actualReps: typeof lastSet.targetReps === 'number' ? lastSet.targetReps : lastSet.targetReps?.min, actualWeight: lastSet.targetWeight, actualDuration: lastSet.targetDuration, actualDistance: lastSet.targetDistance }],
       },
     }));
     setModifiedTemplate(updatedTemplate);
@@ -393,10 +428,19 @@ function WorkoutProgressTracker({
     onTemplateModified?.(updatedTemplate);
     setExerciseProgress(prev => ({
       ...prev,
-      [newExerciseId]: { exerciseId: newExerciseId, sets: [{ setId: newSetId, completed: false, actualReps: 10, actualWeight: 0 }], completed: false },
+      // Seeded to match the set just created: a cardio exercise used to start
+      // with 10 reps at 0 weight and no duration.
+      [newExerciseId]: {
+        exerciseId: newExerciseId,
+        sets: [isCardio
+          ? { setId: newSetId, completed: false, actualDuration: 300 }
+          : { setId: newSetId, completed: false, actualReps: 10, actualWeight: 0 }],
+        completed: false,
+      },
     }));
     setShowAddExercise(false);
     setExerciseSearch('');
+    setExpandedExercise(newExerciseId);
   };
 
   const removeExercise = (exerciseId: string) => {
@@ -464,163 +508,34 @@ function WorkoutProgressTracker({
 
   return (
     <div className="space-y-6">
-      {/* Overall Progress Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springSnappy}
-        className="forge-card overflow-hidden"
-      >
-        {/* Compacted: the three stat tiles were full-width blocks stacked on
-            mobile, pushing the actual exercise list below the fold. They are now
-            one inline row, and the descriptive subtitle is gone \u2014 the heading
-            and the percentage already say what this is. */}
-        <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
-        <div className="p-4 sm:p-5">
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="font-display text-lg font-bold uppercase tracking-wide text-surface-50 dark:text-white">
-                Workout Progress
-              </h3>
-              <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-600 tabular">
-                {/* Braced, not bare: `\u00B7` in JSX *text* is not an escape
-                    sequence, so it rendered as the literal characters
-                    "2/8 sets \u00B7 700 lbs". */}
-                {overallProgress.completedSets}/{overallProgress.totalSets} sets {'\u00B7'}{' '}
-                {formatVolume(overallProgress.totalVolume, useMetric)} {'\u00B7'}{' '}
-                {modifiedTemplate.exercises.length} exercises
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <motion.div
-                className="font-display text-3xl font-bold leading-none tracking-wide tabular text-accent-600 dark:text-accent-400"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ ...springBouncy, delay: 0.3 }}
-              >
-                {overallProgress.percentage}%
-              </motion.div>
-              {hasModifications && (
-                <div className="mt-1 text-[10px] uppercase tracking-wider text-warning-600 dark:text-warning-400">
-                  Modified
-                </div>
-              )}
-            </div>
-          </div>
-
+      {/* Overall progress: one line of figures and a bar. */}
+      <div className="forge-card p-4">
+        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+          <p className="text-sm text-surface-500 dark:text-surface-600 tabular">
+            <span className="font-semibold text-surface-50 dark:text-white">
+              {overallProgress.completedSets}/{overallProgress.totalSets}
+            </span>{' '}
+            sets {'\u00B7'} {formatVolume(overallProgress.totalVolume, useMetric)}
+            {hasModifications && <span className="ml-2 text-xs text-warning-600 dark:text-warning-400">modified</span>}
+          </p>
+          <span className="font-display text-lg font-semibold text-surface-50 dark:text-white tabular">
+            {overallProgress.percentage}%
+          </span>
+        </div>
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]"
+          role="progressbar"
+          aria-valuenow={overallProgress.percentage}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Sets completed"
+        >
           <div
-            className="h-2.5 w-full overflow-hidden rounded-full bg-surface-900 dark:bg-surface-300"
-            role="progressbar"
-            aria-valuenow={overallProgress.percentage}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Sets completed"
-          >
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-accent-500 to-accent-400"
-              initial={{ width: 0 }}
-              animate={{ width: `${overallProgress.percentage}%` }}
-              transition={{ ...springBouncy, delay: 0.4 }}
-            />
-          </div>
+            className="h-full rounded-full bg-accent-500 transition-[width] duration-300"
+            style={{ width: `${overallProgress.percentage}%` }}
+          />
         </div>
-      </motion.div>
-
-      {/* Add Exercise Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springSnappy, delay: 0.1 }}
-        className="forge-card overflow-hidden"
-      >
-        {/* Was `to-pink-500` with a `hover:bg-purple-600` button — leftovers
-            from an older palette that clash with the forge accents used
-            everywhere else on this screen. */}
-        <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
-        <div className="p-4 sm:p-6">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">Add Exercise</h3>
-              <p className="text-sm text-surface-500 dark:text-surface-600">Customize your workout on the fly</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {showAddExercise && (
-                <button
-                  onClick={() => { setShowAddExercise(false); setExerciseSearch(''); }}
-                  className="min-h-[44px] flex-1 whitespace-nowrap rounded-lg border border-surface-300 px-4 text-surface-600 transition-colors hover:bg-surface-950 dark:border-surface-400 dark:text-surface-800 dark:hover:bg-surface-200 tap-control sm:flex-none"
-                >
-                  Cancel
-                </button>
-              )}
-              <motion.button
-                onClick={() => setShowAddExercise(!showAddExercise)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={springSnappy}
-                // The label duplicated the heading beside it and wrapped onto
-                // two lines; "Add" reads the same in context and fits.
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-500 px-5 text-white transition-colors hover:bg-accent-600 tap-control sm:flex-none"
-              >
-                <motion.span
-                  animate={{ rotate: showAddExercise ? 45 : 0 }}
-                  transition={springSnappy}
-                >
-                  <PlusIcon className="w-4 h-4" />
-                </motion.span>
-                {showAddExercise ? 'Close' : 'Add'}
-              </motion.button>
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {showAddExercise && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={springSnappy}
-                className="space-y-4"
-              >
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-surface-600" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search exercises..."
-                    value={exerciseSearch}
-                    onChange={(e) => setExerciseSearch(e.target.value)}
-                    className="form-input !pl-10"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                  {filteredExercises.map((exercise) => (
-                    <button
-                      key={exercise.key}
-                      onClick={() => addExercise(exercise)}
-                      className="p-3 text-left border border-surface-200 dark:border-surface-400 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
-                    >
-                      <div className="font-medium text-surface-50 dark:text-white">{exercise.name}</div>
-                      <div className="text-sm text-surface-500 dark:text-surface-600">{exercise.muscles.join(', ')}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex justify-between items-center pt-4 border-t border-surface-200 dark:border-surface-400">
-                  <p className="text-sm text-surface-500 dark:text-surface-600">
-                    {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
-                  </p>
-                  <button
-                    onClick={() => { setShowAddExercise(false); setExerciseSearch(''); }}
-                    className="px-4 py-2 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+      </div>
 
       {/* Exercise List */}
       <div className="space-y-4">
@@ -630,15 +545,11 @@ function WorkoutProgressTracker({
           const isExpanded = expandedExercise === exercise.id;
 
           return (
-            <motion.div
+            <div
               key={exercise.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...springSnappy, delay: index * 0.08 }}
-              className="forge-card overflow-hidden"
+              className={`forge-card overflow-hidden ${isExpanded ? 'ring-1 ring-accent-500/40' : ''}`}
             >
-              <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-4">
                 {/* A real button, not a div-with-onClick: this is the primary
                     control for each exercise and has to be keyboard reachable
                     and announced as expandable. */}
@@ -650,25 +561,18 @@ function WorkoutProgressTracker({
                     aria-controls={`exercise-panel-${exercise.id}`}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left tap-control focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 sm:gap-4"
                   >
-                    <motion.div
-                      className={`shrink-0 p-2.5 sm:p-3 rounded-xl ${progress?.completed ? 'bg-success-100 dark:bg-success-900/30' : 'bg-accent-100 dark:bg-accent-900/30'}`}
-                      initial={{ scale: progress?.completed ? 1.2 : 1 }}
-                      animate={{ scale: 1 }}
-                      transition={springBouncy}
-                      key={progress?.completed ? 'completed' : 'pending'}
-                    >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center">
                       {progress?.completed ? (
-                        <CheckCircleIconSolid className="w-6 h-6 text-success-600 dark:text-success-400" />
+                        <CheckCircleIconSolid className="h-7 w-7 text-success-500" />
                       ) : (
-                        // A ring showing how far through this exercise you are,
-                        // rather than an opaque coloured block.
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-accent-500/70 text-[10px] font-display font-bold tabular text-accent-600 dark:text-accent-400">
+                        // Sets done so far, so progress reads without expanding.
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-black/15 text-xs font-semibold tabular text-surface-300 dark:border-white/15 dark:text-surface-900">
                           {stats.completed}
                         </span>
                       )}
-                    </motion.div>
+                    </span>
                     <div className="min-w-0">
-                      <h4 className="text-lg font-display font-bold text-surface-50 dark:text-white truncate">{exercise.name}</h4>
+                      <h4 className="truncate text-base font-semibold text-surface-50 dark:text-white">{exercise.name}</h4>
                       {/* whitespace-nowrap + a tighter gap: at phone width each
                           of these fragments was wrapping onto its own two lines,
                           turning a one-line summary into a six-line block. */}
@@ -703,33 +607,22 @@ function WorkoutProgressTracker({
                   </button>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <motion.button
+                    <button
                       onClick={() => addExtraSet(exercise.id)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={springSnappy}
-                      className="touch-target flex items-center justify-center bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400 rounded-lg hover:bg-accent-200 dark:hover:bg-accent-900/50 transition-colors tap-control"
-                      aria-label={`Add an extra set to ${exercise.name}`}
+                      className="touch-target tap-control flex items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.05] hover:text-surface-50 dark:text-surface-600 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                      aria-label={`Add a set to ${exercise.name}`}
+                      title="Add set"
                     >
-                      <PlusIcon className="w-4 h-4" />
-                    </motion.button>
+                      <PlusIcon className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => setPendingRemoval(exercise.id)}
-                      className="touch-target flex items-center justify-center bg-danger-100 dark:bg-danger-900/30 text-danger-600 dark:text-danger-400 rounded-lg hover:bg-danger-200 dark:hover:bg-danger-900/50 transition-colors tap-control"
+                      className="touch-target tap-control flex items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-danger-500/10 hover:text-danger-500 dark:text-surface-600"
                       aria-label={`Remove ${exercise.name} from this workout`}
+                      title="Remove exercise"
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <TrashIcon className="h-5 w-5" />
                     </button>
-                    <div className="hidden text-right sm:block">
-                      <div className="text-lg font-display font-bold text-surface-50 dark:text-white tabular">
-                        {/* Guard the divide: an exercise with no sets rendered
-                            "NaN%" before. */}
-                        {stats.total > 0
-                          ? Math.round((stats.completed / stats.total) * 100)
-                          : 0}
-                        %
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -741,7 +634,7 @@ function WorkoutProgressTracker({
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={springSnappy}
-                      className="mt-6 space-y-3"
+                      className="mt-3 space-y-2"
                     >
                       {progress.sets.map((setProgress, setIndex) => {
                         const templateSet = exercise.sets.find(s => s.id === setProgress.setId);
@@ -756,18 +649,20 @@ function WorkoutProgressTracker({
                         return (
                           <div
                             key={setProgress.setId}
-                            className={`p-2.5 sm:p-4 rounded-xl border-2 ${
+                            className={`rounded-lg border p-2.5 sm:p-3 ${
                               setProgress.completed
-                                ? 'border-success-300 dark:border-success-800 bg-success-50 dark:bg-success-900/20'
+                                ? 'border-success-500/30 bg-success-500/[0.06]'
                                 : setProgress.skipped
-                                ? 'border-warning-300 dark:border-warning-800 bg-warning-50 dark:bg-warning-900/20'
-                                : 'border-surface-900 dark:border-surface-400 bg-surface-950 dark:bg-surface-200/50'
+                                ? 'border-black/[0.06] bg-black/[0.02] opacity-60 dark:border-white/[0.06] dark:bg-white/[0.02]'
+                                : 'border-black/[0.08] dark:border-white/[0.08]'
                             }`}
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-surface-500 dark:text-surface-600">
-                                  Set {setIndex + 1} {isExtraSet && '(Extra)'}
+                                <span className="text-sm font-semibold text-surface-50 dark:text-white">
+                                  Set {setIndex + 1}
+                                  {isExtraSet && <span className="ml-1 font-normal text-surface-500"> · added</span>}
+                                  {setProgress.skipped && <span className="ml-1 font-normal text-surface-500"> · skipped</span>}
                                 </span>
                                 {templateSet && (() => {
                                   const isCardioEx = isCardioExercise(exercise.exerciseKey);
@@ -791,20 +686,20 @@ function WorkoutProgressTracker({
                                 <button
                                   onClick={() => skipSet(exercise.id, setProgress.setId)}
                                   disabled={setProgress.completed}
-                                  className="touch-target flex items-center justify-center rounded-lg text-award-600 transition-colors hover:bg-award-100 disabled:opacity-40 dark:text-award-400 dark:hover:bg-award-900/30 tap-control"
+                                  className="touch-target tap-control flex items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.05] disabled:opacity-30 dark:text-surface-600 dark:hover:bg-white/[0.06]"
                                   aria-label={`Skip set ${setIndex + 1}`}
+                                  title="Skip set"
                                 >
                                   <XMarkIcon className="w-4 h-4" />
                                 </button>
                                 <motion.button
                                   onClick={() => toggleSetCompletion(exercise.id, setProgress.setId)}
-                                  whileHover={{ scale: 1.15 }}
-                                  whileTap={{ scale: 0.85 }}
+                                  whileTap={{ scale: 0.9 }}
                                   transition={springSnappy}
-                                  className={`touch-target flex items-center justify-center rounded-lg tap-control ${
+                                  className={`tap-control flex h-11 min-w-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors ${
                                     setProgress.completed
-                                      ? 'text-success-600 dark:text-success-400 hover:bg-success-100 dark:hover:bg-success-900/30'
-                                      : 'text-surface-600 hover:text-success-600 hover:bg-success-100 dark:hover:bg-success-900/30'
+                                      ? 'bg-success-500 text-white hover:bg-success-600'
+                                      : 'border border-black/15 text-surface-300 hover:border-success-500 hover:text-success-600 dark:border-white/15 dark:text-surface-900'
                                   }`}
                                   aria-label={
                                     setProgress.completed
@@ -818,8 +713,9 @@ function WorkoutProgressTracker({
                                     transition={springBouncy}
                                     key={String(setProgress.completed)}
                                   >
-                                    <CheckCircleIcon className="w-5 h-5" />
+                                    <CheckIcon className="h-5 w-5" />
                                   </motion.span>
+                                  <span className="hidden sm:inline">{setProgress.completed ? 'Done' : 'Log'}</span>
                                 </motion.button>
                               </div>
                             </div>
@@ -830,25 +726,38 @@ function WorkoutProgressTracker({
 
                               if (isCardio) {
                                 return (
-                                  <div className="space-y-2.5 md:grid md:grid-cols-3 md:gap-3 md:space-y-0">
-                                    <div>
-                                      <label
-                                        htmlFor={`${fieldPrefix}-duration`}
-                                        className="form-label"
-                                      >
-                                        Duration
-                                      </label>
-                                      <input
-                                        id={`${fieldPrefix}-duration`}
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={setProgress.actualDuration ? formatDurationInput(setProgress.actualDuration) : ''}
-                                        onChange={(e) => {
-                                          const parsed = parseDuration(e.target.value);
-                                          if (parsed !== null) updateSetProgress(exercise.id, setProgress.setId, { actualDuration: parsed });
-                                        }}
-                                        className="form-input tabular !py-2 !px-3 text-sm"
-                                        placeholder="30:00"
+                                  <div className="space-y-2.5 md:grid md:grid-cols-4 md:gap-3 md:space-y-0">
+                                    <div className="grid grid-cols-2 gap-2.5 md:contents">
+                                      <div>
+                                        <label
+                                          htmlFor={`${fieldPrefix}-duration`}
+                                          className="form-label"
+                                        >
+                                          Time
+                                        </label>
+                                        <input
+                                          id={`${fieldPrefix}-duration`}
+                                          type="text"
+                                          inputMode="numeric"
+                                          value={setProgress.actualDuration ? formatDurationInput(setProgress.actualDuration) : ''}
+                                          onChange={(e) => {
+                                            const parsed = parseDuration(e.target.value);
+                                            if (parsed !== null) updateSetProgress(exercise.id, setProgress.setId, { actualDuration: parsed });
+                                          }}
+                                          className="form-input tabular !py-2 !px-3 text-sm"
+                                          placeholder="30:00"
+                                        />
+                                      </div>
+                                      <StepperInput
+                                        id={`${fieldPrefix}-distance`}
+                                        label={`Distance (${useMetric ? 'km' : 'mi'})`}
+                                        value={setProgress.actualDistance}
+                                        onChange={(actualDistance) => updateSetProgress(exercise.id, setProgress.setId, { actualDistance })}
+                                        step={0.1}
+                                        min={0}
+                                        allowDecimal
+                                        ghost={ghostSet?.distance}
+                                        compact
                                       />
                                     </div>
                                     <div className="grid grid-cols-2 gap-2.5 md:contents">
@@ -943,7 +852,7 @@ function WorkoutProgressTracker({
                               />
                             )}
 
-                            <div className="mt-4 border-t border-surface-900/60 pt-3 dark:border-surface-400/40">
+                            <div className="mt-3">
                               <label className="sr-only" htmlFor={`${exercise.id}-${setProgress.setId}-notes`}>
                                 Notes for set {setIndex + 1}
                               </label>
@@ -953,30 +862,83 @@ function WorkoutProgressTracker({
                                 value={setProgress.notes || ''}
                                 onChange={(e) => updateSetProgress(exercise.id, setProgress.setId, { notes: e.target.value })}
                                 className="form-input !py-2 !px-3 text-sm"
-                                placeholder="Set notes (e.g., felt easy, form breakdown, etc.)"
+                                placeholder="Note for this set"
                               />
                             </div>
                           </div>
                         );
                       })}
 
-                      <div className="mt-5 rounded-xl border border-surface-900 bg-surface-950 p-3 dark:border-surface-400/50 dark:bg-surface-200/40">
-                        <label className="form-label">Exercise Notes</label>
+                      <div className="pt-1">
+                        <label className="form-label" htmlFor={`${exercise.id}-notes`}>Exercise notes</label>
                         <textarea
                           value={progress.exerciseNotes || ''}
                           onChange={(e) => setExerciseProgress(prev => ({ ...prev, [exercise.id]: { ...prev[exercise.id], exerciseNotes: e.target.value } }))}
                           className="form-input !py-2 !px-3 text-sm resize-none"
                           rows={2}
-                          placeholder="Overall thoughts on this exercise..."
+                          id={`${exercise.id}-notes`}
+                          placeholder="Cues, setup, how it felt"
                         />
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            </motion.div>
+            </div>
           );
         })}
+      </div>
+
+      {/* Adding is occasional, so it sits after the list as a single button;
+          it used to be a full card with its own heading above the exercises,
+          pushing the first set further down every time. */}
+      <div className="forge-card p-3">
+        {!showAddExercise ? (
+          <button
+            onClick={() => setShowAddExercise(true)}
+            className="tap-control flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg text-sm font-medium text-accent-600 transition-colors hover:bg-accent-500/10 dark:text-accent-400"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add exercise
+          </button>
+        ) : (
+          <div className="space-y-3 p-1">
+            <div className="relative">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
+              <input
+                type="search"
+                autoFocus
+                placeholder="Search exercises"
+                aria-label="Search exercises"
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+                className="form-input !pl-9"
+              />
+            </div>
+            <ul className="max-h-64 divide-y divide-black/[0.06] overflow-y-auto dark:divide-white/[0.06]">
+              {filteredExercises.map((exercise) => (
+                <li key={exercise.key}>
+                  <button
+                    onClick={() => addExercise(exercise)}
+                    className="w-full px-2 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                  >
+                    <span className="block text-sm font-medium text-surface-50 dark:text-white">{exercise.name}</span>
+                    <span className="block text-xs text-surface-500 dark:text-surface-600">{exercise.muscles.join(', ')}</span>
+                  </button>
+                </li>
+              ))}
+              {filteredExercises.length === 0 && (
+                <li className="px-2 py-4 text-sm text-surface-500 dark:text-surface-600">No exercises match.</li>
+              )}
+            </ul>
+            <button
+              onClick={() => { setShowAddExercise(false); setExerciseSearch(''); }}
+              className="btn btn-tertiary w-full"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

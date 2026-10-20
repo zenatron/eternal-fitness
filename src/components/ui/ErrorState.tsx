@@ -32,7 +32,7 @@ export function ErrorState({ what, onRetry, isRetrying = false }: ErrorStateProp
         )}
       </div>
 
-      <p className="font-display text-lg uppercase tracking-wide text-surface-50 dark:text-white">
+      <p className="text-lg text-surface-50 dark:text-white">
         {isOnline ? `Couldn't load ${what}` : 'No connection'}
       </p>
 

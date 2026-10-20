@@ -161,7 +161,7 @@ export function InstallPrompt() {
               <ArrowDownTrayIcon className="h-5 w-5 text-accent-400" />
             </div>
             <div className="min-w-0">
-              <p className="font-display text-base uppercase tracking-wide text-surface-50 dark:text-white">
+              <p className="text-base text-surface-50 dark:text-white">
                 Install Eternal
               </p>
               <p className="mt-1 text-sm text-surface-600 dark:text-surface-700">

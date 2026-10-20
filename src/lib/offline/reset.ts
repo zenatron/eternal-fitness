@@ -14,6 +14,8 @@ import { ACCENT_STORAGE_KEY } from '@/types/theme';
  *  - the **active workout** store is the same story for an in-progress one;
  *  - the **meta** store holds the persisted React Query cache, which user B
  *    would otherwise browse offline;
+ *  - the service worker's **runtime caches** hold API responses and pages by
+ *    URL, which the next user would be served offline;
  *  - **localStorage** carries the accent theme (a choice tied to whoever set
  *    it — carrying it into the next account pushed it to their profile) and
  *    the install-prompt counters.
@@ -56,6 +58,26 @@ export async function wipeClientOfflineState(): Promise<void> {
     }
   } catch (error) {
     console.error('[signout] Failed to delete offline database', error);
+  }
+
+  // The service worker's runtime caches are keyed by URL, not by user, so
+  // /api/dashboard cached for one account was served to the next as the
+  // offline fallback. Static and font caches are shared and harmless.
+  try {
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          // Ours are versioned; Serwist's defaultCache uses fixed names.
+          .filter((name) =>
+            /^(api|pages|active-session)-v\d+$/.test(name) ||
+            /^(apis|pages|pages-rsc|pages-rsc-prefetch|others|cross-origin)$/.test(name)
+          )
+          .map((name) => caches.delete(name))
+      );
+    }
+  } catch (error) {
+    console.error('[signout] Failed to clear runtime caches', error);
   }
 
   try {

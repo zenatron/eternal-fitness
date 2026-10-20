@@ -46,7 +46,9 @@ interface EditableSet {
   actualReps?: number;
   actualWeight?: number;
   actualDuration?: number;
+  actualDistance?: number;
   actualRpe?: number;
+  restTime?: number;
   completed: boolean;
   skipped?: boolean;
   notes?: string;
@@ -108,6 +110,10 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
             actualReps: s.actualReps,
             actualWeight: s.actualWeight,
             actualDuration: s.actualDuration,
+            // Carried through so saving an edit cannot erase them — the
+            // modal used to rebuild sets without these fields.
+            actualDistance: s.actualDistance,
+            restTime: s.restTime,
             actualRpe: s.actualRpe,
             completed: s.completed,
             skipped: s.skipped,
@@ -304,7 +310,7 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={springSnappy}
-                        className="border-t border-surface-200 dark:border-surface-300"
+                        className="border-t border-black/10 dark:border-surface-300"
                       >
                         <div className="p-3 space-y-2">
                           {exercise.sets.map((set, setIdx) => (
@@ -322,15 +328,22 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                   <input
                                     type="checkbox"
                                     checked={set.completed}
-                                    onChange={(e) => updateSet(exercise.exerciseId, set.setId, { completed: e.target.checked })}
-                                    className="rounded border-surface-300 text-accent-500 focus:ring-accent-500 w-3.5 h-3.5"
+                                    onChange={(e) =>
+                                      updateSet(exercise.exerciseId, set.setId, {
+                                        completed: e.target.checked,
+                                        // Done and skipped are exclusive; the server
+                                        // counts a set with both as skipped.
+                                        ...(e.target.checked ? { skipped: false } : {}),
+                                      })
+                                    }
+                                    className="rounded border-black/10 text-accent-500 focus:ring-accent-500 w-3.5 h-3.5"
                                   />
                                   <span className="font-display uppercase tracking-wider text-[10px] font-semibold">Done</span>
                                 </label>
                               </div>
 
                               {isCardio ? (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                   <div>
                                     <label className="form-label">Duration</label>
                                     <DurationInput
@@ -340,6 +353,16 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                       className="!py-2"
                                     />
                                   </div>
+                                  <StepperInput
+                                    label={useMetric ? 'km' : 'mi'}
+                                    value={set.actualDistance}
+                                    onChange={(v) => updateSet(exercise.exerciseId, set.setId, { actualDistance: v })}
+                                    step={0.1}
+                                    min={0}
+                                    allowDecimal
+                                    placeholder="—"
+                                    compact
+                                  />
                                   <div>
                                     <StepperInput
                                       label="RPE"

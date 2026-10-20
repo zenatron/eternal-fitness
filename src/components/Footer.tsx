@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import pkg from '../../package.json';
 import { DEBUG_KEY, DEBUG_EVENT } from './pwa/SafeAreaDebug';
@@ -10,8 +9,8 @@ import { DEBUG_KEY, DEBUG_EVENT } from './pwa/SafeAreaDebug';
 /** Taps on the version needed to reveal the safe-area readout. */
 const DEBUG_TAPS = 7;
 
+/** One quiet line under every page — it used to be an animated, tinted band. */
 export function Footer() {
-  const prefersReducedMotion = useReducedMotion();
   const taps = useRef(0);
 
   // The installed app has no URL bar, so ?debug= is unreachable exactly where
@@ -33,38 +32,18 @@ export function Footer() {
   };
 
   return (
-    <motion.footer
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-      whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ type: 'spring', stiffness: 200, damping: 25, delay: 0.1 }}
-      style={{ paddingBottom: 'calc(1.5rem + var(--safe-bottom))' }}
-      className="relative z-10 border-t border-surface-200/60 dark:border-surface-300/40 bg-white/80 dark:bg-surface-50/80 backdrop-blur-sm px-safe pt-6"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-surface-500 dark:text-surface-600">
-        <p className="font-display tracking-wide">
-          &copy; {new Date().getFullYear()} ETERNAL FITNESS
-        </p>
-        <p className="flex items-center gap-2">
-          <span>Built by</span>
-          <Link
-            href="https://github.com/zenatron"
-            className="text-accent-600 dark:text-accent-400 hover:underline transition-colors font-semibold"
-          >
-            zenatron
-          </Link>
-          <span className="text-surface-300 dark:text-surface-500">|</span>
-          <motion.button
-            type="button"
-            onClick={handleVersionTap}
-            className="tap-control font-mono text-xs text-accent-500/60"
-            whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-          >
-            v{pkg.version}
-          </motion.button>
-        </p>
-      </div>
-    </motion.footer>
+    <footer style={{ paddingBottom: 'calc(1.5rem + var(--safe-bottom))' }} className="px-safe pt-10">
+      <p className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 text-xs text-surface-500 dark:text-surface-600 sm:px-6">
+        <span>Eternal Fitness</span>
+        <span aria-hidden="true">·</span>
+        <Link href="https://github.com/zenatron" className="hover:text-accent-600 dark:hover:text-accent-400">
+          zenatron
+        </Link>
+        <span aria-hidden="true">·</span>
+        <button type="button" onClick={handleVersionTap} className="tap-control font-mono">
+          v{pkg.version}
+        </button>
+      </p>
+    </footer>
   );
 }

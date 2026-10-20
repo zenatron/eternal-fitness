@@ -55,7 +55,7 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
   if (ranked.length === 0) {
     return (
       <div className="forge-card p-4 sm:p-5">
-        <h2 className="mb-2 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+        <h2 className="mb-2 text-sm font-semibold text-surface-50 dark:text-white">
           Train today
         </h2>
         <p className="text-sm text-surface-500 dark:text-surface-600">
@@ -72,7 +72,7 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
 
   return (
     <div className="forge-card p-4 sm:p-5">
-      <h2 className="mb-1 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+      <h2 className="mb-1 text-sm font-semibold text-surface-50 dark:text-white">
         Train today
       </h2>
       <p className="mb-3 text-xs text-surface-500 dark:text-surface-600">
@@ -84,7 +84,7 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
           <li key={template.id}>
             <Link
               href={`/template/${template.id}`}
-              className="tap-control flex items-center gap-3 rounded-xl border border-surface-200 p-3 transition-colors hover:border-accent-500/40 dark:border-surface-400/50"
+              className="tap-control flex items-center gap-3 rounded-xl border border-black/10 p-3 transition-colors hover:border-accent-500/40 dark:border-surface-400/50"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

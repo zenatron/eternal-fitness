@@ -8,7 +8,7 @@ import {
   getStreakBaseline,
   recordWorkoutCompletion,
 } from '@/lib/workout/completion';
-import { eq, and, isNotNull, isNull, desc, lt, or } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { errorResponse, parseLimitParam, successResponse } from '@/lib/api/response';
 import { buildBeforeCursorFilter, encodeBeforeCursor } from '@/lib/api/pagination';
@@ -17,6 +17,7 @@ import {
   validateWorkoutSession,
 } from '@/utils/workoutJsonUtils';
 import { recomputePerformanceVolume } from '@/lib/volume';
+import { snapshotNameSql } from '@/lib/sessionName';
 import { WorkoutTemplateData, ExercisePerformance } from '@/types/workout';
 import { processWorkoutSessionPRs } from '@/utils/personalRecords';
 import { updateUserAchievements, updateUniqueExercisesCount } from '@/lib/achievements';
@@ -47,14 +48,12 @@ function normalizePerformance(
   }).performance;
 }
 
-
-
 const performedSetSchema = z.object({
   setId: z.string(),
   actualReps: z.number().int().nonnegative().optional(),
   actualWeight: z.number().nonnegative().optional(),
-  actualDuration: z.number().positive().optional(),
-  actualDistance: z.number().positive().optional(),
+  actualDuration: z.number().nonnegative().optional(),
+  actualDistance: z.number().nonnegative().optional(),
   actualRpe: z.number().min(1).max(10).optional(),
   restTime: z.number().nonnegative().optional(),
   completed: z.boolean(),
@@ -260,7 +259,7 @@ async function createNewSession(userId: string, data: z.infer<typeof createSessi
         .returning();
 
       try {
-        await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData, tx);
+        await processWorkoutSessionPRs(userId, session.id, normalizedPerformance, templateData, tx, completionTime);
       } catch (error) {
         console.error('Error processing PRs:', error);
       }
@@ -318,7 +317,14 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
     return errorResponse('Scheduled session not found or already completed', 404, { scheduledSessionId });
   }
 
-  const templateData = scheduledSession.workoutTemplate!.workoutData as WorkoutTemplateData;
+  // The snapshot taken at scheduling time is the fallback if the template has
+  // since lost its data; the non-null assertion here used to 500.
+  const templateData = (scheduledSession.workoutTemplate?.workoutData ??
+    (scheduledSession.performanceData as { templateSnapshot?: WorkoutTemplateData } | null)?.templateSnapshot) as
+    WorkoutTemplateData | undefined;
+  if (!templateData) {
+    return errorResponse('This scheduled session has no workout attached', 409, { scheduledSessionId });
+  }
   const normalizedPerformance = normalizePerformance(performance, templateData);
   const sessionData = createWorkoutSession(templateData, normalizedPerformance);
 
@@ -414,6 +420,8 @@ async function completeScheduledSession(userId: string, data: z.infer<typeof com
       session.id,
       normalizedPerformance,
       templateData,
+      undefined,
+      session.completedAt ?? undefined,
     );
     newPRs = prResult.newPRs;
     if (newPRs.length > 0) {
@@ -483,6 +491,7 @@ export async function GET(request: Request) {
         personalRecords: true,
         workoutTemplateId: true,
       },
+      extras: { snapshotName: snapshotNameSql.as('snapshot_name') },
       where: and(
         eq(workoutSessions.userId, userId),
         isNotNull(workoutSessions.completedAt),

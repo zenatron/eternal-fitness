@@ -1,395 +1,253 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { queryKeys } from '@/lib/queryKeys';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'framer-motion';
 import { ErrorState } from '@/components/ui/ErrorState';
-import {
-  ArrowLeftIcon,
-  ChartBarIcon,
-  FireIcon,
-  ClockIcon,
-  ScaleIcon,
-  MapPinIcon,
-} from '@heroicons/react/24/outline';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { DashboardCard } from '@/components/ui/dashboard/DashboardCard';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
-import { formatDurationHuman } from '@/utils/durationUtils';
+import { formatDurationCompact } from '@/utils/durationUtils';
 import { formatPRValue } from '@/utils/prFormatting';
-import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
-
 
 const PERIODS = [
-  { key: '7d', label: '7 Days' },
-  { key: '30d', label: '30 Days' },
-  { key: '90d', label: '90 Days' },
-  { key: '1y', label: '1 Year' },
-  { key: 'all', label: 'All Time' },
+  { key: '7d', label: '7D', name: 'last 7 days' },
+  { key: '30d', label: '30D', name: 'last 30 days' },
+  { key: '90d', label: '90D', name: 'last 90 days' },
+  { key: '1y', label: '1Y', name: 'last year' },
+  { key: 'all', label: 'All', name: 'all time' },
 ];
 
+interface Delta {
+  value: number;
+  change: number;
+  isNew: boolean;
+}
+
 interface ProgressData {
-  period: { label: string; groupBy: string };
-  summary: {
-    workouts: { value: number; change: number; isNew: boolean };
-    volume: { value: number; change: number; isNew: boolean };
-    hours: { value: number; change: number; isNew: boolean };
-    distance: { value: number; change: number; isNew: boolean };
-    sets: { value: number; change: number; isNew: boolean };
-  };
+  period: { label: string; groupBy: 'day' | 'week' | 'month' };
+  summary: { workouts: Delta; volume: Delta; hours: Delta; distance: Delta; sets: Delta };
   frequency: Array<{ date: string; workouts: number; volume: number; hours: number; distance: number }>;
   topExercises: Array<{ name: string; volume: number; sets: number; sessions: number }>;
   recentSessions: Array<{ date: string; name: string; volume: number; sets: number; duration: number; distance: number }>;
 }
 
-function StatPill({ label, value, change, isNew, format, icon: Icon, delay }: {
-  label: string; value: string; change: number; isNew: boolean; format: string; icon: any; delay: number;
-}) {
+/** Bucket keys are "YYYY-MM-DD" (day/week) or "YYYY-MM" (month). */
+function bucketLabel(key: string, groupBy: ProgressData['period']['groupBy']): string {
+  const [y, m, d] = key.split('-').map(Number);
+  // Noon UTC so no zone can roll the label onto a neighbouring day.
+  const date = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 12));
+  return groupBy === 'month'
+    ? date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function Change({ delta, comparable }: { delta: Delta; comparable: boolean }) {
+  if (!comparable || delta.isNew || delta.change === 0) return null;
+  const up = delta.change > 0;
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ ...springBouncy, delay }}
-      className="forge-card p-4 flex flex-col items-center text-center"
-    >
-      <Icon className="w-5 h-5 text-surface-500 dark:text-surface-600 mb-1.5" />
-      <span className="text-xl font-display font-black text-surface-50 dark:text-white">{value}</span>
-      <span className="text-xs text-surface-500 dark:text-surface-600 uppercase tracking-wider mt-0.5">{label}</span>
-      {isNew ? (
-        <span className="text-[10px] font-bold text-accent-500 mt-1">NEW</span>
-      ) : change !== 0 ? (
-        <span className={`text-[10px] font-bold mt-1 ${change > 0 ? 'text-success-500' : 'text-danger-500'}`}>
-          {change > 0 ? '↑' : '↓'} {Math.abs(change)}%
-        </span>
-      ) : (
-        <span className="text-[10px] text-surface-400 mt-1">—</span>
-      )}
-    </motion.div>
+    <span className={`text-xs font-medium tabular ${up ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
+      {up ? '+' : '−'}
+      {Math.abs(delta.change)}%
+    </span>
   );
 }
 
-function BarChart({ data, valueKey, color, maxValue, delay }: {
-  data: Array<Record<string, any>>;
-  valueKey: string;
-  color: string;
-  maxValue: number;
-  delay: number;
+/**
+ * Bars on a real time axis — every bucket in the period, empty ones included —
+ * with the value of the tallest bar labelled so the chart has a scale.
+ */
+function Bars({
+  data,
+  valueKey,
+  groupBy,
+  format,
+}: {
+  data: ProgressData['frequency'];
+  valueKey: 'workouts' | 'volume';
+  groupBy: ProgressData['period']['groupBy'];
+  format: (n: number) => string;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-  if (!data.length) return null;
-
+  const max = Math.max(1, ...data.map((d) => d[valueKey]));
+  if (data.length === 0) return null;
+  const mid = data[Math.floor(data.length / 2)];
   return (
-    <div className="flex items-end gap-1 h-32">
-      {data.map((d, i) => {
-        const val = d[valueKey] || 0;
-        const pct = maxValue > 0 ? (val / maxValue) * 100 : 0;
-        return (
-          <motion.div
-            key={i}
-            className="flex-1 flex flex-col items-center justify-end h-full"
-            initial={prefersReducedMotion ? {} : { opacity: 0 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1 }}
-            transition={{ delay: delay + i * 0.02 }}
-          >
-            <motion.div
-              className={`w-full rounded-t-sm ${color}`}
-              initial={prefersReducedMotion ? {} : { height: 0 }}
-              animate={prefersReducedMotion ? {} : { height: `${Math.max(pct, 1)}%` }}
-              transition={{ duration: 0.6, delay: delay + i * 0.02, ease: 'easeOut' }}
-              style={{ minHeight: val > 0 ? '4px' : '0' }}
+    <div>
+      <div className="relative h-28">
+        <span className="absolute right-0 top-0 text-[10px] text-surface-500 tabular">{format(max)}</span>
+        <div className="absolute inset-x-0 bottom-0 top-4 flex items-end gap-[2px]">
+          {data.map((d) => (
+            <div
+              key={d.date}
+              className={`flex-1 rounded-t-[2px] ${d[valueKey] > 0 ? 'bg-accent-500' : 'bg-black/[0.05] dark:bg-white/[0.06]'}`}
+              style={{ height: d[valueKey] > 0 ? `${Math.max(4, (d[valueKey] / max) * 100)}%` : '2px' }}
+              title={`${bucketLabel(d.date, groupBy)}: ${format(d[valueKey])}`}
             />
-          </motion.div>
-        );
-      })}
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 flex justify-between text-[10px] text-surface-500 dark:text-surface-600 tabular">
+        <span>{bucketLabel(data[0].date, groupBy)}</span>
+        {data.length > 4 && <span>{bucketLabel(mid.date, groupBy)}</span>}
+        <span>{bucketLabel(data[data.length - 1].date, groupBy)}</span>
+      </div>
     </div>
   );
 }
 
-function Sparkline({ data, valueKey, color }: { data: Array<Record<string, any>>; valueKey: string; color: string }) {
-  const prefersReducedMotion = useReducedMotion();
-  if (data.length < 2) return null;
-
-  const values = data.map(d => d[valueKey] || 0);
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
-  const range = max - min || 1;
-  const h = 64;
-  const w = 200;
-  const pad = 2;
-
-  const points = values.map((v, i) => {
-    const x = pad + (i / (values.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-16">
-      <motion.polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={color}
-        initial={prefersReducedMotion ? {} : { strokeDasharray: '300', strokeDashoffset: '300' }}
-        animate={prefersReducedMotion ? {} : { strokeDashoffset: '0' }}
-        transition={{ duration: 1.5, ease: 'easeOut' }}
-      />
-    </svg>
-  );
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function formatDateFull(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
 export default function ProgressPage() {
-  const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
-
   const [period, setPeriod] = useState('30d');
+  const periodName = PERIODS.find((p) => p.key === period)?.name ?? '';
 
-  /*
-   * React Query rather than a bare useEffect + fetch. The previous version
-   * swallowed failures with `.catch(console.error)` and fell through to the
-   * empty state, so a network error was indistinguishable from having no
-   * workouts. This also gets retry, and serves the service worker's cached copy
-   * when offline.
-   */
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-    isFetching,
-  } = useQuery<ProgressData>({
+  // React Query rather than a bare effect: failures surface as an error state
+  // instead of falling through to "no workouts", and retries come for free.
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<ProgressData>({
     queryKey: [...queryKeys.progress, period],
     queryFn: async () => {
-      const response = await fetch(`/api/progress?period=${period}`, {
-        credentials: 'same-origin',
-      });
+      const response = await fetch(`/api/progress?period=${period}`, { credentials: 'same-origin' });
       if (!response.ok) throw new Error('Failed to load progress');
       return response.json();
     },
     staleTime: 1000 * 60 * 5,
   });
 
-  const maxFreq = data ? Math.max(...data.frequency.map(d => d.workouts), 1) : 1;
-  const maxVol = data ? Math.max(...data.frequency.map(d => d.volume), 1) : 1;
-  const hasDistance = data ? data.frequency.some(d => d.distance > 0) : false;
+  const hasDistance = !!data && data.summary.distance.value > 0;
+  const comparable = period !== 'all';
+  const groupBy = data?.period.groupBy ?? 'day';
+  const per = groupBy === 'day' ? 'per day' : groupBy === 'week' ? 'per week' : 'per month';
+
+  const figures = data
+    ? [
+        { label: 'Workouts', value: String(data.summary.workouts.value), delta: data.summary.workouts },
+        { label: 'Volume', value: formatVolume(data.summary.volume.value, useMetric), delta: data.summary.volume },
+        { label: 'Hours', value: data.summary.hours.value.toFixed(1), delta: data.summary.hours },
+        { label: 'Sets', value: String(data.summary.sets.value), delta: data.summary.sets },
+        ...(hasDistance
+          ? [{ label: 'Distance', value: formatPRValue(data.summary.distance.value, 'maxDistance', useMetric), delta: data.summary.distance }]
+          : []),
+      ]
+    : [];
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="forge-card overflow-hidden mb-6">
-          <div className="relative px-5 py-6 sm:px-8 sm:py-8 text-white greeting-gradient">
-            <div className="absolute inset-0 bg-black/10" />
-            {/* Title and period selector are on separate rows. Sharing one row
-                pushed three of the five periods off the side of a phone, with
-                no way to scroll to them — they were simply unreachable. */}
-            <div className="relative">
-              <div className="flex items-center gap-3">
-                <motion.button
-                  onClick={() => router.back()}
-                  aria-label="Go back"
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors tap-control"
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                  transition={springSnappy}
-                >
-                  <ArrowLeftIcon className="h-6 w-6" />
-                </motion.button>
-                <div className="min-w-0 flex-1">
-                  <h1 className="flex items-center gap-2.5 text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase">
-                    <ChartBarIcon className="w-7 h-7 shrink-0" />
-                    Progress
-                  </h1>
-                  <p className="text-accent-100 text-sm mt-0.5">
-                    Your training analytics at a glance
-                  </p>
-                </div>
-              </div>
+    <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+      <PageHeader
+        title="Progress"
+        description={comparable ? `Compared with the ${periodName.replace('last ', 'previous ')}` : 'Everything you have logged'}
+        actions={
+          // Five short labels fit a phone in one row; the old chips were
+          // uppercase words that ran off the screen.
+          <div role="tablist" aria-label="Period" className="flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.06]">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                role="tab"
+                aria-selected={period === p.key}
+                aria-label={p.name}
+                onClick={() => setPeriod(p.key)}
+                className={`tap-control min-h-[36px] min-w-[48px] rounded-md px-3 text-xs font-semibold transition-colors ${
+                  period === p.key
+                    ? 'bg-white text-surface-50 shadow-sm dark:bg-surface-300 dark:text-white'
+                    : 'text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-              {/* Scrollable on narrow screens; the bleed keeps the first and
-                  last chips flush with the card padding while scrolling. */}
-              <div className="scroll-touch -mx-5 mt-5 flex gap-1.5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
-                {PERIODS.map(p => (
-                  <motion.button
-                    key={p.key}
-                    onClick={() => setPeriod(p.key)}
-                    aria-pressed={period === p.key}
-                    whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                    whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                    transition={springSnappy}
-                    className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 min-h-[38px] text-xs font-display font-semibold uppercase tracking-wider transition-colors tap-control ${
-                      period === p.key
-                        ? 'bg-white text-accent-700 shadow-sm'
-                        : 'bg-white/10 text-white/80 hover:text-white hover:bg-white/20'
-                    }`}
-                  >
-                    {p.label}
-                  </motion.button>
-                ))}
+      {isLoading ? (
+        <div className="forge-card h-40 animate-pulse" aria-busy="true" aria-label="Loading progress" />
+      ) : isError ? (
+        <ErrorState what="progress data" onRetry={() => void refetch()} isRetrying={isFetching} />
+      ) : !data || data.summary.workouts.value === 0 ? (
+        <div className="forge-card px-6 py-10 text-center">
+          <p className="font-medium text-surface-50 dark:text-white">No workouts in the {periodName}</p>
+          <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">Pick a longer period, or go train.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <dl className="forge-card grid grid-cols-2 gap-px overflow-hidden bg-black/[0.06] dark:bg-white/[0.06] sm:grid-cols-5">
+            {figures.map((f) => (
+              <div key={f.label} className="bg-white px-4 py-3.5 dark:bg-surface-100">
+                <dt className="stat-label">{f.label}</dt>
+                <dd className="mt-1.5 flex items-baseline gap-2">
+                  <span className="font-display text-xl font-semibold text-surface-50 dark:text-white tabular">{f.value}</span>
+                  <Change delta={f.delta} comparable={comparable} />
+                </dd>
               </div>
-            </div>
+            ))}
+          </dl>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <DashboardCard title={`Workouts ${per}`}>
+              <Bars data={data.frequency} valueKey="workouts" groupBy={groupBy} format={(n) => String(n)} />
+            </DashboardCard>
+            <DashboardCard title={`Volume ${per}`}>
+              <Bars data={data.frequency} valueKey="volume" groupBy={groupBy} format={(n) => formatVolume(n, useMetric)} />
+            </DashboardCard>
+
+            {data.topExercises.length > 0 && (
+              <DashboardCard title="Most volume">
+                <ol className="space-y-2.5">
+                  {data.topExercises.slice(0, 8).map((ex) => {
+                    const pct = (ex.volume / (data.topExercises[0].volume || 1)) * 100;
+                    return (
+                      <li key={ex.name}>
+                        <div className="flex items-baseline justify-between gap-3 text-sm">
+                          <Link
+                            href={`/exercise/${encodeURIComponent(ex.name)}`}
+                            className="truncate font-medium text-surface-50 hover:text-accent-600 dark:text-white dark:hover:text-accent-400"
+                          >
+                            {ex.name}
+                          </Link>
+                          <span className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
+                            {ex.sets} sets · {formatVolume(ex.volume, useMetric)}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/[0.05] dark:bg-white/[0.06]">
+                          <div className="h-full rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </DashboardCard>
+            )}
+
+            {data.recentSessions.length > 0 && (
+              <DashboardCard title="Sessions" action={{ href: '/history', label: 'History' }}>
+                <ul className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+                  {data.recentSessions.slice(0, 8).map((s, i) => (
+                    <li key={`${s.date}-${i}`} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-surface-50 dark:text-white">{s.name}</p>
+                        <p className="text-xs text-surface-500 dark:text-surface-600">
+                          {new Date(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-right text-xs text-surface-500 dark:text-surface-600 tabular">
+                        {formatDurationCompact(s.duration)}
+                        <br />
+                        {s.volume > 0
+                          ? formatVolume(s.volume, useMetric)
+                          : s.distance > 0
+                            ? formatPRValue(s.distance, 'maxDistance', useMetric)
+                            : `${s.sets} ${s.sets === 1 ? 'set' : 'sets'}`}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </DashboardCard>
+            )}
           </div>
         </div>
-
-        {isLoading ? (
-          <div className="forge-card p-12 text-center text-surface-500">Loading...</div>
-        ) : isError ? (
-          <ErrorState
-            what="progress data"
-            onRetry={() => void refetch()}
-            isRetrying={isFetching}
-          />
-        ) : !data ? (
-          <div className="forge-card p-12 text-center text-surface-500">
-            No workouts logged in this period yet.
-          </div>
-        ) : (
-          <>
-            {/* Stat Pills */}
-            {/* Two columns on mobile rather than three: the pill count is 4 or 5
-                depending on whether any distance was logged, and a 3-wide grid
-                left a single orphan pill beside a large empty gap. The arbitrary
-                variant makes a lone final pill span the full width instead. */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6 [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1">
-              <StatPill label="Workouts" value={String(data.summary.workouts.value)} change={data.summary.workouts.change} isNew={data.summary.workouts.isNew} format="workouts" icon={FireIcon} delay={0.1} />
-              <StatPill label="Volume" value={formatVolume(data.summary.volume.value, useMetric)} change={data.summary.volume.change} isNew={data.summary.volume.isNew} format="volume" icon={ScaleIcon} delay={0.15} />
-              <StatPill label="Hours" value={`${data.summary.hours.value}h`} change={data.summary.hours.change} isNew={data.summary.hours.isNew} format="hours" icon={ClockIcon} delay={0.2} />
-              {hasDistance && (
-                <StatPill label="Distance" value={formatPRValue(data.summary.distance.value, 'maxDistance', useMetric)} change={data.summary.distance.change} isNew={data.summary.distance.isNew} format="distance" icon={MapPinIcon} delay={0.25} />
-              )}
-              <StatPill label="Sets" value={String(data.summary.sets.value)} change={data.summary.sets.change} isNew={data.summary.sets.isNew} format="sets" icon={ChartBarIcon} delay={0.3} />
-            </div>
-
-            {/* Charts Grid */}
-            <div className="columns-1 lg:columns-2 gap-6 mb-6 [&>*]:break-inside-avoid [&>*]:mb-6">
-              {/* Workout Frequency */}
-              <div className="forge-card p-6">
-                <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
-                  <FireIcon className="w-5 h-5 text-accent-500" />
-                  Workout Frequency
-                </h3>
-                <BarChart data={data.frequency} valueKey="workouts" color="bg-gradient-to-t from-success-400 to-success-500" maxValue={maxFreq} delay={0.4} />
-                <div className="flex justify-between mt-2 text-[10px] text-surface-400 dark:text-surface-600 font-display uppercase tracking-wider">
-                  {data.frequency.length > 0 && (
-                    <>
-                      <span>{formatDate(data.frequency[0].date)}</span>
-                      <span>{formatDate(data.frequency[Math.floor(data.frequency.length / 2)].date)}</span>
-                      <span>{formatDate(data.frequency[data.frequency.length - 1].date)}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Volume Trend */}
-              <div className="forge-card p-6">
-                <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
-                  <ScaleIcon className="w-5 h-5 text-accent-500" />
-                  Volume Trend
-                </h3>
-                <Sparkline data={data.frequency} valueKey="volume" color="text-accent-500" />
-                <BarChart data={data.frequency} valueKey="volume" color="bg-gradient-to-t from-accent-400 to-accent-600" maxValue={maxVol} delay={0.5} />
-                <div className="flex justify-between mt-2 text-[10px] text-surface-400 dark:text-surface-600 font-display uppercase tracking-wider">
-                  {data.frequency.length > 0 && (
-                    <>
-                      <span>{formatDate(data.frequency[0].date)}</span>
-                      <span>{formatDate(data.frequency[data.frequency.length - 1].date)}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Top Exercises */}
-              {data.topExercises.length > 0 && (
-                <div className="forge-card p-6">
-                  <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
-                    <FireIcon className="w-5 h-5 text-accent-500" />
-                    Top Exercises
-                  </h3>
-                  <div className="space-y-2">
-                    {data.topExercises.slice(0, 8).map((ex, i) => {
-                      const maxExVol = data.topExercises[0].volume || 1;
-                      const pct = (ex.volume / maxExVol) * 100;
-                      return (
-                        <motion.div
-                          key={ex.name}
-                          initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
-                          animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                          transition={{ delay: 0.4 + i * 0.05 }}
-                          className="flex items-center gap-3"
-                        >
-                          <span className="w-5 text-xs font-bold text-surface-400 text-right tabular-nums">{i + 1}</span>
-                          <span className="w-28 text-sm font-medium text-surface-700 dark:text-surface-400 truncate">{ex.name}</span>
-                          <div className="flex-1 h-5 bg-surface-900 dark:bg-surface-300/40 rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full rounded-full bg-gradient-to-r from-accent-400 to-accent-600"
-                              initial={prefersReducedMotion ? {} : { width: 0 }}
-                              animate={prefersReducedMotion ? {} : { width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: 0.6 + i * 0.05, ease: 'easeOut' }}
-                            />
-                          </div>
-                          <span className="w-16 text-xs font-semibold text-surface-600 dark:text-surface-400 text-right tabular-nums">
-                            {formatVolume(ex.volume, useMetric)}
-                          </span>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Sessions */}
-              {data.recentSessions.length > 0 && (
-                <div className="forge-card p-6">
-                  <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white mb-4 flex items-center gap-2">
-                    <ClockIcon className="w-5 h-5 text-info-500" />
-                    Recent Sessions
-                  </h3>
-                  <div className="space-y-1">
-                    {data.recentSessions.slice(0, 10).map((s, i) => (
-                      <motion.div
-                        key={i}
-                        initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
-                        animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + i * 0.03 }}
-                        className="flex items-center justify-between py-2 border-b border-surface-200 dark:border-surface-300/20 last:border-0"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-surface-50 dark:text-white truncate">{s.name}</p>
-                          <p className="text-xs text-surface-500">{formatDateFull(s.date)}</p>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-surface-600 dark:text-surface-400 tabular-nums">
-                          <span>{s.sets} sets</span>
-                          <span>{formatVolume(s.volume, useMetric)}</span>
-                          <span>{formatDurationHuman(s.duration)}</span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </motion.div>
+      )}
+    </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { springSnappy, springGentle } from '@/lib/motion';
 
 const devBypassEnabled =
   process.env.NEXT_PUBLIC_AUTH_DEV_BYPASS === 'true';
@@ -12,116 +12,83 @@ const devBypassEnabled =
 const pocketIdEnabled =
   process.env.NEXT_PUBLIC_AUTH_POCKETID_ENABLED !== 'false';
 
+/**
+ * Where to go after signing in. The middleware sends signed-out visitors here
+ * with `?callbackUrl=<where they were going>`, but sign-in never passed it on,
+ * so every deep link (a shared /history link, a notification) landed on Home.
+ * Only same-origin paths are honoured — never a protocol-relative "//host".
+ */
+function safeCallbackUrl(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/login')) return '/';
+  return raw;
+}
 
-const staggerVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { ...springGentle, delay: i * 0.07 },
-  }),
-};
+/** Auth.js error codes, in words a person can act on. */
+function errorMessage(code: string | null): string | null {
+  if (!code) return null;
+  if (code === 'AccessDenied') return 'Your account is not allowed to sign in here.';
+  if (code === 'Configuration') return 'Sign-in is not configured correctly on this server.';
+  return 'Sign-in did not complete. Try again.';
+}
 
-export default function LoginPage() {
-  const prefersReducedMotion = useReducedMotion();
+function LoginForm() {
+  const params = useSearchParams();
+  const callbackUrl = safeCallbackUrl(params.get('callbackUrl'));
+  const error = errorMessage(params.get('error'));
 
   return (
-    <div className="flex items-center justify-center min-h-page px-4">
-      <motion.div
-        initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-        animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-        transition={springGentle}
-        className="w-full max-w-sm"
-      >
-        <div className="forge-card p-8">
-          <motion.div
-            className="text-center mb-8"
-            initial={prefersReducedMotion ? 'hidden' : 'hidden'}
-            animate={prefersReducedMotion ? 'visible' : 'visible'}
-            variants={prefersReducedMotion ? {} : {
-              visible: { transition: { staggerChildren: 0.07 } },
-            }}
-          >
-            <motion.div
-              className="w-14 h-14 mx-auto mb-4 rounded-lg greeting-gradient flex items-center justify-center"
-              variants={prefersReducedMotion ? {} : staggerVariants}
-              custom={0}
-              animate={
-                prefersReducedMotion
-                  ? {}
-                  : { scale: [1, 1.05, 1] }
-              }
-              transition={
-                prefersReducedMotion
-                  ? {}
-                  : { duration: 3, repeat: Infinity, ease: 'easeInOut' }
-              }
-            >
-              <svg
-                className="w-8 h-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-                />
-              </svg>
-            </motion.div>
-
-            <motion.h1
-              className="text-3xl font-display font-bold text-surface-50 dark:text-white mb-1 tracking-wide"
-              variants={prefersReducedMotion ? {} : staggerVariants}
-              custom={1}
-            >
-              ETERNAL FITNESS
-            </motion.h1>
-
-            <motion.p
-              className="text-sm text-surface-500 dark:text-surface-600"
-              variants={prefersReducedMotion ? {} : staggerVariants}
-              custom={2}
-            >
-              Sign in to continue your fitness journey
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            className="space-y-3"
-            initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.96 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
-            transition={{ ...springGentle, delay: 0.15 }}
-          >
-            {pocketIdEnabled && (
-              <motion.button
-                onClick={() => signIn('pocketid')}
-                className="btn btn-primary w-full !py-3"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={springSnappy}
-                style={{ boxShadow: '0 0 15px rgb(var(--accent-500) / 0.2)' }}
-              >
-                Sign in with PocketID
-              </motion.button>
-            )}
-
-            {devBypassEnabled && (
-              <motion.button
-                onClick={() => signIn('dev-bypass', { email: 'dev@eternal-fitness.local' })}
-                className="w-full px-5 py-3 border-2 border-dashed border-warning-400 dark:border-warning-600 text-warning-700 dark:text-warning-400 font-display font-semibold tracking-wide uppercase rounded-lg hover:bg-warning-50 dark:hover:bg-warning-950/30 transition-colors focus:outline-none focus:ring-2 focus:ring-warning-400 focus:ring-offset-2 dark:focus:ring-offset-surface-0"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.03 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={springSnappy}
-              >
-                Dev Sign In
-              </motion.button>
-            )}
-          </motion.div>
+    <div className="flex min-h-page items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-500">
+            <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </span>
+          <h1 className="font-display text-[28px] font-semibold tracking-tight text-surface-50 dark:text-white">
+            Eternal Fitness
+          </h1>
+          <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">Sign in to your training log.</p>
         </div>
-      </motion.div>
+
+        {error && (
+          <p role="alert" className="mb-4 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-sm text-danger-700 dark:text-danger-300">
+            {error}
+          </p>
+        )}
+
+        <div className="space-y-3">
+          {pocketIdEnabled && (
+            <button onClick={() => signIn('pocketid', { callbackUrl })} className="btn btn-primary w-full min-h-[48px]">
+              Sign in with PocketID
+            </button>
+          )}
+
+          {devBypassEnabled && (
+            <button
+              onClick={() => signIn('dev-bypass', { email: 'dev@eternal-fitness.local', callbackUrl })}
+              className="btn w-full min-h-[48px] border border-dashed border-warning-500/60 text-warning-700 hover:bg-warning-500/10 dark:text-warning-400"
+            >
+              Dev sign in
+            </button>
+          )}
+
+          {!pocketIdEnabled && !devBypassEnabled && (
+            <p className="text-center text-sm text-surface-500 dark:text-surface-600">
+              No sign-in method is configured on this server.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  // useSearchParams needs a Suspense boundary for static rendering.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

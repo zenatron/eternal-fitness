@@ -162,7 +162,9 @@ describe('PR type mapping', () => {
 
   test('e1RM formats as a weight, keeping a decimal', () => {
     expect(formatPRValue(112.83, 'maxOneRepMax', true)).toBe('112.8 kg');
-    // Volume stays whole; it is a running total.
-    expect(formatPRValue(4500.4, 'maxVolume', true)).toBe('4500 kg');
+    // A decimal only when it carries information.
+    expect(formatPRValue(405, 'maxWeight', false)).toBe('405 lbs');
+    // Volume stays whole (it is a running total) and groups thousands.
+    expect(formatPRValue(4500.4, 'maxVolume', true)).toBe('4,500 kg');
   });
 });

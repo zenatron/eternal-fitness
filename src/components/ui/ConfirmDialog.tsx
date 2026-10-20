@@ -90,7 +90,7 @@ export function ConfirmDialog({
                   </div>
                 )}
                 <div className="min-w-0">
-                  <DialogTitle className="font-display text-lg uppercase tracking-wide text-surface-50 dark:text-white">
+                  <DialogTitle className="text-lg text-surface-50 dark:text-white">
                     {title}
                   </DialogTitle>
                   <Description className="mt-1.5 text-sm text-surface-600 dark:text-surface-800">

@@ -10,7 +10,6 @@ import ActiveWorkoutIndicator from '@/components/workout/ActiveWorkoutIndicator'
 import { ActiveWorkoutProvider } from '@/components/workout/ActiveWorkoutProvider';
 import { RestTimerProvider } from '@/components/workout/RestTimerProvider';
 import { RestTimerBar } from '@/components/workout/RestTimerBar';
-import { AnimatedBackground } from '@/components/AnimatedBackground';
 import { AppShell } from '@/components/AppShell';
 import { BottomNav } from '@/components/BottomNav';
 import { ServiceWorkerRegistrar } from '@/components/pwa/ServiceWorkerRegistrar';
@@ -142,7 +141,6 @@ export default async function RootLayout({
               {/* Above the page so a rest countdown survives navigation — you
                   can check the dashboard mid-rest without losing the timer. */}
               <RestTimerProvider>
-                <AnimatedBackground />
                 {/* Fixed shell: only <main> scrolls, so the page can no longer
                     be dragged away from the viewport edges. */}
                 <AppShell

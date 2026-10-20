@@ -1,10 +1,8 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, useReducedMotion } from 'framer-motion';
-import { springGentle } from '@/lib/motion';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+
 import { BodyMap } from '@/components/recovery/BodyMap';
 import { TrainingSuggestions } from '@/components/recovery/TrainingSuggestions';
 import { useRecovery } from '@/lib/hooks/useRecovery';
@@ -16,7 +14,6 @@ import {
   freshestRegions,
   fatiguedRegions,
 } from '@/utils/recovery';
-
 
 /**
  * Selecting a region from the lists as well as the diagram.
@@ -73,8 +70,6 @@ function hoursLabel(hours: number | null): string {
 }
 
 export default function RecoveryPage() {
-  const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { recovery, isLoading, error, refetch } = useRecovery();
   const [view, setView] = useState<'front' | 'back'>('front');
   const [selected, setSelected] = useState<BodyRegion | null>(null);
@@ -113,34 +108,13 @@ export default function RecoveryPage() {
   const detail = selected ? recovery[selected] : null;
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1 }}
-      transition={springGentle}
-      className="app-bg px-4 py-8"
-    >
+    <div className="px-4 pb-16 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <div className="forge-card mb-6 overflow-hidden">
-          <div className="greeting-gradient px-5 py-5 text-white sm:px-6">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="touch-target tap-control flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20"
-                aria-label="Go back"
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-xs uppercase tracking-[0.2em] text-white/70">
-                  Recovery
-                </p>
-                <h1 className="truncate font-display text-2xl font-bold tracking-wide sm:text-3xl">
-                  Muscle Map
-                </h1>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          back
+          title="Recovery"
+          description="Estimated from your recent sets. Tap a muscle for detail."
+        />
 
         <div className="forge-card mb-6 p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-center gap-1.5">
@@ -174,7 +148,7 @@ export default function RecoveryPage() {
           <div className="mt-3 min-h-[3.5rem] rounded-xl bg-surface-950 px-4 py-3 text-center dark:bg-surface-200/40">
             {detail ? (
               <>
-                <p className="font-display text-sm font-bold uppercase tracking-wide text-surface-50 dark:text-white">
+                <p className="text-sm font-semibold text-surface-50 dark:text-white">
                   {REGION_META[detail.region].label}
                   <span className="ml-2 font-body text-xs font-normal normal-case tracking-normal text-accent-600 dark:text-accent-400">
                     {RECOVERY_STATUS_LABELS[recoveryStatus(detail.freshness)]} ·{' '}
@@ -199,7 +173,7 @@ export default function RecoveryPage() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="forge-card p-4 sm:p-5">
-            <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+            <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
               Ready to train
             </h2>
             <ul className="space-y-1">
@@ -217,7 +191,7 @@ export default function RecoveryPage() {
           </div>
 
           <div className="forge-card p-4 sm:p-5">
-            <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+            <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
               Still recovering
             </h2>
             {needsRest.length === 0 ? (
@@ -247,6 +221,6 @@ export default function RecoveryPage() {
           feel over what this says.
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

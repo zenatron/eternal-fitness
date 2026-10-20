@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   PlayCircleIcon,
@@ -35,8 +35,12 @@ export default function ActiveWorkoutIndicator() {
   // This bar is small, so it is its own ticking component: the provider no
   // longer re-renders the app once a second just to move this clock.
   useTickingNow();
+  const pathname = usePathname();
 
   if (!hasActiveWorkout || !activeWorkout) return null;
+  // The workout screen has its own clock and controls; this bar there was a
+  // second copy of both, with a "Continue" pointing at the page already open.
+  if (pathname?.startsWith('/session/active/')) return null;
 
   const time = formatWorkoutDuration();
 
@@ -66,7 +70,7 @@ export default function ActiveWorkoutIndicator() {
             : { opacity: 0, y: -16, height: 0 }
         }
         transition={springSnappy}
-        className="overflow-hidden border-b border-accent-700/40 bg-gradient-to-r from-accent-600 to-accent-700 text-white"
+        className="overflow-hidden border-b border-accent-700/40 bg-accent-600 text-white"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
           {minimized ? (

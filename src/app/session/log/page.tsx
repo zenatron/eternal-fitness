@@ -12,7 +12,6 @@ import {
   TrashIcon,
   DocumentTextIcon,
   ChevronRightIcon,
-  BoltIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useTemplates } from '@/lib/hooks/useTemplates';
@@ -351,12 +350,7 @@ export default function LogPastWorkoutPage() {
   };
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
+    <div className="px-4 pb-16 sm:px-6">
       <div className="max-w-3xl mx-auto">
         <motion.div
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 16, scale: 0.98 }}
@@ -365,42 +359,36 @@ export default function LogPastWorkoutPage() {
           className="mb-6"
         >
           <div className="forge-card overflow-hidden">
-            <div className="relative px-6 py-7 text-white greeting-gradient sm:px-8">
-              <div className="absolute inset-0 bg-black/10" />
-              <div className="relative flex items-center gap-4">
-                <motion.button
-                  onClick={goBack}
-                  aria-label="Go back"
-                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                  transition={springSnappy}
-                >
-                  <ArrowLeftIcon className="h-6 w-6" />
-                </motion.button>
-                <div className="min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase">
-                    Log Past Workout
-                  </h1>
-                  <p className="text-accent-100 text-sm mt-1">{current.hint}</p>
-                </div>
+            <div className="flex items-center gap-3 px-5 pb-2 pt-5 sm:px-6">
+              <button
+                onClick={goBack}
+                aria-label="Go back"
+                className="touch-target tap-control -ml-2 flex items-center justify-center rounded-lg text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="font-display text-2xl font-semibold tracking-tight text-surface-50 dark:text-white">
+                  Log a past workout
+                </h1>
+                <p className="text-sm text-surface-500 dark:text-surface-600">{current.hint}</p>
               </div>
             </div>
 
             {/* Step rail. Completed steps are clickable so a wrong template is one
                 tap to fix rather than a full restart. */}
-            <div className="flex items-center gap-2 border-b border-surface-200 px-6 py-4 dark:border-surface-300 sm:px-8">
+            <div className="flex items-center gap-2 border-b border-black/10 px-6 py-4 dark:border-surface-300 sm:px-8">
               {STEPS.map(({ id, label }, i) => (
                 <div key={id} className="flex flex-1 items-center gap-2">
                   <button
                     onClick={() => i < stepIndex && setStep(id)}
                     disabled={i > stepIndex}
-                    className={`flex items-center gap-2 text-sm font-display font-semibold uppercase tracking-wide transition-colors ${
+                    className={`flex items-center gap-2 text-sm font-medium transition-colors ${
                       i === stepIndex
                         ? 'text-accent-600 dark:text-accent-400'
                         : i < stepIndex
                           ? 'cursor-pointer text-success-600 hover:text-success-500 dark:text-success-400'
-                          : 'text-surface-400 dark:text-surface-500'
+                          : 'text-surface-600'
                     }`}
                   >
                     <span
@@ -458,9 +446,9 @@ export default function LogPastWorkoutPage() {
                   <div className="space-y-3" aria-busy="true" aria-label="Loading templates">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="forge-card overflow-hidden animate-pulse">
-                        <div className="h-1 bg-surface-200 dark:bg-surface-400/40" />
+                        <div className="h-1 bg-black/[0.06] dark:bg-white/[0.06]" />
                         <div className="p-4 space-y-2">
-                          <div className="h-4 w-1/3 rounded bg-surface-200 dark:bg-surface-400/40" />
+                          <div className="h-4 w-1/3 rounded bg-black/[0.06] dark:bg-white/[0.06]" />
                           <div className="h-3 w-2/3 rounded bg-surface-200 dark:bg-surface-400/30" />
                         </div>
                       </div>
@@ -482,14 +470,13 @@ export default function LogPastWorkoutPage() {
                       whileTap={prefersReducedMotion ? {} : { scale: 0.99 }}
                       className="forge-card heat-glow w-full overflow-hidden text-left hover:border-accent-400/40 dark:hover:border-accent-500/40"
                     >
-                      <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-700" />
                       <div className="p-4">
                         {/* Same summary block as the cards on /templates. */}
                         <TemplateSummary
                           template={template}
                           useMetric={useMetric}
                           action={
-                            <ChevronRightIcon className="mt-1 h-5 w-5 shrink-0 text-surface-400 dark:text-surface-500" />
+                            <ChevronRightIcon className="mt-1 h-5 w-5 shrink-0 text-surface-600" />
                           }
                         />
                       </div>
@@ -500,10 +487,10 @@ export default function LogPastWorkoutPage() {
 
               <button
                 onClick={handleAdHoc}
-                className="forge-card flex w-full items-center justify-center gap-2 border-2 !border-dashed p-5 font-display text-sm font-semibold uppercase tracking-wide text-surface-500 transition-colors hover:!border-accent-400/60 hover:text-accent-600 dark:text-surface-600 dark:hover:!border-accent-500/40 dark:hover:text-accent-400"
+                className="forge-card flex w-full items-center justify-center gap-2 border !border-dashed p-4 text-sm font-medium text-surface-500 transition-colors hover:!border-accent-400/60 hover:text-accent-600 dark:text-surface-600 dark:hover:!border-accent-500/40 dark:hover:text-accent-400"
               >
                 <PlusIcon className="h-5 w-5" />
-                Log Ad-Hoc Workout
+                Log something without a template
               </button>
             </motion.div>
           )}
@@ -520,11 +507,8 @@ export default function LogPastWorkoutPage() {
               {/* What is being logged, so the choice made on the previous step
                   stays visible rather than being something to remember. */}
               <div className="forge-card flex items-center gap-3 p-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
-                  <BoltIcon className="h-5 w-5 text-accent-500" />
-                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-display font-bold tracking-wide text-surface-50 dark:text-white">
+                  <p className="truncate font-semibold text-surface-50 dark:text-white">
                     {selectedTemplate?.name || adHocName || 'Ad-hoc workout'}
                   </p>
                   <p className="text-xs text-surface-500 dark:text-surface-600">
@@ -579,8 +563,8 @@ export default function LogPastWorkoutPage() {
                   )}
 
                   <div>
-                    <h2 className="mb-1 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
-                      When &amp; How Long
+                    <h2 className="mb-1 text-base font-semibold text-surface-50 dark:text-white">
+                      When and how long
                     </h2>
                     <p className="mb-5 text-xs text-surface-500 dark:text-surface-600">
                       Defaults to right now — change it if you are catching up on an earlier session.
@@ -644,7 +628,7 @@ export default function LogPastWorkoutPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-surface-200 pt-5 dark:border-surface-300">
+                  <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-5 dark:border-surface-300">
                     <p className="text-xs text-surface-500 dark:text-surface-600">
                       {duration ? formatDurationHuman(duration) : 'Enter a duration to continue'}
                     </p>
@@ -685,7 +669,7 @@ export default function LogPastWorkoutPage() {
                     return (
                       <div
                         key={exercise.id}
-                        className="overflow-hidden rounded-xl border border-surface-200 bg-white dark:border-surface-300 dark:bg-surface-100"
+                        className="overflow-hidden rounded-xl border border-black/10 bg-white dark:border-surface-300 dark:bg-surface-100"
                       >
                         <div className="flex items-center gap-2 px-4 py-3">
                           <button
@@ -694,7 +678,7 @@ export default function LogPastWorkoutPage() {
                             className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           >
                             <ChevronDownIcon
-                              className={`h-4 w-4 shrink-0 text-surface-400 transition-transform ${
+                              className={`h-4 w-4 shrink-0 text-surface-600 transition-transform ${
                                 isExpanded ? 'rotate-180' : ''
                               }`}
                             />
@@ -721,7 +705,7 @@ export default function LogPastWorkoutPage() {
                           <button
                             onClick={() => removeExercise(exercise.id)}
                             aria-label={`Remove ${exercise.name}`}
-                            className="touch-target flex shrink-0 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-danger-50 hover:text-danger-500 dark:hover:bg-danger-900/20 tap-control"
+                            className="touch-target flex shrink-0 items-center justify-center rounded-lg text-surface-600 transition-colors hover:bg-danger-50 hover:text-danger-500 dark:hover:bg-danger-900/20 tap-control"
                           >
                             <TrashIcon className="h-4 w-4" />
                           </button>
@@ -734,7 +718,7 @@ export default function LogPastWorkoutPage() {
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
                               transition={springSnappy}
-                              className="border-t border-surface-200 dark:border-surface-300"
+                              className="border-t border-black/10 dark:border-surface-300"
                             >
                               <div className="space-y-2.5 p-3 sm:p-4">
                                 {exercise.sets.map((set, setIdx) => (
@@ -762,7 +746,7 @@ export default function LogPastWorkoutPage() {
                                               completed: e.target.checked,
                                             })
                                           }
-                                          className="h-4 w-4 rounded border-surface-300 text-accent-500 accent-accent-500 focus:ring-accent-500"
+                                          className="h-4 w-4 rounded border-black/10 text-accent-500 accent-accent-500 focus:ring-accent-500"
                                         />
                                         <span className="font-display text-[10px] font-semibold uppercase tracking-wider">
                                           Done
@@ -838,7 +822,7 @@ export default function LogPastWorkoutPage() {
 
                                 <button
                                   onClick={() => addSet(exercise.id)}
-                                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-accent-100 font-display text-xs font-semibold uppercase tracking-wide text-accent-700 transition-colors hover:bg-accent-200 dark:bg-accent-900/30 dark:text-accent-400 dark:hover:bg-accent-900/50 tap-control"
+                                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-accent-100 text-xs font-semibold text-accent-700 transition-colors hover:bg-accent-200 dark:bg-accent-900/30 dark:text-accent-400 dark:hover:bg-accent-900/50 tap-control"
                                 >
                                   <PlusIcon className="h-4 w-4" />
                                   Add Set
@@ -854,7 +838,7 @@ export default function LogPastWorkoutPage() {
                   {/* Same picker as the template builder — same search, same
                       ranking, same rows. */}
                   {showExercisePicker ? (
-                    <div className="rounded-xl border border-surface-200 p-4 dark:border-surface-300">
+                    <div className="rounded-xl border border-black/10 p-4 dark:border-surface-300">
                       <ExercisePicker
                         onSelect={addExercise}
                         layout="list"
@@ -871,7 +855,7 @@ export default function LogPastWorkoutPage() {
                   ) : (
                     <button
                       onClick={() => setShowExercisePicker(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-surface-200 py-4 font-display text-sm font-semibold uppercase tracking-wide text-surface-500 transition-colors hover:border-accent-400/60 hover:text-accent-600 dark:border-surface-400 dark:text-surface-600 dark:hover:border-accent-500/40 dark:hover:text-accent-400"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/10 py-4 text-sm font-semibold text-surface-500 transition-colors hover:border-accent-400/60 hover:text-accent-600 dark:border-surface-400 dark:text-surface-600 dark:hover:border-accent-500/40 dark:hover:text-accent-400"
                     >
                       <PlusIcon className="h-4 w-4" />
                       Add Exercise
@@ -947,6 +931,6 @@ export default function LogPastWorkoutPage() {
           }}
         />
       )}
-    </motion.div>
+    </div>
   );
 }

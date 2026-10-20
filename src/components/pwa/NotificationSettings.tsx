@@ -59,7 +59,7 @@ export function NotificationSettings() {
             )}
           </div>
           <div className="min-w-0">
-            <h3 className="font-display text-base uppercase tracking-wide text-surface-50 dark:text-white">
+            <h3 className="text-base text-surface-50 dark:text-white">
               Notifications
             </h3>
             <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">

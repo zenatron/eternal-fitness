@@ -311,35 +311,6 @@ export const useUpdateProfile = () => {
   });
 };
 
-/**
- * Hook for deduplicating exercises in the database
- */
-export const useDeduplicateExercises = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/exercises/deduplicate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error?.message || 'Failed to deduplicate exercises');
-      }
-
-      return response.json();
-    },
-
-    onSettled: () => {
-      void invalidateTemplateData(queryClient);
-    },
-  });
-};
-
 // ============================================================================
 // SESSION MUTATIONS
 // ============================================================================

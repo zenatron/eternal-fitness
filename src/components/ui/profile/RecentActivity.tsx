@@ -1,12 +1,10 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
-import { ClockIcon, ScaleIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationCompact } from '@/utils/durationUtils';
 import { formatSessionDateTime } from '@/utils/relativeTime';
-import { springSnappy, springGentle } from '@/lib/motion';
+import { DashboardCard } from '@/components/ui/dashboard/DashboardCard';
 
 interface RecentActivityProps {
   stats: UserStatsData;
@@ -14,96 +12,37 @@ interface RecentActivityProps {
   onViewAll?: () => void;
 }
 
-
 export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
-  const prefersReducedMotion = useReducedMotion();
-  const noMotion = prefersReducedMotion ?? false;
-
-  if (!stats.recentSessions || stats.recentSessions.length === 0) {
-    return (
-      <motion.div
-        initial={noMotion ? {} : { opacity: 0, y: 20 }}
-        animate={noMotion ? {} : { opacity: 1, y: 0 }}
-        transition={springGentle}
-        className="forge-card p-8"
-      >
-        <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-3">
-          <ClockIcon className="w-6 h-6 text-info-500" />
-          Recent Activity
-        </h3>
-        <div className="text-center py-8">
-          <ClockIcon className="w-16 h-16 text-surface-600 mx-auto mb-4" />
-          <p className="text-surface-500 dark:text-surface-600">
-            No recent workouts found. Start your fitness journey today!
-          </p>
-        </div>
-      </motion.div>
-    );
-  }
+  const sessions = stats.recentSessions ?? [];
 
   return (
-    <motion.div
-      initial={noMotion ? {} : { opacity: 0, y: 20 }}
-      animate={noMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="forge-card p-6"
+    <DashboardCard
+      title="Recent workouts"
+      action={sessions.length > 0 && onViewAll ? { onClick: onViewAll, label: 'All' } : undefined}
     >
-      <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-6 flex items-center gap-3">
-        <ClockIcon className="w-6 h-6 text-info-500" />
-        Recent Activity
-      </h3>
-      <div className="space-y-4">
-        {stats.recentSessions.slice(0, 4).map((session, index) => (
-          <motion.div
-            key={session.id}
-            initial={noMotion ? {} : { opacity: 0, x: -16 }}
-            animate={noMotion ? {} : { opacity: 1, x: 0 }}
-            transition={{ ...springSnappy, delay: noMotion ? 0 : index * 0.07 }}
-            className="flex items-center justify-between p-4 bg-surface-950 dark:bg-surface-200/50 rounded-xl hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
-          >
-            <div className="flex-1">
-              <h4 className="font-display font-bold text-surface-50 dark:text-white mb-1">
-                {session.templateName}
-              </h4>
-              <p className="text-sm text-surface-500 dark:text-surface-600">
-                {formatSessionDateTime(session.completedAt)}
+      {sessions.length === 0 ? (
+        <p className="py-4 text-sm text-surface-500 dark:text-surface-600">
+          No workouts yet. Finish one and it lands here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+          {sessions.slice(0, 5).map((session) => (
+            <li key={session.id} className="py-2.5 first:pt-0 last:pb-0">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="truncate text-sm font-medium text-surface-50 dark:text-white">{session.templateName}</p>
+                <p className="shrink-0 text-xs text-surface-500 dark:text-surface-600">
+                  {formatSessionDateTime(session.completedAt)}
+                </p>
+              </div>
+              <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-600 tabular">
+                {formatDurationCompact(session.duration)} · {session.totalSets}{' '}
+                {session.totalSets === 1 ? 'set' : 'sets'}
+                {session.totalVolume > 0 && <> · {formatVolume(session.totalVolume, useMetric)}</>}
               </p>
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1 text-accent-600 dark:text-accent-400">
-                <ClockIcon className="w-4 h-4" />
-                <span>{formatDurationCompact(session.duration)}</span>
-              </div>
-              <div className="flex items-center gap-1 text-accent-600 dark:text-accent-400">
-                <ScaleIcon className="w-4 h-4" />
-                <span>{formatVolume(session.totalVolume, useMetric)}</span>
-              </div>
-              <div className="flex items-center gap-1 text-success-600 dark:text-success-400">
-                <BoltIcon className="w-4 h-4" />
-                <span>{session.totalSets} sets</span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      {stats.recentSessions.length > 0 && onViewAll && (
-        <motion.div
-          className="mt-4 text-center"
-          whileHover={noMotion ? {} : { scale: 1.03 }}
-          whileTap={noMotion ? {} : { scale: 0.97 }}
-          transition={springSnappy}
-        >
-          <button
-            onClick={onViewAll}
-            className="text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium text-sm inline-flex items-center gap-1 transition-colors"
-          >
-            View All Activity ({stats.recentSessions.length})
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </motion.div>
+            </li>
+          ))}
+        </ul>
       )}
-    </motion.div>
+    </DashboardCard>
   );
 }

@@ -33,8 +33,8 @@ const performanceSetSchema = z.object({
   setId: z.string(),
   actualReps: z.number().int().nonnegative().max(10000).optional(),
   actualWeight: z.number().nonnegative().max(100000).optional(),
-  actualDuration: z.number().positive().max(86400).optional(),
-  actualDistance: z.number().positive().max(1000000).optional(),
+  actualDuration: z.number().nonnegative().max(86400).optional(),
+  actualDistance: z.number().nonnegative().max(1000000).optional(),
   actualRpe: z.number().min(1).max(10).optional(),
   completed: z.boolean(),
   skipped: z.boolean().optional(),
@@ -214,7 +214,7 @@ export async function POST(request: Request) {
       let completedSets = recomputed.completedSets;
       let totalSets = recomputed.totalSets;
       let totalExercises = recomputed.totalExercises;
-      let skippedSets = recomputed.skippedSets;
+      const skippedSets = recomputed.skippedSets;
 
       if (totalExercises === 0 && templateData) {
         totalVolume = calculateTemplateVolume(templateData.exercises || []);
@@ -302,6 +302,8 @@ export async function POST(request: Request) {
           newSession.id,
           sessionPerf as { [k: string]: ExercisePerformance },
           templateData,
+          undefined,
+          completionTime,
         );
         newPRs = prResult.newPRs;
         if (newPRs.length > 0) {

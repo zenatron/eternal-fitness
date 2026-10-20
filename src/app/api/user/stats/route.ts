@@ -7,6 +7,7 @@ import { exerciseDisplayName } from '@/lib/exerciseLookup';
 import { addDays, dayKeyOf, todayKey } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
 import { errorResponse, successResponse } from '@/lib/api/response';
+import { sessionDisplayName, snapshotNameSql } from '@/lib/sessionName';
 
 /**
  * How far back the top-exercise breakdown looks. Bounded because this runs on
@@ -96,6 +97,7 @@ export async function GET() {
           totalVolume: true,
           totalSets: true,
         },
+        extras: { snapshotName: snapshotNameSql.as('snapshot_name') },
         with: { workoutTemplate: { columns: { name: true } } },
       }),
 
@@ -227,7 +229,7 @@ export async function GET() {
         duration: s.duration || 0,
         totalVolume: s.totalVolume || 0,
         totalSets: s.totalSets || 0,
-        templateName: s.workoutTemplate?.name || 'Quick Workout',
+        templateName: sessionDisplayName(s),
       })),
       monthlyStats: monthly.map(s => ({
         month: new Date(s.year, s.month - 1).toLocaleDateString('en-US', { month: 'long' }),

@@ -9,6 +9,7 @@ A personalized fitness application that helps users track, create, and maintain 
 - **Recovery Map:** A body heatmap of which muscles are still recovering, estimated from your logged sets — front and back views, tap any muscle for detail, plus ready-to-train and still-recovering lists.
 - **Training Suggestions:** Your own workouts ranked against how recovered you are, so "what should I train today" has an answer you can act on in one tap. A note appears next to Start Workout when a session targets muscles that haven't recovered.
 - **Progress Tracking:** Monitor your completed workouts, current weight, height, and other fitness metrics over time.
+- **History you keep:** Deleting a template keeps the workouts you did with it. Editing or deleting a session recalculates totals, streaks and personal records.
 - **Per-Exercise History:** Every lift gets its own page — estimated-1RM, heaviest-set and volume trends over time, its personal records, and the full session list. Reachable by tapping any exercise name in a records list.
 - **Theming:** Dark and light modes, plus five accent themes (Forge, Arctic, Verdant, Amethyst, Steel) that follow you across devices. See [Design System](#design-system).
 - **Responsive Design:** Access your fitness data on any device with a fully responsive interface.
@@ -135,6 +136,7 @@ Note that regenerating the keys invalidates every existing subscription.
 | `bun run db:migrate` | Applies pending Drizzle migrations. Also run automatically by the container entrypoint. |
 | `bun run db:backfill-e1rm` | Backfills estimated-1RM personal records from existing session history, for data logged before that record type existed. Dry-run by default; pass `--write` to apply. Idempotent — it only ever raises a record. |
 | `bun run db:fix-points` | One-off correction for historically inflated achievement points. |
+| `bun run db:rebuild-personal-records` | Re-derives every user's personal records from their session history. Run once after upgrading to 3.16: earlier versions kept records from deleted or corrected sessions and dated records logged after the fact by the day they were entered. Safe to re-run. |
 
 ## Design System
 

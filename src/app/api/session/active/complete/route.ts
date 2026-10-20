@@ -184,6 +184,7 @@ export async function POST(request: NextRequest) {
           performanceData,
           finalTemplate,
           tx,
+          completionTime,
         );
         txNewPRs = prResult.newPRs;
       } catch (prError) {

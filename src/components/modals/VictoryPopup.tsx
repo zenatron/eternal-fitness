@@ -210,7 +210,7 @@ function HighlightPill({ label, value, delay }: { label: string; value: string; 
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ ...springBouncy, delay }}
-      className="flex flex-col items-center px-5 py-3 rounded-2xl bg-surface-950 dark:bg-surface-200/60 backdrop-blur-sm border border-surface-200/60 dark:border-surface-300/40"
+      className="flex flex-col items-center px-5 py-3 rounded-2xl bg-surface-950 dark:bg-surface-200/60 backdrop-blur-sm border border-black/10 dark:border-surface-300/40"
     >
       <span className="text-2xl font-display font-black text-surface-50 dark:text-white">{value}</span>
       <span className="text-xs font-medium text-surface-600 dark:text-surface-600 uppercase tracking-wider mt-1">{label}</span>
@@ -451,7 +451,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
               // viewport, so with browser chrome showing the card was sized
               // taller than the space it actually had. The flex column keeps the
               // Continue button pinned while only the summary scrolls.
-              className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-100 shadow-2xl border border-surface-200 dark:border-surface-300"
+              className="relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-100 shadow-2xl border border-black/10 dark:border-surface-300"
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 opacity-10 dark:opacity-[0.07]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-surface-100" />
@@ -568,7 +568,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
 
               {/* Outside the scroll region, so however many PRs and
                   achievements land at once the primary action stays on screen. */}
-              <div className="relative shrink-0 border-t border-surface-200/60 bg-white px-6 pb-6 pt-4 dark:border-surface-300/40 dark:bg-surface-100 sm:px-8">
+              <div className="relative shrink-0 border-t border-black/10 bg-white px-6 pb-6 pt-4 dark:border-surface-300/40 dark:bg-surface-100 sm:px-8">
                 <motion.button
                   initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
                   animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}

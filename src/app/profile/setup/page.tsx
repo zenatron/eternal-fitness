@@ -140,25 +140,14 @@ export default function ProfileSetup() {
       >
         <div className="forge-card overflow-hidden">
           {/* Header */}
-          <div className="greeting-gradient px-8 py-10 text-white relative overflow-hidden">
-            <div className="relative flex items-center gap-5">
-              <motion.div
-                className="p-3.5 rounded-xl bg-white/15 backdrop-blur-sm"
-                animate={prefersReducedMotion ? {} : { scale: [1, 1.04, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <UserCircleIcon className="w-12 h-12" />
-              </motion.div>
-              <div>
-                <h1 className="text-3xl font-display font-bold tracking-wide uppercase">Complete Your Profile</h1>
-                <p className="text-accent-100 text-sm mt-1">
-                  Let&apos;s personalize your fitness journey
-                </p>
-              </div>
-            </div>
+          <div className="border-b border-black/[0.06] px-5 py-6 dark:border-white/[0.06] sm:px-8">
+            <h1 className="font-display text-[28px] font-semibold tracking-tight text-surface-50 dark:text-white">Welcome</h1>
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
+              A few details so weights, recovery and goals make sense. You can change them later.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-8 p-5 sm:p-8">
             {/* Error */}
             {error && (
               <motion.div
@@ -316,11 +305,11 @@ export default function ProfileSetup() {
             </motion.div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-surface-100 dark:border-surface-300">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-black/10 dark:border-surface-300">
               <motion.button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="flex-1 px-6 py-3 bg-surface-100 dark:bg-surface-100 text-surface-500 dark:text-surface-600 rounded-xl hover:bg-surface-200 dark:hover:bg-surface-200 transition-colors inline-flex items-center justify-center gap-2 font-medium text-sm"
+                className="flex-1 px-6 py-3 bg-black/[0.04] dark:bg-surface-100 text-surface-500 dark:text-surface-600 rounded-xl hover:bg-black/[0.07] dark:hover:bg-surface-200 transition-colors inline-flex items-center justify-center gap-2 font-medium text-sm"
                 whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                 transition={springSnappy}

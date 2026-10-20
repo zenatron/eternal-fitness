@@ -95,5 +95,8 @@ export const PERSIST_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
  * been cached against the wrong day. The shape is unchanged — the values are
  * wrong — and a persisted cache would otherwise keep showing the bug it was the
  * point of this release to fix, for up to PERSIST_MAX_AGE.
+ *
+ * v4: the dashboard's `volumeLabel` dropped its " Vol." suffix and became
+ * nullable, and session lists gained `snapshotName`.
  */
-export const PERSIST_BUSTER = 'v3';
+export const PERSIST_BUSTER = 'v4';

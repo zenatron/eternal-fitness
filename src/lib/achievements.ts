@@ -194,12 +194,17 @@ export async function updateUserAchievements(userId: string): Promise<{
     const progress = calculateAchievementProgress(stats, sessionProgress);
     const newlyUnlocked = checkUnlockedAchievements(progress, currentAchievements, useMetric);
 
+    const nowIso = new Date().toISOString();
     const updatedAchievements: UserAchievements = {
       unlockedAchievements: newlyUnlocked.length > 0
         ? [...currentAchievements.unlockedAchievements, ...newlyUnlocked]
         : currentAchievements.unlockedAchievements,
       progress,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: nowIso,
+      unlockedAt: {
+        ...(currentAchievements.unlockedAt ?? {}),
+        ...Object.fromEntries(newlyUnlocked.map((id) => [id, nowIso])),
+      },
     };
 
     await db
@@ -298,7 +303,9 @@ export async function getUserAchievements(userId: string) {
         isUnlocked,
         progress,
         progressPercentage,
-        unlockedAt: isUnlocked ? achievements.lastUpdated : undefined,
+        // Per-achievement. This used to report `lastUpdated` — the time of the
+        // latest workout — so every trophy claimed to have unlocked today.
+        unlockedAt: isUnlocked ? achievements.unlockedAt?.[achievement.id] : undefined,
       };
     });
 
@@ -346,9 +353,11 @@ export async function updateUniqueExercisesCount(userId: string, _exerciseKeys?:
         AND jsonb_typeof(ws.performance_data->'performance') = 'object'
     `);
 
-    // A week counts as active if it contains at least one completed session.
+    // A week counts as active if it contains at least one completed session —
+    // in the user's own calendar, like every other day/week figure.
+    const timeZone = await getUserTimeZone(userId);
     const [weekRow] = await db.execute<{ count: number }>(sql`
-      SELECT COUNT(DISTINCT date_trunc('week', completed_at))::int AS count
+      SELECT COUNT(DISTINCT date_trunc('week', completed_at AT TIME ZONE ${timeZone}))::int AS count
       FROM ${workoutSessions}
       WHERE user_id = ${userId}
         AND completed_at IS NOT NULL

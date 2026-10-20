@@ -80,7 +80,10 @@ export default auth((req) => {
   }
 
   if (pathname === "/login") {
-    return NextResponse.redirect(new URL("/", req.url));
+    // Honour where the visitor was headed (same-origin paths only).
+    const target = req.nextUrl.searchParams.get("callbackUrl");
+    const safe = target && target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/login");
+    return NextResponse.redirect(new URL(safe ? target : "/", req.url));
   }
 
   return NextResponse.next();

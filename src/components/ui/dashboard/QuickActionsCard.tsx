@@ -1,59 +1,44 @@
 import {
   PlusIcon,
-  UserIcon,
   ClockIcon,
   TrophyIcon,
   HeartIcon,
   ListBulletIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
+import { ChevronRightIcon } from '@heroicons/react/20/solid';
 import Link from 'next/link';
-import { motion, useReducedMotion } from 'framer-motion';
 import { DashboardCard } from './DashboardCard';
 
 // History replaces the Templates shortcut here: templates are already one tap
 // away in the bottom nav, while history previously had no surface at all.
 const actions = [
-  { href: '/template/create', label: 'New Template', icon: PlusIcon },
-  { href: '/session/log', label: 'Log Workout', icon: ClockIcon },
-  { href: '/recovery', label: 'Recovery', icon: HeartIcon },
-  { href: '/history', label: 'History', icon: ListBulletIcon },
+  { href: '/history', label: 'Workout history', icon: ListBulletIcon },
+  { href: '/recovery', label: 'Recovery map', icon: HeartIcon },
+  { href: '/session/log', label: 'Log a past workout', icon: ClockIcon },
+  { href: '/template/create', label: 'New template', icon: PlusIcon },
   { href: '/leaderboard', label: 'Leaderboard', icon: TrophyIcon },
   { href: '/profile', label: 'Profile', icon: UserIcon },
 ];
 
-const springTransition = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 25,
-};
-
+/** A plain list of destinations: label first, so it scans like a menu. */
 export function QuickActionsCard() {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <DashboardCard title="Quick Actions" className="h-full">
-      <div className="grid grid-cols-2 gap-2">
+    <DashboardCard title="Go to" className="h-full">
+      <ul className="-mx-2 -my-1">
         {actions.map((action) => (
-          <motion.div
-            key={action.href}
-            whileHover={
-              prefersReducedMotion ? {} : { scale: 1.04 }
-            }
-            whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
-            transition={springTransition}
-          >
+          <li key={action.href}>
             <Link
               href={action.href}
-              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-surface-200 dark:border-surface-400 hover:bg-surface-950 dark:hover:bg-surface-200 hover:border-accent-400/40 dark:hover:border-accent-500/40 transition-all text-center"
+              className="flex min-h-[44px] items-center gap-3 rounded-lg px-2 text-sm text-surface-100 transition-colors hover:bg-black/[0.04] dark:text-surface-950 dark:hover:bg-white/[0.04]"
             >
-              <action.icon className="w-5 h-5 text-surface-500 dark:text-surface-700" />
-              <span className="text-xs font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800">
-                {action.label}
-              </span>
+              <action.icon className="h-[18px] w-[18px] shrink-0 text-surface-500 dark:text-surface-600" />
+              <span className="flex-1">{action.label}</span>
+              <ChevronRightIcon className="h-4 w-4 text-surface-600 dark:text-surface-500" />
             </Link>
-          </motion.div>
+          </li>
         ))}
-      </div>
+      </ul>
     </DashboardCard>
   );
 }

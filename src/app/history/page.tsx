@@ -1,14 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
-import { motion, useReducedMotion } from 'framer-motion';
+
 import {
-  ArrowLeftIcon,
-  ClockIcon,
-  FireIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   TrashIcon,
@@ -21,10 +18,12 @@ import { useDeleteSession } from '@/lib/hooks/useMutations';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
 import { formatSessionDateTime } from '@/utils/relativeTime';
-import { formatDurationHuman } from '@/utils/durationUtils';
+import { formatDurationCompact } from '@/utils/durationUtils';
 import { WorkoutSessionData } from '@/types/workout';
-import { springSnappy, springGentle } from '@/lib/motion';
+
 import toast from 'react-hot-toast';
+import { sessionDisplayName } from '@/utils/sessionName';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 /**
  * Browsable history of completed workouts.
@@ -48,6 +47,7 @@ interface HistorySession {
   totalExercises: number;
   workoutTemplateId: string | null;
   workoutTemplate?: { id: string; name: string } | null;
+  snapshotName?: string | null;
 }
 
 interface HistoryPage {
@@ -68,8 +68,6 @@ interface FullSession extends Omit<HistorySession, 'completedAt' | 'duration' | 
 }
 
 export default function HistoryPage() {
-  const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
   const deleteSession = useDeleteSession();
@@ -117,7 +115,7 @@ export default function HistoryPage() {
     if (!q) return sessions;
     return sessions.filter(
       (session) =>
-        session.workoutTemplate?.name?.toLowerCase().includes(q) ||
+        sessionDisplayName(session).toLowerCase().includes(q) ||
         session.notes?.toLowerCase().includes(q)
     );
   }, [sessions, search]);
@@ -137,7 +135,7 @@ export default function HistoryPage() {
         completedAt: full.completedAt ?? new Date().toISOString(),
         duration: full.duration ?? 0,
         notes: full.notes ?? undefined,
-        templateName: full.workoutTemplate?.name || 'Quick Workout',
+        templateName: sessionDisplayName(full),
       });
     } catch {
       toast.error('Could not open that workout for editing.');
@@ -159,20 +157,8 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 pb-16">
-      {/* Header */}
-      <div className="flex items-center gap-3 py-4">
-        <button
-          onClick={() => router.back()}
-          aria-label="Go back"
-          className="touch-target tap-control flex items-center justify-center rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors"
-        >
-          <ArrowLeftIcon className="w-5 h-5 text-surface-600 dark:text-surface-700" />
-        </button>
-        <h1 className="text-xl font-display font-bold uppercase tracking-wide text-surface-50 dark:text-white">
-          History
-        </h1>
-      </div>
+    <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
+      <PageHeader back title="History" description="Every workout you have logged. Edit or delete any of them." />
 
       {/* Search */}
       <div className="relative mb-4">
@@ -183,7 +169,7 @@ export default function HistoryPage() {
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search loaded workouts…"
           aria-label="Search workout history"
-          className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-surface-300 dark:border-surface-400 bg-surface-0 dark:bg-surface-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+          className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-surface-100 text-sm text-surface-50 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500"
         />
         {search && (
           <button
@@ -200,8 +186,8 @@ export default function HistoryPage() {
         <div className="space-y-2" aria-busy="true" aria-label="Loading history">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="forge-card p-4 animate-pulse">
-              <div className="h-4 w-1/3 bg-surface-200 dark:bg-surface-400/40 rounded mb-2" />
-              <div className="h-3 w-1/2 bg-surface-200 dark:bg-surface-400/30 rounded" />
+              <div className="h-4 w-1/3 bg-black/[0.06] dark:bg-white/[0.06] rounded mb-2" />
+              <div className="h-3 w-1/2 bg-black/[0.05] dark:bg-white/[0.05] rounded" />
             </div>
           ))}
         </div>
@@ -209,7 +195,7 @@ export default function HistoryPage() {
         <ErrorState what="your workout history" onRetry={() => refetch()} isRetrying={isFetching} />
       ) : filtered.length === 0 ? (
         <div className="forge-card p-10 text-center">
-          <p className="font-display text-lg uppercase tracking-wide text-surface-50 dark:text-white">
+          <p className="text-lg text-surface-50 dark:text-white">
             {search ? 'No matches' : 'No workouts yet'}
           </p>
           <p className="mt-2 text-sm text-surface-500 dark:text-surface-600">
@@ -225,54 +211,42 @@ export default function HistoryPage() {
               Searching the {sessions.length} loaded workouts — load more to search further back.
             </p>
           )}
-          <ul className="space-y-2">
-            {filtered.map((session, index) => (
-              <motion.li
-                key={session.id}
-                initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
-                animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-                transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : Math.min(index * 0.03, 0.3) }}
-              >
-                <div className="forge-card p-4 flex items-center gap-3">
+          <ul className="forge-card divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+            {filtered.map((session) => {
+              const name = sessionDisplayName(session);
+              return (
+                <li key={session.id} className="flex items-center gap-2 py-2.5 pl-4 pr-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-display font-bold text-surface-50 dark:text-white">
-                      {session.workoutTemplate?.name || 'Quick Workout'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                      <span>{session.completedAt ? formatSessionDateTime(session.completedAt) : 'Unfinished'}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <ClockIcon className="w-3 h-3" />
-                        {formatDurationHuman(session.duration || 0)}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <FireIcon className="w-3 h-3" />
-                        {formatVolume(session.totalVolume, useMetric)}
-                      </span>
-                      <span>{session.totalSets} sets</span>
+                    <p className="truncate text-sm font-medium text-surface-50 dark:text-white">{name}</p>
+                    <p className="mt-0.5 truncate text-xs text-surface-500 dark:text-surface-600 tabular">
+                      {session.completedAt ? formatSessionDateTime(session.completedAt) : 'Unfinished'}
+                      {' · '}
+                      {formatDurationCompact(session.duration || 0)}
+                      {' · '}
+                      {session.totalSets} {session.totalSets === 1 ? 'set' : 'sets'}
+                      {session.totalVolume > 0 && <> · {formatVolume(session.totalVolume, useMetric)}</>}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => void openEditor(session)}
-                      disabled={isLoadingForEdit && editingSessionId === session.id}
-                      aria-label={`Edit ${session.workoutTemplate?.name || 'workout'}`}
-                      title="Edit workout"
-                      className="touch-target tap-control flex items-center justify-center rounded-lg hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors disabled:opacity-50"
-                    >
-                      <PencilSquareIcon className="w-4 h-4 text-surface-500 dark:text-surface-600" />
-                    </button>
-                    <button
-                      onClick={() => setSessionToDelete(session)}
-                      aria-label={`Delete ${session.workoutTemplate?.name || 'workout'}`}
-                      title="Delete workout"
-                      className="touch-target tap-control flex items-center justify-center rounded-lg hover:bg-danger-500/10 transition-colors"
-                    >
-                      <TrashIcon className="w-4 h-4 text-danger-400" />
-                    </button>
-                  </div>
-                </div>
-              </motion.li>
-            ))}
+                  <button
+                    onClick={() => void openEditor(session)}
+                    disabled={isLoadingForEdit && editingSessionId === session.id}
+                    aria-label={`Edit ${name}`}
+                    title="Edit"
+                    className="touch-target tap-control flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.05] hover:text-surface-50 disabled:opacity-50 dark:text-surface-600 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                  >
+                    <PencilSquareIcon className="h-[18px] w-[18px]" />
+                  </button>
+                  <button
+                    onClick={() => setSessionToDelete(session)}
+                    aria-label={`Delete ${name}`}
+                    title="Delete"
+                    className="touch-target tap-control flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-danger-500/10 hover:text-danger-500 dark:text-surface-600"
+                  >
+                    <TrashIcon className="h-[18px] w-[18px]" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
 
           {/* The Load more button stays visible while searching: the empty
@@ -289,7 +263,7 @@ export default function HistoryPage() {
           )}
           {!hasNextPage && sessions.length > PAGE_SIZE && (
             <p className="mt-4 text-center text-xs text-surface-500 dark:text-surface-600">
-              That's your whole history — every workout ever logged.
+              That&apos;s everything.
             </p>
           )}
         </>
@@ -299,7 +273,7 @@ export default function HistoryPage() {
         open={sessionToDelete !== null}
         title="Delete this workout?"
         message={`"${
-          sessionToDelete?.workoutTemplate?.name || 'Quick Workout'
+          sessionToDelete ? sessionDisplayName(sessionToDelete) : ''
         }" will be removed and your lifetime totals, monthly stats and streaks will be recalculated. This can't be undone.`}
         confirmLabel="Delete"
         cancelLabel="Keep it"

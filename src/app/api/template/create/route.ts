@@ -86,6 +86,10 @@ export async function POST(request: Request) {
         sets: ex.sets.map((set) => ({
           reps: set.reps,
           weight: set.weight,
+          // Dropping these turned every cardio template into a 0-rep strength
+          // set on creation (PUT kept them, so editing "fixed" it).
+          duration: set.duration,
+          distance: set.distance,
           type: set.type,
           restTime: set.restTime,
           notes: set.notes,

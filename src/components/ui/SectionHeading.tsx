@@ -24,7 +24,7 @@ export function SectionHeading({
         <Icon className="h-5 w-5 text-accent-600 dark:text-accent-400" />
       </span>
       <div className="min-w-0">
-        <h2 className="font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+        <h2 className="text-sm font-semibold text-surface-50 dark:text-white">
           {title}
         </h2>
         {children && (

@@ -1,10 +1,11 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
 import { use, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+
 import { motion, useReducedMotion } from 'framer-motion';
-import { springGentle } from '@/lib/motion';
-import { ArrowLeftIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+
+import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { useExerciseHistory } from '@/lib/hooks/useExerciseHistory';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -13,7 +14,6 @@ import { formatPRValue, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatti
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { PR_TYPES, type PRType } from '@/types/personalRecords';
 import type { ExerciseHistoryPoint } from '@/app/api/exercise/[exerciseId]/history/route';
-
 
 type Metric = 'oneRepMax' | 'heaviest' | 'volume';
 
@@ -122,8 +122,6 @@ export default function ExerciseHistoryPage({
   params: Promise<{ exerciseKey: string }>;
 }) {
   const { exerciseKey } = use(params);
-  const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
   const [metric, setMetric] = useState<Metric>('oneRepMax');
@@ -163,51 +161,19 @@ export default function ExerciseHistoryPage({
   const sessions = [...data.history].reverse(); // newest first for the list
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
+    <div className="px-4 pb-16 sm:px-6">
       <div className="mx-auto max-w-3xl">
-        <div className="forge-card mb-6 overflow-hidden">
-          <div className="greeting-gradient px-5 py-5 text-white sm:px-6">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="touch-target tap-control flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20"
-                aria-label="Go back"
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-xs uppercase tracking-[0.2em] text-white/70">
-                  Exercise history
-                </p>
-                <h1 className="truncate font-display text-2xl font-bold tracking-wide sm:text-3xl">
-                  {data.name}
-                </h1>
-              </div>
-            </div>
-            {(data.muscles.length > 0 || data.equipment.length > 0) && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {[...data.muscles, ...data.equipment].slice(0, 6).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-medium backdrop-blur-sm"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <PageHeader
+          back
+          eyebrow="Exercise"
+          title={data.name}
+          description={[...data.muscles, ...data.equipment].slice(0, 6).join(' · ') || undefined}
+        />
 
         {data.history.length === 0 ? (
           <div className="forge-card p-8 text-center">
             <ChartBarIcon className="mx-auto h-10 w-10 text-surface-500" />
-            <h2 className="mt-3 font-display text-lg font-bold uppercase tracking-wide text-surface-50 dark:text-white">
+            <h2 className="mt-3 text-lg font-semibold text-surface-50 dark:text-white">
               No sessions yet
             </h2>
             <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
@@ -243,7 +209,7 @@ export default function ExerciseHistoryPage({
             {!isCardio && (
               <div className="forge-card mb-6 p-4 sm:p-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+                  <h2 className="text-sm font-semibold text-surface-50 dark:text-white">
                     Trend
                   </h2>
                   <div className="flex gap-1.5">
@@ -268,7 +234,7 @@ export default function ExerciseHistoryPage({
             )}
 
             <div className="forge-card p-4 sm:p-5">
-              <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider text-surface-50 dark:text-white">
+              <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
                 Sessions
                 <span className="ml-2 font-body text-xs font-normal normal-case tracking-normal text-surface-500 dark:text-surface-600">
                   {sessions.length}
@@ -319,6 +285,6 @@ export default function ExerciseHistoryPage({
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

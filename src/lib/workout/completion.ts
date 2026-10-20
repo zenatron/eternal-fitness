@@ -47,7 +47,8 @@ export interface WorkoutTotals {
 export interface StreakResult {
   currentStreak: number;
   longestStreak: number;
-  lastWorkoutAt: Date;
+  /** Null when no completed sessions remain (e.g. after deleting the last one). */
+  lastWorkoutAt: Date | null;
 }
 
 /**
@@ -111,7 +112,7 @@ export function computeStreakFromDates(
   now: Date = new Date()
 ): StreakResult {
   if (completionDates.length === 0) {
-    return { currentStreak: 0, longestStreak: existingLongestStreak, lastWorkoutAt: now };
+    return { currentStreak: 0, longestStreak: existingLongestStreak, lastWorkoutAt: null };
   }
 
   const sorted = [...completionDates].sort((a, b) => b.getTime() - a.getTime());

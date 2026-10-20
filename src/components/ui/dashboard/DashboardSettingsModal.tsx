@@ -130,7 +130,7 @@ export default function DashboardSettingsModal({
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`bg-surface-950 dark:bg-surface-200 border border-surface-200 dark:border-surface-400 rounded-lg p-3 ${
+                      className={`bg-surface-950 dark:bg-surface-200 border border-black/10 dark:border-surface-400 rounded-lg p-3 ${
                         snapshot.isDragging ? 'shadow-lg' : ''
                       }`}
                     >
@@ -157,7 +157,7 @@ export default function DashboardSettingsModal({
                           className={`touch-target flex shrink-0 items-center justify-center rounded-lg transition-colors ${
                             tile.enabled
                               ? 'text-accent-600 bg-accent-50 dark:bg-accent-950/30'
-                              : 'text-surface-500 bg-surface-100 dark:bg-surface-300'
+                              : 'text-surface-500 bg-black/[0.05] dark:bg-surface-300'
                           }`}
                           aria-label={`${tile.enabled ? 'Hide' : 'Show'} ${tile.name}`}
                         >

@@ -4,23 +4,13 @@ import { useState, useEffect, use, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTemplate } from '@/lib/hooks/useTemplate';
 import { useProfile } from '@/lib/hooks/useProfile';
-import {
-  ArrowLeftIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  PlayIcon,
-  PauseIcon,
-  DocumentTextIcon,
-  CalendarIcon,
-  XCircleIcon,
-  ClipboardDocumentListIcon,
-} from '@heroicons/react/24/outline';
-import { motion, useReducedMotion } from 'framer-motion';
+import Link from 'next/link';
+import { CheckIcon, PlayIcon, PauseIcon } from '@heroicons/react/24/outline';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { formatVolume } from '@/utils/formatters';
-import { ExercisePerformance } from '@/types/workout';
+
 import WorkoutProgressTracker from '@/components/workout/WorkoutProgressTracker';
 import dynamic from 'next/dynamic';
-import { springSnappy, springGentle } from '@/lib/motion';
 
 /**
  * Shown once, at the very end of a workout, and carries a canvas particle
@@ -37,6 +27,8 @@ import { useRestTimerActions } from '@/components/workout/RestTimerProvider';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalShell } from '@/components/ui/ModalShell';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateWorkoutData } from '@/lib/queryKeys';
 
 /**
  * The only part of this page that needs to re-render every second: it runs its
@@ -48,7 +40,7 @@ function LiveWorkoutClock() {
   const { formatWorkoutDuration } = useActiveWorkout();
   useTickingNow();
   return (
-    <p className="font-display text-2xl font-bold leading-none tabular text-surface-50 dark:text-white">
+    <p className="font-display text-2xl font-semibold leading-none tabular text-surface-50 dark:text-white">
       {formatWorkoutDuration()}
     </p>
   );
@@ -122,40 +114,23 @@ function SessionNotesCard({
   }, [serverNotes, notesRef]);
 
   return (
-    <div className="forge-card overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-600"></div>
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
-            <DocumentTextIcon className="w-6 h-6 text-accent-600 dark:text-accent-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">
-              Session Notes
-            </h3>
-            <p className="text-surface-500 dark:text-surface-600">
-              Record your thoughts, PRs, and observations
-            </p>
-          </div>
-        </div>
-
-        <textarea
-          id="sessionNotes"
-          rows={4}
-          value={draft}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={commitNow}
-          className="w-full px-4 py-3 border border-surface-300 dark:border-surface-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent dark:bg-surface-200 dark:text-white resize-none"
-          placeholder="How did the session go? Any personal records? What felt challenging or easy today?"
-          disabled={disabled}
-        />
-      </div>
+    <div className="forge-card p-4">
+      <label htmlFor="sessionNotes" className="section-title mb-2 block">
+        Notes
+      </label>
+      <textarea
+        id="sessionNotes"
+        rows={3}
+        value={draft}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={commitNow}
+        className="form-input resize-none text-sm"
+        placeholder="How did it go? Anything to remember next time?"
+        disabled={disabled}
+      />
     </div>
   );
 }
-
-
-
 
 export default function ActiveSessionPage({
   params,
@@ -164,6 +139,7 @@ export default function ActiveSessionPage({
 }) {
   const { templateId } = use(params);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const scheduledSessionId = searchParams.get('scheduledSessionId');
 
@@ -173,7 +149,6 @@ export default function ActiveSessionPage({
     error: templateError,
   } = useTemplate(templateId);
   const { profile, isLoading: profileLoading } = useProfile();
-  const prefersReducedMotion = useReducedMotion();
 
   // Only UI state that doesn't need persistence
   const [isSaving, setIsSaving] = useState(false);
@@ -189,7 +164,6 @@ export default function ActiveSessionPage({
     updateModifiedTemplate,
     endWorkout,
     completeWorkout,
-    recoverSession,
     hasActiveWorkout,
     getWorkoutDuration,
     toggleTimer,
@@ -284,7 +258,11 @@ export default function ActiveSessionPage({
     if (!template) return;
     try {
       restTimer.skip();
-      await recoverSession(template.id, true);
+      // Discard, then start fresh. This used to force-*recover* the old
+      // session onto this template and then call start — which 409'd against
+      // the session recovery had just created, leaving this workout running on
+      // the old one's clock.
+      await endWorkout();
       await startWorkout(template.id, template.name, template.workoutData);
     } catch (error) {
       console.error('Failed to switch workouts:', error);
@@ -440,6 +418,9 @@ export default function ActiveSessionPage({
     if (scheduledSessionId) {
       setIsSaving(true);
       try {
+        // Same guarantee as the regular path: every logged set has reached the
+        // provider's copy before it is read below.
+        await flushNow();
         // workoutSessions.duration is stored in SECONDS.
         const finalDurationSeconds = Math.max(1, Math.round(getWorkoutDuration()));
         const durationMinutes = Math.max(1, Math.round(finalDurationSeconds / 60));
@@ -466,8 +447,11 @@ export default function ActiveSessionPage({
           toast.success('This session was already logged.');
           setWorkoutCompleted(true);
           restTimer.skip();
-          endWorkout();
-          setShowVictory(true);
+          await endWorkout();
+          await invalidateWorkoutData(queryClient);
+          // There is no summary to show; the popup used to be "opened" with no
+          // data, which rendered nothing and stranded the user here.
+          router.push('/profile');
           return;
         }
         if (!response.ok) throw new Error('Failed to complete scheduled session');
@@ -476,7 +460,9 @@ export default function ActiveSessionPage({
 
         setWorkoutCompleted(true);
         restTimer.skip();
-        endWorkout();
+        await endWorkout();
+        // Stats, streak, PRs and the dashboard all moved.
+        void invalidateWorkoutData(queryClient);
 
         const perfData = sessionData?.session?.performanceData?.performance;
         const totalDistance = perfData
@@ -520,382 +506,155 @@ export default function ActiveSessionPage({
 
   if (isLoading) {
     return (
-      <div className="app-bg py-12 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-secondary">Loading session...</p>
-        </div>
+      <div className="mx-auto max-w-3xl px-4 pt-16 text-center" aria-busy="true">
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+        <p className="mt-3 text-sm text-surface-500 dark:text-surface-600">Loading workout…</p>
       </div>
     );
   }
 
   if (templateError || !template) {
     return (
-      <div className="app-bg py-12 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-500/30 text-danger-700 dark:text-danger-400 rounded-lg text-center">
-            Error loading template:{' '}
-            {String(templateError || 'Template not found')}
-          </div>
-        </div>
+      <div className="mx-auto max-w-3xl px-4 pt-8">
+        <PageHeader back title="Workout not found" />
+        <p className="forge-card p-5 text-sm text-surface-500 dark:text-surface-600">
+          This workout could not be loaded — it may have been deleted.{' '}
+          <Link href="/templates" className="font-medium text-accent-600 hover:underline dark:text-accent-400">
+            Back to your workouts
+          </Link>
+        </p>
       </div>
     );
   }
 
+  const plan = activeWorkout?.modifiedTemplate ?? template.workoutData;
+  const status = !hasActiveWorkout
+    ? scheduledSessionId
+      ? 'Scheduled workout'
+      : 'Not started'
+    : isTimerActive
+      ? 'In progress'
+      : 'Paused';
+
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
-      <div className="max-w-5xl mx-auto">
-        {/* Enhanced Header */}
-        <motion.div
-          className="mb-8"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: -20 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          transition={springGentle}
+    <>
+    <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
+      <PageHeader back eyebrow={status} title={template.name} />
+
+      {/* Clock and controls. Finish is the one primary action; pause is a
+          neutral control and discard a quiet one — they used to be amber,
+          red-tinted and green blocks of equal weight under a colour stripe. */}
+      {hasActiveWorkout && !showCrossTemplateConfirm && (
+        <div className="forge-card mb-4 flex items-center gap-3 p-3 sm:p-4">
+          <button
+            onClick={toggleTimer}
+            aria-label={isTimerActive ? 'Pause timer' : 'Resume timer'}
+            title={isTimerActive ? 'Pause timer' : 'Resume timer'}
+            className="tap-control flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-black/10 text-surface-100 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:text-surface-950 dark:hover:bg-white/[0.05]"
+          >
+            {isTimerActive ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5" />}
+          </button>
+          <div className="min-w-0 flex-1">
+            <LiveWorkoutClock />
+            <p className="mt-0.5 truncate text-xs text-surface-500 dark:text-surface-600">
+              {!isTimerActive ? 'Paused' : wakeLockActive ? 'Screen stays on' : 'Running'}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="tap-control hidden min-h-[44px] rounded-lg px-3 text-sm font-medium text-surface-500 transition-colors hover:text-danger-600 dark:text-surface-600 dark:hover:text-danger-400 sm:block"
+          >
+            Discard
+          </button>
+          <button
+            onClick={stopTimerAndSave}
+            disabled={isSaving}
+            className="btn btn-primary tap-control min-h-[44px] shrink-0 px-5"
+          >
+            {isSaving ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <CheckIcon className="h-4 w-4" />
+            )}
+            {isSaving ? 'Saving…' : 'Finish'}
+          </button>
+        </div>
+      )}
+
+      {saveMessage && (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-sm text-danger-700 dark:text-danger-300"
         >
-          {/* Title and timer shared one row, so at phone width "Active Session"
-              broke across two lines and collided with the clock. The elapsed
-              time is dropped here entirely — it already appears in the sticky
-              banner above and in the timer card directly below, so this was the
-              third copy on one screen. */}
-          <div className="forge-card overflow-hidden">
-            <div className="greeting-gradient px-5 py-5 text-white sm:px-6">
-              <div className="flex items-center gap-3">
-                <motion.button
-                  onClick={() => router.back()}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={springSnappy}
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 tap-control"
-                  aria-label="Go back"
-                >
-                  <ArrowLeftIcon className="h-6 w-6" />
-                </motion.button>
-                <div className="min-w-0 flex-1">
-                  <p className="font-display text-xs uppercase tracking-[0.2em] text-accent-100">
-                    {/* "Session paused" used to render before any workout had
-                        started, because isTimerActive is false pre-start. */}
-                    {!hasActiveWorkout
-                      ? scheduledSessionId
-                        ? 'Scheduled session'
-                        : 'Ready to start'
-                      : isTimerActive
-                        ? 'Active session'
-                        : 'Session paused'}
-                  </p>
-                  <h1 className="truncate font-display text-2xl font-bold tracking-wide sm:text-3xl">
-                    {template.name}
-                  </h1>
-                </div>
-                {isTimerActive && !prefersReducedMotion && (
-                  <motion.span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-white"
-                    animate={{ opacity: [1, 0.3, 1] }}
-                    transition={{ duration: 1.6, repeat: Infinity }}
-                    aria-hidden="true"
-                  />
-                )}
-              </div>
-            </div>
+          {saveMessage.replace(/^Error:\s*/, '')}
+        </p>
+      )}
+
+      {/* Before starting: what is in the workout, and one button. This used to
+          be a stats card plus a separate green card asking "Ready to Start Your
+          Workout? Click the button below…" around a gradient button. */}
+      {!hasActiveWorkout && !isActiveWorkoutLoading && (
+        <div className="forge-card mb-4 overflow-hidden">
+          <ul className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+            {(plan?.exercises ?? []).map((exercise) => {
+              const first = exercise.sets[0];
+              const reps =
+                typeof first?.targetReps === 'number'
+                  ? first.targetReps
+                  : first?.targetReps
+                    ? `${first.targetReps.min}–${first.targetReps.max}`
+                    : null;
+              return (
+                <li key={exercise.id} className="flex items-baseline justify-between gap-3 px-4 py-3">
+                  <span className="truncate text-sm font-medium text-surface-50 dark:text-white">{exercise.name}</span>
+                  <span className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
+                    {exercise.sets.length} ×{' '}
+                    {first?.targetDuration
+                      ? `${Math.round(first.targetDuration / 60)} min`
+                      : `${reps ?? '—'}${first?.targetWeight ? ` @ ${first.targetWeight}` : ''}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+            <p className="text-xs text-surface-500 dark:text-surface-600 tabular">
+              About {template.estimatedDuration} min
+              {template.totalVolume > 0 && <> · {formatVolume(template.totalVolume, profile?.useMetric)} planned</>}
+            </p>
+            <button onClick={handleStartWorkout} className="btn btn-primary tap-control min-h-[44px] px-6">
+              <PlayIcon className="h-4 w-4" />
+              Start
+            </button>
           </div>
-        </motion.div>
+        </div>
+      )}
 
-        {/* Session Type Indicator */}
-        {scheduledSessionId && (
-          <motion.div
-            className="mb-6"
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.1 }}
+      {hasActiveWorkout && activeWorkout && !showCrossTemplateConfirm && (
+        <WorkoutProgressTracker
+          key={`workout-tracker-${activeWorkout.templateId}-${new Date(activeWorkout.startedAt).getTime()}`}
+          template={activeWorkout.modifiedTemplate || template.workoutData}
+          onSessionUpdate={updateWorkout}
+          onTemplateModified={handleTemplateModification}
+          initialExerciseProgress={activeWorkout.exerciseProgress}
+          useMetric={profile?.useMetric}
+        />
+      )}
+
+      {hasActiveWorkout && !showCrossTemplateConfirm && (
+        <div className="mt-4 space-y-4">
+          <SessionNotesCard disabled={isSaving} notesRef={sessionNotesRef} />
+          {/* On phones Discard lives here, away from Finish: side by side in
+              the control bar they were one slipped thumb apart. */}
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="tap-control w-full rounded-lg py-3 text-sm font-medium text-danger-600 transition-colors hover:bg-danger-500/10 dark:text-danger-400 sm:hidden"
           >
-            <div className="forge-card overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-300"></div>
-              <div className="p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
-                    <CalendarIcon className="h-6 w-6 text-accent-600 dark:text-accent-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-display font-bold text-surface-50 dark:text-white">
-                      Scheduled Workout
-                    </h3>
-                    <p className="text-surface-500 dark:text-surface-600">
-                      You are completing a previously scheduled workout session
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Timer Controls - Only show when workout is active, and not while the
-            cross-template dialog owns the page: rendering the live tracker
-            under it mixed the other session's progress into THIS template's
-            exercise list, since exercise IDs are positional. */}
-        {hasActiveWorkout && !showCrossTemplateConfirm && (
-          <motion.div
-            className="mb-6"
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.2 }}
-          >
-          {/* Colour now follows meaning: finishing is the positive outcome
-              (green), discarding is the destructive one (red). It was the exact
-              reverse — "Finish & Save" was the red button on the row. */}
-          <div className="forge-card overflow-hidden">
-            <div
-              className={`h-1 transition-colors ${
-                isTimerActive
-                  ? 'bg-gradient-to-r from-success-500 to-success-400'
-                  : 'bg-gradient-to-r from-warning-500 to-warning-400'
-              }`}
-            />
-            <div className="p-4 sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                {/* The elapsed time is the point of this card, so it leads. */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
-                      isTimerActive
-                        ? 'bg-success-100 dark:bg-success-900/30'
-                        : 'bg-warning-100 dark:bg-warning-900/30'
-                    }`}
-                  >
-                    <ClockIcon
-                      className={`h-6 w-6 ${
-                        isTimerActive
-                          ? 'text-success-600 dark:text-success-400'
-                          : 'text-warning-600 dark:text-warning-400'
-                      }`}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <LiveWorkoutClock />
-                    <p className="mt-1 truncate text-xs text-surface-500 dark:text-surface-600">
-                      {!isTimerActive
-                        ? 'Paused'
-                        : wakeLockActive
-                          ? 'Screen stays on while you train'
-                          : 'Session running'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-2.5">
-                  {/* Icon-only: the label was redundant next to a running clock
-                      and made the row overflow on a phone. */}
-                  <motion.button
-                    onClick={toggleTimer}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={springSnappy}
-                    aria-label={isTimerActive ? 'Pause timer' : 'Resume timer'}
-                    title={isTimerActive ? 'Pause timer' : 'Resume timer'}
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white transition-colors tap-control ${
-                      isTimerActive
-                        ? 'bg-warning-500 hover:bg-warning-600'
-                        : 'bg-success-500 hover:bg-success-600'
-                    }`}
-                  >
-                    {isTimerActive ? (
-                      <PauseIcon className="h-6 w-6" />
-                    ) : (
-                      <PlayIcon className="h-6 w-6" />
-                    )}
-                  </motion.button>
-
-                  <motion.button
-                    onClick={() => setShowCancelConfirm(true)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={springSnappy}
-                    className="flex min-h-[48px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-danger-500/40 bg-danger-500/10 px-4 font-semibold text-danger-600 transition-colors hover:bg-danger-500/20 dark:text-danger-400 tap-control sm:flex-none"
-                  >
-                    <XCircleIcon className="h-5 w-5 shrink-0" />
-                    Discard
-                  </motion.button>
-
-                  <motion.button
-                    onClick={stopTimerAndSave}
-                    disabled={isSaving}
-                    whileHover={isSaving ? {} : { scale: 1.03 }}
-                    whileTap={isSaving ? {} : { scale: 0.97 }}
-                    transition={springSnappy}
-                    className="flex min-h-[48px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-success-600 px-4 font-semibold text-white shadow-sm transition-colors hover:bg-success-700 disabled:opacity-60 tap-control sm:flex-none"
-                  >
-                    {isSaving ? (
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : (
-                      <CheckCircleIcon className="h-5 w-5 shrink-0" />
-                    )}
-                    {isSaving ? 'Saving…' : 'Finish'}
-                  </motion.button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-        )}
-
-        {/* Save Message */}
-        {saveMessage && (
-          <div className="mb-6">
-            <div className={`rounded-xl p-4 ${
-              saveMessage.startsWith('Error:')
-                ? 'bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-300 border border-danger-200 dark:border-danger-800'
-                : 'bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 border border-success-200 dark:border-success-800'
-            }`}>
-              <div className="flex items-center gap-2">
-                {saveMessage.startsWith('Error:') ? (
-                  <div className="text-danger-500">❌</div>
-                ) : (
-                  <div className="text-success-500">✅</div>
-                )}
-                <p className="font-medium">{saveMessage}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Template Overview */}
-        <motion.div
-          className="mb-6"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.3 }}
-        >
-          <div className="forge-card overflow-hidden">
-            {/* The icon slot held a bare blue <div> — a placeholder that was
-                never replaced, and the only blue pixel on the screen. Five
-                full-size stat tiles for what is reference information also
-                pushed the exercise list well below the fold, so they are now a
-                single compact row. */}
-            <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-700"></div>
-            <div className="p-4 sm:p-5">
-              <div className="mb-3 flex items-center gap-2.5">
-                <ClipboardDocumentListIcon className="h-5 w-5 shrink-0 text-accent-500" />
-                <h3 className="font-display text-base font-bold uppercase tracking-wide text-surface-50 dark:text-white">
-                  Workout Overview
-                </h3>
-                <span className="ml-auto shrink-0 rounded-full bg-accent-100 px-2.5 py-0.5 text-xs font-medium capitalize text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
-                  {template.difficulty}
-                </span>
-              </div>
-
-              <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  // Mid-workout modifications (added exercises, extra sets) are
-                  // tracked in the active workout's modifiedTemplate; the stats
-                  // used to keep reading the pristine template and disagreed
-                  // with the progress list right below them.
-                  { label: 'Exercises', value: activeWorkout?.modifiedTemplate?.exercises?.length ?? template.workoutData?.exercises?.length ?? 0 },
-                  {
-                    label: 'Sets',
-                    value:
-                      (activeWorkout?.modifiedTemplate ?? template.workoutData)?.exercises?.reduce(
-                        (total, ex) => total + ex.sets.length,
-                        0
-                      ) || 0,
-                  },
-                  {
-                    label: 'Volume',
-                    value:
-                      template.totalVolume > 0
-                        ? formatVolume(template.totalVolume, profile?.useMetric)
-                        : '—',
-                  },
-                  { label: 'Est.', value: `${template.estimatedDuration}m` },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-lg bg-surface-950 px-2 py-2.5 text-center dark:bg-surface-200/50"
-                  >
-                    <dd className="font-display text-base font-bold tabular text-surface-50 dark:text-white">
-                      {stat.value}
-                    </dd>
-                    <dt className="mt-0.5 text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-600">
-                      {stat.label}
-                    </dt>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Start Workout Button - Show when no active workout */}
-        {!hasActiveWorkout && !isActiveWorkoutLoading && (
-          <motion.div
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.5 }}
-            className="mb-6"
-          >
-            <div className="forge-card overflow-hidden">
-              <div className="h-2 bg-gradient-to-r from-success-500 to-success-500"></div>
-              <div className="p-8 text-center">
-                <div className="mb-6">
-                  <div className="p-4 bg-success-100 dark:bg-success-900/30 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                    <PlayIcon className="w-10 h-10 text-success-600 dark:text-success-400" />
-                  </div>
-                  <h3 className="text-2xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-2">
-                    Ready to Start Your Workout?
-                  </h3>
-                  <p className="text-surface-500 dark:text-surface-600">
-                    Click the button below to begin tracking your workout session
-                  </p>
-                </div>
-
-                <motion.button
-                  onClick={handleStartWorkout}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                  transition={springSnappy}
-                  className="bg-gradient-to-r from-success-500 to-success-500 hover:from-success-600 hover:to-success-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg flex items-center gap-3 mx-auto"
-                >
-                  <PlayIcon className="w-6 h-6" />
-                  Start Workout
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Workout Progress Tracker */}
-        {hasActiveWorkout && activeWorkout && !showCrossTemplateConfirm && (
-          <motion.div
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.5 }}
-          >
-            <WorkoutProgressTracker
-              key={`workout-tracker-${activeWorkout.templateId}-${new Date(activeWorkout.startedAt).getTime()}`}
-              template={activeWorkout.modifiedTemplate || template.workoutData}
-              onSessionUpdate={updateWorkout}
-              onTemplateModified={handleTemplateModification}
-              initialExerciseProgress={activeWorkout.exerciseProgress}
-              useMetric={profile?.useMetric}
-            />
-          </motion.div>
-        )}
-
-        {/* Session Notes - Only show when workout is active */}
-        {hasActiveWorkout && !showCrossTemplateConfirm && (
-          <motion.div
-            className="mb-6"
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : 0.4 }}
-          >
-            <SessionNotesCard disabled={isSaving} notesRef={sessionNotesRef} />
-        </motion.div>
-        )}
-      </div>
+            Discard workout
+          </button>
+        </div>
+      )}
+    </div>
 
       {/*
         Template Modification Prompt — shown when finishing with modifications.
@@ -909,62 +668,41 @@ export default function ActiveSessionPage({
       <ModalShell
         isOpen={showCompletionPrompt}
         onClose={() => setShowCompletionPrompt(false)}
-        title="Template Modified"
-        subtitle="Your workout differs from the original template"
+        title="You changed this workout"
+        subtitle="Added or removed exercises or sets. Your session is logged either way."
         maxWidth="max-w-md"
-        icon={
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-100 dark:bg-warning-900/30">
-            <DocumentTextIcon className="h-5 w-5 text-warning-600 dark:text-warning-400" />
-          </div>
-        }
       >
-        <p className="mb-4 text-sm text-surface-500 dark:text-surface-600">
-          How would you like to handle these changes?
-        </p>
-
-        <div className="space-y-3">
-          <motion.button
+        {/*
+          Two answers to the one real question — should the template change? A
+          third option ("keep original template values") swapped the stored
+          snapshot back to the unmodified template while the performance still
+          held the added exercises, so the logged session described itself
+          inconsistently. It and "log new values only" did the same thing to the
+          template, which is what the user was actually being asked about.
+        */}
+        <div className="space-y-2">
+          <button
             onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'update' })}
             disabled={isSaving}
-            whileHover={isSaving ? {} : { scale: 1.02 }}
-            whileTap={isSaving ? {} : { scale: 0.98 }}
-            transition={springSnappy}
-            className="tap-control w-full px-5 py-3 bg-success-500 hover:bg-success-600 text-white rounded-xl transition-colors font-semibold text-left disabled:opacity-60"
+            className="tap-control w-full rounded-lg bg-accent-500 px-4 py-3 text-left text-white transition-colors hover:bg-accent-600 disabled:opacity-60"
           >
-            <div className="text-sm font-bold">Save &amp; Update Template</div>
-            <div className="text-xs text-success-100 mt-0.5">Log with new values and update the current template</div>
-          </motion.button>
-          <motion.button
+            <span className="block text-sm font-semibold">Update “{template.name}”</span>
+            <span className="mt-0.5 block text-xs text-white/80">Next time starts with today&apos;s changes</span>
+          </button>
+          <button
             onClick={() => performCompletion({ useModifiedTemplate: true, saveTemplate: 'none' })}
             disabled={isSaving}
-            whileHover={isSaving ? {} : { scale: 1.02 }}
-            whileTap={isSaving ? {} : { scale: 0.98 }}
-            transition={springSnappy}
-            className="tap-control w-full px-5 py-3 bg-accent-500 hover:bg-accent-600 text-white rounded-xl transition-colors font-semibold text-left disabled:opacity-60"
+            className="tap-control w-full rounded-lg border border-black/10 px-4 py-3 text-left transition-colors hover:bg-black/[0.03] disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/[0.04]"
           >
-            <div className="text-sm font-bold">Log New Values Only</div>
-            <div className="text-xs text-accent-100 mt-0.5">Log this workout with the modified values, don&apos;t change the template</div>
-          </motion.button>
-          <motion.button
-            onClick={() => performCompletion({ useModifiedTemplate: false, saveTemplate: 'none' })}
-            disabled={isSaving}
-            whileHover={isSaving ? {} : { scale: 1.02 }}
-            whileTap={isSaving ? {} : { scale: 0.98 }}
-            transition={springSnappy}
-            className="tap-control w-full px-5 py-3 border border-surface-300 dark:border-surface-400 text-surface-600 dark:text-surface-800 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-semibold text-left disabled:opacity-60"
-          >
-            <div className="text-sm font-bold">Keep Original Template Values</div>
-            <div className="text-xs text-surface-500 dark:text-surface-600 mt-0.5">Discard modifications and log the original template as-is</div>
-          </motion.button>
-          <motion.button
+            <span className="block text-sm font-semibold text-surface-50 dark:text-white">Keep the template as it was</span>
+            <span className="mt-0.5 block text-xs text-surface-500 dark:text-surface-600">Today&apos;s changes apply to this session only</span>
+          </button>
+          <button
             onClick={() => setShowCompletionPrompt(false)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            transition={springSnappy}
-            className="tap-control w-full px-5 py-3 text-surface-500 dark:text-surface-600 rounded-xl hover:bg-surface-950 dark:hover:bg-surface-200 transition-colors font-medium text-sm"
+            className="tap-control w-full rounded-lg px-4 py-2.5 text-sm font-medium text-surface-500 transition-colors hover:text-surface-50 dark:text-surface-600 dark:hover:text-white"
           >
-            Cancel — go back to workout
-          </motion.button>
+            Back to workout
+          </button>
         </div>
       </ModalShell>
 
@@ -1000,6 +738,6 @@ export default function ActiveSessionPage({
         onConfirm={handleDiscardAndSwitch}
         onCancel={handleKeepCurrentWorkout}
       />
-    </motion.div>
+    </>
   );
 }

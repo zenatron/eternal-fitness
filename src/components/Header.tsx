@@ -3,12 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ThemeSwitch from './theme/ThemeSwitch';
-import { useState, useRef, useEffect } from 'react';
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
 import {
   UserCircleIcon,
@@ -18,37 +14,44 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
+/**
+ * Desktop navigation mirrors the mobile bottom nav. It used to list only
+ * Templates and Profile — and the bottom nav is hidden from `md` up — so on a
+ * laptop Progress, History and Log were reachable only through dashboard tiles.
+ */
 const navLinks = [
-  { href: '/templates', label: 'Templates' },
-  { href: '/profile', label: 'Profile' },
+  { href: '/', label: 'Home' },
+  { href: '/templates', label: 'Workouts' },
+  { href: '/session/log', label: 'Log' },
+  { href: '/progress', label: 'Progress' },
+  { href: '/history', label: 'History' },
 ];
 
-const springTransition = {
-  type: 'spring' as const,
-  stiffness: 400,
-  damping: 30,
-};
+/** Destinations the bottom nav has no room for, offered in the phone menu. */
+const moreLinks = [
+  { href: '/history', label: 'History' },
+  { href: '/personal-records', label: 'Personal records' },
+  { href: '/recovery', label: 'Recovery' },
+  { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/profile/edit', label: 'Settings' },
+];
 
-const springBouncy = {
-  type: 'spring' as const,
-  stiffness: 300,
-  damping: 20,
-};
+function isActivePath(pathname: string, href: string) {
+  if (href === '/') return pathname === '/';
+  if (href === '/templates') return pathname.startsWith('/template');
+  return pathname.startsWith(href);
+}
 
 export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { data: session } = useSession();
-  const prefersReducedMotion = useReducedMotion();
-  const headerRef = useRef<HTMLDivElement>(null);
 
   /*
-   * The shrink-on-scroll effect is gone: it was driven by `window.scrollY`, and
-   * the window no longer scrolls now that AppShell owns a single inner scroll
-   * container. Rather than plumb the container ref through just to shrink the
-   * bar by 12px, the header is a fixed 4rem — which is the conventional
-   * behaviour for an installed app and one less thing to desynchronise.
+   * The bar is a fixed 4rem: the window does not scroll (AppShell owns a single
+   * inner scroll container), so there is no scroll position to shrink against,
+   * and a constant header is the conventional behaviour for an installed app.
    */
 
   useEffect(() => {
@@ -75,165 +78,95 @@ export function Header() {
     session?.user?.email?.charAt(0)?.toUpperCase() ||
     '?';
 
+  const menuItemClass =
+    'flex w-full items-center gap-3 px-4 py-2.5 text-sm text-surface-300 transition-colors hover:bg-black/[0.04] dark:text-surface-900 dark:hover:bg-white/[0.05]';
+
   return (
-    <motion.header
-      ref={headerRef}
+    <header
       style={{ height: '4rem' }}
-      // Sticky positioning, the safe-area inset and hide-on-scroll all live on
-      // AppChrome now, so this is just the bar itself.
-      className="border-b border-surface-200/80 dark:border-surface-300/50 bg-white/95 dark:bg-surface-50/95 backdrop-blur-sm"
+      className="border-b border-black/[0.08] bg-white/95 backdrop-blur-sm dark:border-white/[0.06] dark:bg-surface-50/95"
     >
-      <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <motion.div
-            className="w-8 h-8 rounded-lg bg-accent-500 flex items-center justify-center relative overflow-hidden"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            transition={springTransition}
-          >
-            <motion.svg
-              className="w-5 h-5 text-white relative z-10"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <motion.path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-                animate={
-                  prefersReducedMotion
-                    ? {}
-                    : {
-                        pathLength: [0.85, 1, 0.85],
-                        transition: {
-                          duration: 3,
-                          repeat: Infinity,
-                          ease: 'easeInOut',
-                        },
-                      }
-                }
-              />
-            </motion.svg>
-            {!prefersReducedMotion && (
-              <motion.div
-                className="absolute inset-0 rounded-lg bg-accent-400/30"
-                animate={{ scale: [1, 1.3, 1], opacity: [0, 0.3, 0] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            )}
-          </motion.div>
-          <motion.span
-            className="text-lg font-display font-bold text-surface-50 dark:text-white origin-left tracking-wide"
-          >
-            ETERNAL FITNESS
-          </motion.span>
+      <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4 sm:px-6">
+        {/* A still mark. It used to redraw its own bolt and pulse a halo
+            forever, in the corner of every screen. */}
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Eternal Fitness home">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-500">
+            <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </span>
+          <span className="font-display text-lg font-semibold tracking-tight text-surface-50 dark:text-white">
+            Eternal
+          </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
           {session &&
             navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const active = isActivePath(pathname, link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="relative px-3 py-2 text-sm font-display font-semibold tracking-wide uppercase rounded-lg transition-colors"
+                  aria-current={active ? 'page' : undefined}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-black/[0.05] text-surface-50 dark:bg-white/[0.07] dark:text-white'
+                      : 'text-surface-500 hover:text-surface-50 dark:text-surface-700 dark:hover:text-white'
+                  }`}
                 >
-                  <span
-                    className={
-                      isActive
-                        ? 'text-accent-500 dark:text-accent-400'
-                        : 'text-surface-500 dark:text-surface-700 hover:text-surface-800 dark:hover:text-white'
-                    }
-                  >
-                    {link.label}
-                  </span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="nav-active"
-                      className="absolute inset-0 bg-accent-50 dark:bg-accent-950/40 rounded-lg -z-10"
-                      transition={springTransition}
-                    />
-                  )}
+                  {link.label}
                 </Link>
               );
             })}
 
           {session && (
-            <div className="relative ml-2">
-              <motion.button
+            <div className="relative ml-3">
+              <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
-                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border border-surface-200 dark:border-surface-400 hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                transition={springTransition}
+                aria-label="Account menu"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
               >
-                <motion.span
-                  className="w-7 h-7 rounded-full bg-accent-500 flex items-center justify-center text-white text-xs font-display font-bold"
-                  style={
-                    prefersReducedMotion
-                      ? undefined
-                      : { animation: 'pulse-glow 2s ease-out infinite' }
-                  }
-                >
-                  {initial}
-                </motion.span>
-                <span className="text-sm text-surface-600 dark:text-surface-800 hidden lg:block max-w-[120px] truncate">
-                  {session.user?.name || session.user?.email}
-                </span>
-              </motion.button>
+                {initial}
+              </button>
 
               <AnimatePresence>
                 {userMenuOpen && (
                   <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setUserMenuOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
                     <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                      transition={springBouncy}
-                      className="absolute right-0 top-full mt-2 w-56 forge-card shadow-lg z-20 py-1 overflow-hidden origin-top-right"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="forge-card absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden py-1 shadow-lg"
+                      role="menu"
                     >
-                      <div className="px-4 py-2.5 border-b border-surface-100 dark:border-surface-300">
-                        <p className="text-sm font-semibold text-surface-50 dark:text-white truncate">
+                      <div className="border-b border-black/[0.06] px-4 py-2.5 dark:border-white/[0.06]">
+                        <p className="truncate text-sm font-semibold text-surface-50 dark:text-white">
                           {session.user?.name || session.user?.email}
                         </p>
-                        <p className="text-xs text-surface-500 dark:text-surface-600 truncate">
-                          {session.user?.email}
-                        </p>
+                        <p className="truncate text-xs text-surface-500 dark:text-surface-600">{session.user?.email}</p>
                       </div>
-                      <Link
-                        href="/profile"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-600 dark:text-surface-800 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors"
-                      >
-                        <UserCircleIcon className="w-4 h-4" />
+                      <Link href="/profile" role="menuitem" className={menuItemClass}>
+                        <UserCircleIcon className="h-4 w-4" />
                         Profile
                       </Link>
-                      <Link
-                        href="/profile/edit"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-600 dark:text-surface-800 hover:bg-surface-50 dark:hover:bg-surface-200 transition-colors"
-                      >
-                        <Cog6ToothIcon className="w-4 h-4" />
+                      <Link href="/profile/edit" role="menuitem" className={menuItemClass}>
+                        <Cog6ToothIcon className="h-4 w-4" />
                         Settings
                       </Link>
-                      <div className="border-t border-surface-100 dark:border-surface-300 pt-1 mt-1">
+                      <div className="mt-1 border-t border-black/[0.06] pt-1 dark:border-white/[0.06]">
                         <button
+                          role="menuitem"
                           onClick={() => signOut({ callbackUrl: '/login' })}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-danger-500 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors w-full"
+                          className={`${menuItemClass} !text-danger-600 dark:!text-danger-400`}
                         >
-                          <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
-                          Sign Out
+                          <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+                          Sign out
                         </button>
                       </div>
                     </motion.div>
@@ -248,58 +181,44 @@ export function Header() {
           </div>
         </nav>
 
-        {/* Mobile hamburger */}
-        <motion.button
+        {/* Mobile menu toggle */}
+        <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden p-2 -mr-2 rounded-lg text-surface-500 dark:text-surface-700 hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
-          whileTap={{ scale: 0.9 }}
-          aria-label="Toggle menu"
+          className="touch-target -mr-2 flex items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.04] dark:text-surface-700 dark:hover:bg-white/[0.05] md:hidden"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
         >
-          {menuOpen ? (
-            <XMarkIcon className="w-5 h-5" />
-          ) : (
-            <Bars3Icon className="w-5 h-5" />
-          )}
-        </motion.button>
+          {menuOpen ? <XMarkIcon className="h-5 w-5" /> : <Bars3Icon className="h-5 w-5" />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu: what the bottom nav has no room for. */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className="md:hidden border-t border-surface-200 dark:border-surface-300 bg-white dark:bg-surface-50 overflow-hidden"
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden border-b border-black/[0.08] bg-white dark:border-white/[0.06] dark:bg-surface-50 md:hidden"
           >
-            <div className="px-4 py-3 space-y-1">
+            <div className="space-y-0.5 px-2 py-2">
               {session &&
-                navLinks.map((link) => (
+                moreLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
+                    className="block rounded-lg px-3 py-2.5 text-sm text-surface-300 transition-colors hover:bg-black/[0.04] dark:text-surface-900 dark:hover:bg-white/[0.05]"
                   >
                     {link.label}
                   </Link>
                 ))}
-              <Link
-                href="/profile/edit"
-                onClick={() => setMenuOpen(false)}
-                className="block px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800 rounded-lg hover:bg-surface-900 dark:hover:bg-surface-200 transition-colors"
-              >
-                Settings
-              </Link>
               {/* The desktop nav owns a ThemeSwitch; without one here the only
                   dark/light control in the app was unreachable on a phone. */}
-              <div className="flex items-center justify-between px-3 py-2.5">
-                <span className="text-sm font-display font-semibold tracking-wide uppercase text-surface-600 dark:text-surface-800">
-                  Theme
-                </span>
+              <div className="flex items-center justify-between px-3 py-1.5">
+                <span className="text-sm text-surface-300 dark:text-surface-900">Theme</span>
                 <ThemeSwitch />
               </div>
               {session && (
@@ -308,15 +227,15 @@ export function Header() {
                     setMenuOpen(false);
                     signOut({ callbackUrl: '/login' });
                   }}
-                  className="block w-full text-left px-3 py-2.5 text-sm font-display font-semibold tracking-wide uppercase text-danger-500 dark:text-danger-400 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors"
+                  className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-danger-600 transition-colors hover:bg-danger-500/10 dark:text-danger-400"
                 >
-                  Sign Out
+                  Sign out
                 </button>
               )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 }

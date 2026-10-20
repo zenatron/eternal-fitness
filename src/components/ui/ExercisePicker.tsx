@@ -101,14 +101,14 @@ export function ExercisePicker({
       >
         {results.length === 0 ? (
           <div className={`py-10 text-center ${isGrid ? 'col-span-full' : ''}`}>
-            <MagnifyingGlassIcon className="mx-auto mb-3 h-10 w-10 text-surface-400 dark:text-surface-500" />
+            <MagnifyingGlassIcon className="mx-auto mb-3 h-10 w-10 text-surface-600" />
             <p className="text-sm text-surface-500 dark:text-surface-600">
               Nothing matched &ldquo;{query}&rdquo;
             </p>
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="mt-3 text-sm font-display font-semibold uppercase tracking-wide text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400"
+              className="mt-3 text-sm font-semibold text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400"
             >
               Clear search
             </button>
@@ -122,7 +122,7 @@ export function ExercisePicker({
               whileHover={{ scale: isGrid ? 1.02 : 1.01 }}
               whileTap={{ scale: 0.98 }}
               transition={springSnappy}
-              className={`w-full rounded-xl border border-surface-200 bg-white text-left transition-colors hover:border-accent-400/60 hover:bg-accent-50 dark:border-surface-300 dark:bg-surface-100 dark:hover:border-accent-500/40 dark:hover:bg-accent-900/20 tap-control ${
+              className={`w-full rounded-xl border border-black/10 bg-white text-left transition-colors hover:border-accent-400/60 hover:bg-accent-50 dark:border-surface-300 dark:bg-surface-100 dark:hover:border-accent-500/40 dark:hover:bg-accent-900/20 tap-control ${
                 isGrid ? 'p-4' : 'flex items-center justify-between gap-3 px-4 py-3'
               }`}
             >

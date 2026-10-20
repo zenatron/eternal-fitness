@@ -1,32 +1,20 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
-import {
-  CalendarDaysIcon,
-  PlayCircleIcon,
-  StarIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { CalendarDaysIcon, StarIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import type { WorkoutTemplate } from '@/types/workout';
 import { TemplateSummary } from '@/components/ui/TemplateSummary';
-import { springSnappy } from '@/lib/motion';
 
 /**
- * The single template card used everywhere.
+ * The single template card used everywhere (templates list, profile).
  *
- * There used to be three different ones — the favourites grid on /templates, the
- * "All templates" list below it, and the favourites section on /profile — each
- * with its own layout, its own action set and its own idea of where the star
- * goes. They looked like three unrelated apps.
- *
- * This is the favourites layout, which read best: title and star on the top row,
- * badges, stats, then a full-width primary action with the secondary actions
- * beneath. The star is always present and simply lit or unlit, so favouriting
- * works identically from any surface.
+ * Start is the one primary action. It used to be a full-width orange slab with
+ * a full-width "Details" bar, a tinted "Schedule" pill and a red trash tile
+ * beneath it — four buttons of comparable weight on every card, so a list of
+ * five routines was twenty competing buttons. Secondary actions are now quiet
+ * icon buttons, and the card body itself opens the details.
  */
-
 
 interface TemplateCardProps {
   template: WorkoutTemplate;
@@ -36,8 +24,12 @@ interface TemplateCardProps {
   onDelete?: (templateId: string, templateName: string) => void;
   /** Hides Schedule/Delete where those actions don't belong (e.g. /profile). */
   compact?: boolean;
+  /** Kept for call-site compatibility; cards no longer stagger in. */
   index?: number;
 }
+
+const quietIcon =
+  'touch-target tap-control flex items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.05] hover:text-surface-50 dark:text-surface-600 dark:hover:bg-white/[0.06] dark:hover:text-white';
 
 export function TemplateCard({
   template,
@@ -46,100 +38,62 @@ export function TemplateCard({
   onSchedule,
   onDelete,
   compact = false,
-  index = 0,
 }: TemplateCardProps) {
-  const router = useRouter();
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={{
-        type: 'spring',
-        stiffness: 200,
-        damping: 25,
-        delay: prefersReducedMotion ? 0 : Math.min(index * 0.05, 0.3),
-      }}
-      className="forge-card heat-glow overflow-hidden"
-    >
-      <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-700" />
+    <div className="forge-card flex flex-col p-4">
+      <Link
+        href={`/template/${template.id}`}
+        className="-m-1 block rounded-lg p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        aria-label={`${template.name} details`}
+      >
+        <TemplateSummary template={template} useMetric={useMetric} />
+      </Link>
 
-      <div className="p-4">
-        <TemplateSummary
-          template={template}
-          useMetric={useMetric}
-          action={
-            onToggleFavorite && (
-              <motion.button
-                onClick={() => onToggleFavorite(template.id)}
-                whileHover={prefersReducedMotion ? {} : { scale: 1.12 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                transition={springSnappy}
-                aria-pressed={template.favorite}
-                aria-label={
-                  template.favorite
-                    ? `Remove ${template.name} from favourites`
-                    : `Add ${template.name} to favourites`
-                }
-                className={`touch-target flex shrink-0 items-center justify-center rounded-lg transition-colors tap-control ${
-                  template.favorite
-                    ? 'bg-award-100 text-award-500 dark:bg-award-900/30 dark:text-award-400'
-                    : 'bg-surface-900 text-surface-600 hover:text-award-500 dark:bg-surface-200 dark:text-surface-600'
-                }`}
-              >
-                {template.favorite ? (
-                  <StarIconSolid className="h-5 w-5" />
-                ) : (
-                  <StarIcon className="h-5 w-5" />
-                )}
-              </motion.button>
-            )
-          }
-        />
+      <div className="mt-3 flex items-center gap-1 pt-1">
+        <Link
+          href={`/session/active/${template.id}`}
+          className="btn btn-primary tap-control mr-auto min-h-[40px] px-4"
+        >
+          <PlayIcon className="h-4 w-4" />
+          Start
+        </Link>
 
-        <div className="mt-3.5 border-t border-surface-900 pt-3.5 dark:border-surface-300/50">
-          <motion.button
-            onClick={() => router.push(`/session/active/${template.id}`)}
-            whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-            transition={springSnappy}
-            className="btn btn-primary flex min-h-[46px] w-full items-center justify-center gap-2 tap-control"
+        {onToggleFavorite && (
+          <button
+            onClick={() => onToggleFavorite(template.id)}
+            aria-pressed={template.favorite}
+            aria-label={template.favorite ? `Remove ${template.name} from favorites` : `Add ${template.name} to favorites`}
+            title={template.favorite ? 'Unfavorite' : 'Favorite'}
+            className={quietIcon}
           >
-            <PlayCircleIcon className="h-5 w-5 shrink-0" />
-            Start Workout
-          </motion.button>
-
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              onClick={() => router.push(`/template/${template.id}`)}
-              className="btn btn-secondary min-h-[44px] flex-1 text-xs tap-control"
-            >
-              Details
-            </button>
-
-            {!compact && onSchedule && (
-              <button
-                onClick={() => onSchedule(template.id, template.name)}
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent-100 px-3 text-xs text-accent-700 transition-colors hover:bg-accent-200 dark:bg-accent-900/30 dark:text-accent-400 dark:hover:bg-accent-900/50 tap-control"
-              >
-                <CalendarDaysIcon className="h-4 w-4 shrink-0" />
-                Schedule
-              </button>
+            {template.favorite ? (
+              <StarIconSolid className="h-5 w-5 text-award-500" />
+            ) : (
+              <StarIcon className="h-5 w-5" />
             )}
-
-            {!compact && onDelete && (
-              <button
-                onClick={() => onDelete(template.id, template.name)}
-                aria-label={`Delete ${template.name}`}
-                className="touch-target flex shrink-0 items-center justify-center rounded-lg bg-danger-100 text-danger-600 transition-colors hover:bg-danger-200 dark:bg-danger-900/30 dark:text-danger-400 dark:hover:bg-danger-900/50 tap-control"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
+          </button>
+        )}
+        {!compact && onSchedule && (
+          <button
+            onClick={() => onSchedule(template.id, template.name)}
+            aria-label={`Schedule ${template.name}`}
+            title="Schedule"
+            className={quietIcon}
+          >
+            <CalendarDaysIcon className="h-5 w-5" />
+          </button>
+        )}
+        {!compact && onDelete && (
+          <button
+            onClick={() => onDelete(template.id, template.name)}
+            aria-label={`Delete ${template.name}`}
+            title="Delete"
+            className={`${quietIcon} hover:!text-danger-500`}
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
 }

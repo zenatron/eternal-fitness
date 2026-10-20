@@ -208,15 +208,26 @@ export function calculateSetPerformance(
  * Formats set display text
  */
 export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false): string {
+  // Timed/distance work: "30:00 · 3.1 mi", not "0 (1800s)".
+  if (set.targetDuration || set.targetDistance) {
+    const parts: string[] = [];
+    if (set.targetDuration) {
+      const m = Math.floor(set.targetDuration / 60);
+      const sec = set.targetDuration % 60;
+      parts.push(`${m}:${String(sec).padStart(2, '0')}`);
+    }
+    if (set.targetDistance) parts.push(`${set.targetDistance} ${useMetric ? 'km' : 'mi'}`);
+    return parts.join(' · ');
+  }
+
   const reps = typeof set.targetReps === 'number'
     ? set.targetReps.toString()
     : `${set.targetReps?.min}-${set.targetReps?.max}`;
 
   const unit = useMetric ? 'kg' : 'lbs';
   const weight = set.targetWeight ? ` × ${set.targetWeight}${unit}` : '';
-  const duration = set.targetDuration ? ` (${set.targetDuration}s)` : '';
 
-  return `${reps}${weight}${duration}`;
+  return `${reps}${weight}`;
 }
 
 /**
@@ -244,7 +255,7 @@ export function getDifficultyColor(difficulty: string): string {
     case 'advanced':
       return 'text-danger-600 bg-danger-100 dark:text-danger-400 dark:bg-danger-900/30';
     default:
-      return 'text-surface-700 bg-surface-200 dark:text-surface-800 dark:bg-surface-300/40';
+      return 'text-surface-400 bg-black/[0.05] dark:text-surface-800 dark:bg-white/[0.06]';
   }
 }
 
@@ -270,7 +281,7 @@ export function getWorkoutTypeColor(workoutType: string): string {
     case 'sports':
       return 'text-success-700 bg-success-100 dark:text-success-300 dark:bg-success-900/30';
     default:
-      return 'text-surface-700 bg-surface-200 dark:text-surface-800 dark:bg-surface-300/40';
+      return 'text-surface-400 bg-black/[0.05] dark:text-surface-800 dark:bg-white/[0.06]';
   }
 }
 

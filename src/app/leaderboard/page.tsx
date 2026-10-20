@@ -1,17 +1,16 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { PageHeader } from '@/components/ui/PageHeader';
+
 import { queryKeys } from '@/lib/queryKeys';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowLeftIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline';
 import LevelBadge from '@/components/ui/LevelBadge';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
-
+import { springSnappy, springBouncy } from '@/lib/motion';
 
 interface LeaderboardEntry {
   rank: number;
@@ -42,7 +41,6 @@ const MEDAL_TEXT_COLORS: Record<number, string> = {
 };
 
 export default function LeaderboardPage() {
-  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   /*
    * A failed request used to fall through to the "No entries yet" empty state,
@@ -69,38 +67,9 @@ export default function LeaderboardPage() {
   const rest = entries.slice(3);
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
+    <div className="px-4 pb-16 sm:px-6">
       <div className="max-w-3xl mx-auto">
-        <div className="forge-card overflow-hidden mb-6">
-          <div className="relative px-8 py-8 text-white greeting-gradient">
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="relative flex items-center gap-4">
-              <motion.button
-                onClick={() => router.back()}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                transition={springSnappy}
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </motion.button>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase flex items-center gap-3">
-                  <TrophyIcon className="w-8 h-8" />
-                  Leaderboard
-                </h1>
-                <p className="text-accent-100 text-sm mt-1">
-                  Top 50 by total XP
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeader back title="Leaderboard" description="Everyone training here, ranked by XP" />
 
         {isLoading ? (
           <div className="forge-card p-12 text-center text-surface-500">Loading...</div>
@@ -112,7 +81,7 @@ export default function LeaderboardPage() {
           />
         ) : entries.length === 0 ? (
           <div className="forge-card p-12 text-center text-surface-500">
-            <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-400" />
+            <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-600" />
             <p className="text-lg font-display font-medium">No entries yet</p>
             <p className="text-sm mt-2 text-surface-500">Complete workouts to appear on the leaderboard</p>
           </div>
@@ -154,7 +123,7 @@ export default function LeaderboardPage() {
                   transition={{ ...springSnappy, delay: i * 0.03 }}
                   className={`forge-card p-4 flex items-center gap-4 ${entry.isCurrentUser ? 'ring-2 ring-accent-500 bg-accent-50/50 dark:bg-accent-900/10' : ''}`}
                 >
-                  <span className="w-8 text-center font-display font-bold text-surface-400 text-sm">
+                  <span className="w-8 text-center font-display font-bold text-surface-600 text-sm">
                     {entry.rank}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -167,7 +136,7 @@ export default function LeaderboardPage() {
                     <p className="text-xs text-surface-500">{entry.totalWorkouts} workouts</p>
                   </div>
                   <LevelBadge points={entry.points} size="sm" showTitle={false} />
-                  <p className="text-sm font-display font-bold text-surface-600 dark:text-surface-400 w-24 text-right tabular-nums">
+                  <p className="text-sm font-display font-bold text-surface-600 dark:text-surface-700 w-24 text-right tabular-nums">
                     {entry.points.toLocaleString()} XP
                   </p>
                 </motion.div>
@@ -176,6 +145,6 @@ export default function LeaderboardPage() {
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

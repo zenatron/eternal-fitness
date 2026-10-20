@@ -174,9 +174,11 @@ export function StepperInput({
    */
   const buttonClass =
     'flex items-center justify-center rounded-lg border ' +
-    'border-accent-500/30 bg-accent-500/10 text-accent-700 ' +
-    'dark:border-accent-500/40 dark:bg-accent-500/15 dark:text-accent-300 ' +
-    'transition-colors hover:bg-accent-500/25 dark:hover:bg-accent-500/30 ' +
+    // Neutral: these are pressed dozens of times a session, and tinting every
+    // one accent made the whole set card read as orange.
+    'border-black/10 bg-black/[0.03] text-surface-100 ' +
+    'dark:border-white/10 dark:bg-white/[0.04] dark:text-surface-950 ' +
+    'transition-colors hover:bg-black/[0.07] dark:hover:bg-white/[0.08] active:bg-accent-500/20 ' +
     'active:bg-accent-600 active:text-white active:border-accent-600 ' +
     'disabled:opacity-30 tap-control select-none min-w-[44px] min-h-[44px]';
 
@@ -239,7 +241,7 @@ export function StepperInput({
               setDraft(value?.toString() ?? '');
             }}
             placeholder={ghost !== undefined && ghost > 0 ? String(ghost) : placeholder}
-            className="form-input tabular w-full text-center font-display text-base font-bold !px-2 !py-2 min-h-[44px]"
+            className="form-input tabular w-full text-center font-display text-base font-semibold !px-2 !py-2 min-h-[44px]"
             aria-describedby={ghost ? `${id}-ghost` : undefined}
           />
           {suffix && (

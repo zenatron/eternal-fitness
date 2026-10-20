@@ -19,6 +19,7 @@ import {
   recordWorkoutCompletion,
   unwindWorkoutCompletion,
 } from '@/lib/workout/completion';
+import { rebuildPersonalRecords } from '@/utils/personalRecords';
 
 const RUN = !!process.env.TEST_DATABASE_URL;
 
@@ -196,7 +197,7 @@ test('template rows cascade cleanly for the template-delete path', async () => {
 
   const before = await getStats(USER_A);
 
-  // The same sequence DELETE /api/template/[templateId] now runs.
+  // Unwind-then-delete, the bookkeeping DELETE /api/session/[sessionId] runs.
   await appDb.transaction(async (tx) => {
     const completed = await tx.select().from(workoutSessions).where(and(
       eq(workoutSessions.workoutTemplateId, tpl.id),
@@ -220,5 +221,41 @@ test('template rows cascade cleanly for the template-delete path', async () => {
   expect(after.totalWorkouts).toBe(Math.max(0, (before?.totalWorkouts ?? 0) - 1));
   expect(after.totalVolume).toBe(Math.max(0, (before?.totalVolume ?? 0) - 500));
   expect(after.totalSets).toBe(Math.max(0, (before?.totalSets ?? 0) - 8));
+});
+
+test('rebuildPersonalRecords drops records from a corrected session', async () => {
+  const snapshot = {
+    metadata: { name: 'Bench' },
+    exercises: [{ id: 'exercise-1', exerciseKey: 'Bench Press', name: 'Bench Press', muscles: [], equipment: [], sets: [] }],
+  };
+  const perf = (weight: number) => ({
+    'exercise-1': {
+      exerciseKey: 'Bench Press',
+      totalVolume: 0,
+      sets: [{ setId: 'set-1', actualReps: 5, actualWeight: weight, completed: true }],
+    },
+  });
+  const insert = (weight: number, at: string) =>
+    appDb.insert(workoutSessions).values({
+      userId: USER_B,
+      completedAt: new Date(at),
+      performanceData: { templateSnapshot: snapshot, performance: perf(weight) } as never,
+    }).returning();
+
+  await insert(185, '2026-03-01T18:00:00Z');
+  const [typo] = await insert(1000, '2026-03-03T18:00:00Z');
+
+  let records = await appDb.transaction((tx) => rebuildPersonalRecords(tx, USER_B));
+  expect(records['Bench Press'].maxWeight?.value).toBe(1000);
+  // Dated by the session, not by when the rebuild ran.
+  expect(records['Bench Press'].maxWeight?.achievedAt).toBe('2026-03-03T18:00:00.000Z');
+
+  await appDb.delete(workoutSessions).where(eq(workoutSessions.id, typo.id));
+  records = await appDb.transaction((tx) => rebuildPersonalRecords(tx, USER_B));
+  expect(records['Bench Press'].maxWeight?.value).toBe(185);
+  expect(records['Bench Press'].maxWeight?.achievedAt).toBe('2026-03-01T18:00:00.000Z');
+
+  const stats = await getStats(USER_B);
+  expect(stats.personalRecords?.['Bench Press']?.maxWeight?.value).toBe(185);
 });
 });

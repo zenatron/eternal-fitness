@@ -234,7 +234,7 @@ export function AchievementsModal({
                         </div>
 
                         {achievement.isUnlocked && achievement.unlockedAt && (
-                          <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-400">
+                          <div className="mt-4 pt-4 border-t border-black/10 dark:border-surface-400">
                             <p className="text-xs text-surface-500 dark:text-surface-600">
                               Unlocked on {new Date(achievement.unlockedAt).toLocaleDateString()}
                             </p>

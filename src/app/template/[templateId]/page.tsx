@@ -1,18 +1,15 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  ArrowLeftIcon,
   PencilIcon,
   TrashIcon,
   StarIcon as StarOutline,
-  ClockIcon,
   PlayCircleIcon,
-  BoltIcon,
-  ClipboardDocumentListIcon,
-} from '@heroicons/react/24/outline';
+  } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { toast } from 'react-hot-toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -24,16 +21,13 @@ import { useProfile } from '@/lib/hooks/useProfile';
 import { useToggleFavorite, useDeleteTemplate } from '@/lib/hooks/useMutations';
 import { formatVolume } from '@/utils/formatters';
 import { formatInstantDate } from '@/utils/relativeTime';
-import { WorkoutExercise, WorkoutSet } from '@/types/workout';
+import { WorkoutExercise } from '@/types/workout';
 import {
   getTemplateExercises,
   formatSetDisplay,
-  getDifficultyColor,
-  getWorkoutTypeColor,
   getTotalSetsCount
 } from '@/utils/workoutDisplayUtils';
-import { springSnappy, springGentle } from '@/lib/motion';
-
+import { springGentle } from '@/lib/motion';
 
 // 🚀 JSON-BASED EXERCISE DISPLAY COMPONENT
 interface ExerciseDisplayProps {
@@ -53,92 +47,40 @@ interface ExerciseDisplayProps {
  * there is room for one.
  */
 function ExerciseDisplay({ exercise, profile }: ExerciseDisplayProps) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <motion.div
-      className="forge-card overflow-hidden"
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-    >
-      <div className="h-1 bg-gradient-to-r from-accent-500 to-accent-700" />
-
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
-            <BoltIcon className="h-5 w-5 text-accent-600 dark:text-accent-400" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="font-display text-lg font-bold tracking-wide text-surface-50 dark:text-white">
-              {exercise.name}
-            </h4>
-
-            <dl className="mt-2 space-y-1 text-sm">
-              {exercise.muscles?.length ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-surface-500 dark:text-surface-600">Muscles</dt>
-                  <dd className="min-w-0 text-surface-100 dark:text-surface-800">
-                    {exercise.muscles.join(', ')}
-                  </dd>
-                </div>
-              ) : null}
-              {exercise.equipment?.length ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-surface-500 dark:text-surface-600">Equipment</dt>
-                  <dd className="min-w-0 text-surface-100 dark:text-surface-800">
-                    {exercise.equipment.join(', ')}
-                  </dd>
-                </div>
-              ) : null}
-              {exercise.restBetweenSets ? (
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-surface-500 dark:text-surface-600">Rest</dt>
-                  <dd className="text-surface-100 dark:text-surface-800 tabular">
-                    {exercise.restBetweenSets}s between sets
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-
-            {exercise.instructions && (
-              <p className="mt-3 rounded-lg bg-surface-950 p-3 text-sm text-surface-600 dark:bg-surface-200/40 dark:text-surface-800">
-                {exercise.instructions}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <ul className="mt-4 space-y-1.5 border-t border-surface-900 pt-3 dark:border-surface-300/50">
-          {exercise.sets.map((set, index) => (
-            <li
-              key={set.id}
-              className="flex items-center gap-3 rounded-lg bg-surface-950 px-3 py-2 dark:bg-surface-200/40"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-100 font-display text-xs font-bold tabular text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
-                {index + 1}
-              </span>
-
-              <span className="min-w-0 flex-1 font-display text-sm font-bold tabular text-surface-50 dark:text-white">
-                {formatSetDisplay(set, profile?.useMetric)}
-              </span>
-
-              {set.type && set.type !== 'standard' && (
-                <span className="shrink-0 rounded-full bg-surface-900 px-2 py-0.5 text-[10px] uppercase tracking-wider text-surface-600 dark:bg-surface-300 dark:text-surface-800">
-                  {set.type}
-                </span>
-              )}
-
-              {set.restTime ? (
-                <span className="shrink-0 text-xs tabular text-surface-500 dark:text-surface-600">
-                  {set.restTime}s
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+    <li className="px-4 py-3.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="truncate font-body text-sm font-semibold text-surface-50 dark:text-white">{exercise.name}</h3>
+        {exercise.restBetweenSets ? (
+          <span className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
+            rest {exercise.restBetweenSets}s
+          </span>
+        ) : null}
       </div>
-    </motion.div>
+      {exercise.muscles?.length ? (
+        <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-600">{exercise.muscles.join(', ')}</p>
+      ) : null}
+      {exercise.instructions && (
+        <p className="mt-2 text-sm text-surface-300 dark:text-surface-800">{exercise.instructions}</p>
+      )}
+      {/* One line per set; per-side work says so, since "55" alone does not
+          say whether it is each dumbbell or the pair. */}
+      <ol className="mt-2 flex flex-wrap gap-1.5">
+        {exercise.sets.map((set, index) => (
+          <li
+            key={set.id}
+            className="rounded-md bg-black/[0.04] px-2 py-1 text-xs text-surface-100 dark:bg-white/[0.05] dark:text-surface-900 tabular"
+            title={`Set ${index + 1}${set.type && set.type !== 'standard' ? ` (${set.type})` : ''}`}
+          >
+            {formatSetDisplay(set, profile?.useMetric)}
+            {exercise.perSide && set.targetWeight ? '/side' : ''}
+            {set.type && set.type !== 'standard' && (
+              <span className="ml-1 text-surface-500">{set.type}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </li>
   );
 }
 
@@ -164,7 +106,6 @@ export default function TemplateDetailPage({
   // 🚀 Get JSON-based exercises
   const exercises = template ? getTemplateExercises(template) : [];
 
-
   const handleToggleFavorite = () => {
     if (!template) return;
     toggleFavoriteMutation.mutate(templateId);
@@ -177,8 +118,8 @@ export default function TemplateDetailPage({
     if (!template) return;
     try {
       await deleteTemplateMutation.mutateAsync(templateId);
-      toast.success('Template deleted successfully!');
-      router.push('/'); // Redirect after delete
+      toast.success('Template deleted');
+      router.push('/templates');
     } catch (error) {
       console.error('Error deleting template:', error);
       toast.error('Failed to delete template.');
@@ -225,195 +166,91 @@ export default function TemplateDetailPage({
             wrapped to three lines and the star button fell off the edge. Title
             and actions are now stacked, and the stats compressed to a single
             scannable row. */}
+        <PageHeader
+          back
+          title={template.name}
+          description={
+            <span className="capitalize">
+              {template.workoutType} · {template.difficulty} · created{' '}
+              {formatInstantDate(template.createdAt, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          }
+          actions={
+            <>
+              <button
+                onClick={() => router.push(`/session/active/${templateId}`)}
+                className="btn btn-primary tap-control min-h-[44px] flex-1 px-6 sm:flex-none"
+              >
+                <PlayCircleIcon className="h-5 w-5" />
+                Start
+              </button>
+              <button
+                onClick={handleToggleFavorite}
+                className="btn btn-tertiary touch-target tap-control !px-0"
+                aria-pressed={template.favorite}
+                aria-label={template.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                title={template.favorite ? 'Unfavorite' : 'Favorite'}
+              >
+                {template.favorite ? <StarSolid className="h-5 w-5 text-award-500" /> : <StarOutline className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={() => router.push(`/template/edit/${templateId}`)}
+                className="btn btn-tertiary touch-target tap-control !px-0"
+                aria-label="Edit template"
+                title="Edit"
+              >
+                <PencilIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={handleDeleteTemplate}
+                className="btn btn-tertiary touch-target tap-control !px-0 hover:!text-danger-500"
+                aria-label="Delete template"
+                title="Delete"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            </>
+          }
+        />
+
+        <dl className="forge-card mb-4 grid grid-cols-4 gap-px overflow-hidden bg-black/[0.06] dark:bg-white/[0.06]">
+          {[
+            { label: 'Exercises', value: exercises.length },
+            { label: 'Sets', value: getTotalSetsCount(template) },
+            { label: 'Volume', value: template.totalVolume > 0 ? formatVolume(template.totalVolume, profile?.useMetric) : '—' },
+            { label: 'Time', value: `~${template.estimatedDuration}m` },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white px-3 py-3 dark:bg-surface-100">
+              <dt className="stat-label">{stat.label}</dt>
+              <dd className="mt-1 font-display text-base font-semibold text-surface-50 dark:text-white tabular">{stat.value}</dd>
+            </div>
+          ))}
+        </dl>
+
         <div className="mb-6">
-          <div className="forge-card overflow-hidden">
-            <div className="greeting-gradient px-5 py-5 text-white sm:px-6">
-              <div className="flex items-start gap-3">
-                <motion.button
-                  onClick={() => router.back()}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                  transition={springSnappy}
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 tap-control"
-                  aria-label="Go back"
-                >
-                  <ArrowLeftIcon className="h-6 w-6" />
-                </motion.button>
-
-                <div className="min-w-0 flex-1">
-                  <h1 className="font-display text-2xl font-bold tracking-wide sm:text-3xl">
-                    {template.name}
-                  </h1>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm text-accent-100">
-                    <ClockIcon className="h-4 w-4 shrink-0" />
-                    Created{' '}
-                    {formatInstantDate(template.createdAt, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </p>
-                </div>
-
-                <motion.button
-                  onClick={handleToggleFavorite}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                  transition={springSnappy}
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 tap-control"
-                  aria-pressed={template.favorite}
-                  aria-label={template.favorite ? 'Remove from favourites' : 'Add to favourites'}
-                >
-                  {template.favorite ? (
-                    <StarSolid className="h-6 w-6 text-award-300" />
-                  ) : (
-                    <StarOutline className="h-6 w-6 text-white" />
-                  )}
-                </motion.button>
-              </div>
-
-              {/* Stats: one compact row rather than six tiles. */}
-              <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[
-                  { label: 'Exercises', value: exercises.length },
-                  { label: 'Sets', value: getTotalSetsCount(template) },
-                  {
-                    label: 'Volume',
-                    value: formatVolume(template.totalVolume, profile?.useMetric),
-                  },
-                  { label: 'Est.', value: `${template.estimatedDuration}m` },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-lg bg-white/10 px-2 py-2 text-center backdrop-blur-sm"
-                  >
-                    <dd className="font-display text-base font-bold tabular">{stat.value}</dd>
-                    <dt className="mt-0.5 text-[10px] uppercase tracking-wider text-accent-100">
-                      {stat.label}
-                    </dt>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="mt-3 flex items-center gap-2">
-                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium capitalize">
-                  {template.difficulty}
-                </span>
-                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium capitalize">
-                  {template.workoutType}
-                </span>
-              </div>
-
-              <ReadinessNote exercises={(exercises ?? []) as unknown as PlannedExercise[]} />
-
-              <div className="mt-4 flex items-center gap-2">
-                <motion.button
-                  onClick={() => router.push(`/session/active/${templateId}`)}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-                  transition={springSnappy}
-                  className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-white font-display font-bold uppercase tracking-wide text-accent-700 shadow-sm transition-colors hover:bg-accent-50 tap-control"
-                >
-                  <PlayCircleIcon className="h-5 w-5 shrink-0" />
-                  Start Workout
-                </motion.button>
-                <motion.button
-                  onClick={() => router.push(`/template/edit/${templateId}`)}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                  transition={springSnappy}
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20 tap-control"
-                  aria-label="Edit template"
-                >
-                  <PencilIcon className="h-5 w-5 text-white" />
-                </motion.button>
-                <motion.button
-                  onClick={handleDeleteTemplate}
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                  transition={springSnappy}
-                  className="touch-target flex shrink-0 items-center justify-center rounded-xl bg-danger-500/25 transition-colors hover:bg-danger-500/40 tap-control"
-                  aria-label="Delete template"
-                >
-                  <TrashIcon className="h-5 w-5 text-white" />
-                </motion.button>
-              </div>
-            </div>
-          </div>
+          <ReadinessNote exercises={(exercises ?? []) as unknown as PlannedExercise[]} />
         </div>
 
-        {/* Exercises Section */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
-              <ClipboardDocumentListIcon className="h-6 w-6 text-accent-600 dark:text-accent-400" />
+        <section>
+          <h2 className="section-title mb-2">Exercises</h2>
+          {exercises.length > 0 ? (
+            <ul className="forge-card divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+              {exercises.map((exercise) => (
+                <ExerciseDisplay key={exercise.id} exercise={exercise} profile={profile} />
+              ))}
+            </ul>
+          ) : (
+            <div className="forge-card px-6 py-10 text-center">
+              <p className="font-medium text-surface-50 dark:text-white">No exercises yet</p>
+              <button
+                onClick={() => router.push(`/template/edit/${templateId}`)}
+                className="btn btn-primary tap-control mt-4"
+              >
+                Add exercises
+              </button>
             </div>
-            <div>
-              <h2 className="text-2xl font-display font-bold tracking-wide text-surface-50 dark:text-white">
-                Workout Exercises
-              </h2>
-              <p className="text-surface-500 dark:text-surface-600">
-                {exercises.length} exercise{exercises.length === 1 ? '' : 's'} configured for this template
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            {exercises.length > 0 ? (
-              exercises.map((exercise, index) => (
-                <motion.div
-                  key={exercise.id}
-                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-                  animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-                  transition={{ ...springGentle, delay: prefersReducedMotion ? 0 : index * 0.1 }}
-                >
-                  <ExerciseDisplay
-                    exercise={exercise}
-                    profile={profile}
-                  />
-                </motion.div>
-              ))
-            ) : (
-              <div className="forge-card p-12 text-center">
-                <div className="p-4 bg-surface-900 dark:bg-surface-200 rounded-full w-20 h-20 mx-auto mb-6">
-                  <div className="w-12 h-12 bg-surface-400 rounded mx-auto"></div>
-                </div>
-                <h3 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-2">
-                  No Exercises Found
-                </h3>
-                <p className="text-surface-500 dark:text-surface-600 mb-4">
-                  This template currently has no exercises configured.
-                </p>
-                <motion.button
-                  onClick={() => router.push(`/template/edit/${templateId}`)}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={springSnappy}
-                  className="btn btn-primary min-h-[46px] tap-control"
-                >
-                  Add Exercises
-                </motion.button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Action Section */}
-        <div className="text-center">
-          <motion.button
-            onClick={() => router.push(`/session/active/${templateId}`)}
-            className="btn btn-primary mx-auto flex min-h-[52px] w-full max-w-sm items-center justify-center gap-3 text-base tap-control"
-            whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
-            transition={springSnappy}
-          >
-            <PlayCircleIcon className="w-7 h-7" />
-            Start Workout Session
-          </motion.button>
-          <p className="text-surface-500 dark:text-surface-600 mt-3 text-sm">
-            Begin a new workout session using this template
-          </p>
-        </div>
+          )}
+        </section>
       </div>
       <ConfirmDialog
         open={showDeleteConfirm}

@@ -1,12 +1,12 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
 import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
 import { motion, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowLeftIcon,
   TrophyIcon,
   MagnifyingGlassIcon,
   ArrowUpIcon,
@@ -15,7 +15,7 @@ import {
 import { useProfile } from '@/lib/hooks/useProfile';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatPRValue, prTypeFromApi, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
-import { springSnappy, springGentle } from '@/lib/motion';
+import { springSnappy } from '@/lib/motion';
 import { ErrorState } from '@/components/ui/ErrorState';
 
 interface PRRecord {
@@ -50,7 +50,6 @@ function formatDate(dateString: string) {
 const SEARCH_DEBOUNCE_MS = 250;
 
 export default function PersonalRecordsPage() {
-  const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
@@ -120,39 +119,13 @@ export default function PersonalRecordsPage() {
   };
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="app-bg py-8 px-4"
-    >
+    <div className="px-4 pb-16 sm:px-6">
       <div className="max-w-4xl mx-auto">
-        <div className="forge-card overflow-hidden mb-6">
-          <div className="relative px-8 py-8 text-white greeting-gradient">
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="relative flex items-center gap-4">
-              <motion.button
-                onClick={() => router.back()}
-                aria-label="Go back"
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.1 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
-                transition={springSnappy}
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </motion.button>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-wide uppercase flex items-center gap-3">
-                  <TrophyIcon className="w-8 h-8" />
-                  Personal Records
-                </h1>
-                <p className="text-accent-100 text-sm mt-1">
-                  {records.length} record{records.length !== 1 ? 's' : ''} set across all exercises
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          back
+          title="Personal records"
+          description={`${records.length} record${records.length !== 1 ? 's' : ''} across all exercises`}
+        />
 
         <div className="forge-card p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -182,13 +155,13 @@ export default function PersonalRecordsPage() {
             </select>
           </div>
 
-          <div className="flex gap-3 mt-4 text-xs font-display uppercase tracking-wider">
+          <div className="flex gap-3 mt-4 text-xs">
             <button
               onClick={() => toggleSort('date')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'date'
                   ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
-                  : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
+                  : 'text-surface-500 hover:text-surface-50 dark:hover:text-white'
               }`}
             >
               Date {sortIcon('date')}
@@ -198,7 +171,7 @@ export default function PersonalRecordsPage() {
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'value'
                   ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
-                  : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
+                  : 'text-surface-500 hover:text-surface-50 dark:hover:text-white'
               }`}
             >
               Value {sortIcon('value')}
@@ -208,7 +181,7 @@ export default function PersonalRecordsPage() {
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 sortBy === 'exercise'
                   ? 'bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400'
-                  : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-400'
+                  : 'text-surface-500 hover:text-surface-50 dark:hover:text-white'
               }`}
             >
               Exercise {sortIcon('exercise')}
@@ -224,7 +197,7 @@ export default function PersonalRecordsPage() {
           </div>
         ) : sorted.length === 0 ? (
           <div className="forge-card p-12 text-center text-surface-500">
-            <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-400" />
+            <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-600" />
             <p className="text-lg font-display font-medium">
               {search || typeFilter !== 'all'
                 ? 'No records match your filters'
@@ -273,6 +246,6 @@ export default function PersonalRecordsPage() {
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -1,8 +1,8 @@
 import { getUserId } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { users, workoutSessions, userStats, monthlyStats, workoutTemplates } from '@/lib/db/schema';
-import { eq, and, isNotNull, count, sql } from 'drizzle-orm';
+import { users, workoutSessions } from '@/lib/db/schema';
+import { eq, and, isNotNull, count } from 'drizzle-orm';
 import { z } from 'zod';
 import { deleteUserById } from '@/utils/userDeletion';
 import { ACCENT_THEME_IDS } from '@/types/theme';

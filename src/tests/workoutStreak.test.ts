@@ -83,13 +83,15 @@ describe('computeStreakFromDates', () => {
   it('reports the most recent completion as lastWorkoutAt', () => {
     const recent = daysAgo(0, 9);
     const result = computeStreakFromDates([daysAgo(3), recent, daysAgo(1)], NY, 0, NOW);
-    expect(result.lastWorkoutAt.getTime()).toBe(recent.getTime());
+    expect(result.lastWorkoutAt?.getTime()).toBe(recent.getTime());
   });
 
   it('handles a user with no completed sessions', () => {
     const result = computeStreakFromDates([], NY, 5, NOW);
     expect(result.currentStreak).toBe(0);
     expect(result.longestStreak).toBe(5);
+    // Not "now": a user who deleted their only workout has no last workout.
+    expect(result.lastWorkoutAt).toBeNull();
   });
 });
 

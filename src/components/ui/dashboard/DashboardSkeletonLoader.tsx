@@ -36,7 +36,7 @@ export function DashboardSkeletonLoader() {
               className="skeleton-card forge-card"
               style={{ animationDelay: `${i * 0.08}s` }}
             >
-              <div className="px-5 py-4 border-b border-surface-100 dark:border-surface-300">
+              <div className="px-5 py-4 border-b border-black/10 dark:border-surface-300">
                 <div className="h-5 w-28 skeleton-shimmer rounded" />
               </div>
               <div className="p-5 space-y-3">

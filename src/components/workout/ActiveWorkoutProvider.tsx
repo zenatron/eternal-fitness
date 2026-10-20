@@ -201,6 +201,8 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
   const pendingUpdatesRef = useRef<ActiveSessionUpdatePayload>({});
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
+  /** The running push, so callers that must not race it (completion) can await it. */
+  const inFlightPromiseRef = useRef<Promise<void> | null>(null);
   /** Set when an edit arrives mid-flight, so we re-run instead of dropping it. */
   const resyncRequestedRef = useRef(false);
   /** Server's version counter, for optimistic concurrency on the PATCH. */
@@ -218,11 +220,22 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
 
   /* ── Server sync ─────────────────────────────────────────────────────── */
 
-  const pushToServer = useCallback(async () => {
+  const pushToServer = useCallback(async (): Promise<void> => {
     if (inFlightRef.current) {
       resyncRequestedRef.current = true;
       return;
     }
+    const run = pushOnce();
+    inFlightPromiseRef.current = run;
+    try {
+      await run;
+    } finally {
+      if (inFlightPromiseRef.current === run) inFlightPromiseRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pushOnce = async () => {
 
     const updates = pendingUpdatesRef.current;
     if (Object.keys(updates).length === 0) {
@@ -264,8 +277,14 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
             // Re-queue so the merge itself reaches the server.
             pendingUpdatesRef.current = { ...updates, ...pendingUpdatesRef.current };
             resyncRequestedRef.current = true;
+            return;
           }
         }
+        // The refetch failed or found no session. Put the batch back rather
+        // than dropping it — it used to vanish here, and the indicator stayed
+        // on "syncing" forever because nothing reset it.
+        pendingUpdatesRef.current = { ...updates, ...pendingUpdatesRef.current };
+        setSyncState('pending');
         return;
       }
 
@@ -331,7 +350,7 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
         setTimeout(() => void pushToServer(), 0);
       }
     }
-  }, []);
+  };
 
   const scheduleSync = useCallback(
     (updates: ActiveSessionUpdatePayload) => {
@@ -344,12 +363,23 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
     [pushToServer]
   );
 
+  /**
+   * Pushes everything pending and resolves only once it has landed (or been
+   * queued offline). It used to call pushToServer once and return — which,
+   * with a sync already in flight, merely flagged a resync and resolved
+   * immediately. Finishing a workout right after logging its last set then
+   * asked the server to summarise a session still missing that set.
+   */
   const flushNow = useCallback(async () => {
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+      if (inFlightPromiseRef.current) await inFlightPromiseRef.current;
+      if (Object.keys(pendingUpdatesRef.current).length === 0) return;
+      await pushToServer();
     }
-    await pushToServer();
   }, [pushToServer]);
 
   const refreshPendingCount = useCallback(async () => {
@@ -391,9 +421,16 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
 
           // Local edits that never reached the server win over the server copy
           // for the fields they touch — the server is behind, not authoritative.
-          const hasUnsynced = stored && stored.localVersion > stored.syncedVersion;
+          // Only the SAME session's unsynced edits may be merged. A stale local
+          // copy of a workout that was discarded or finished on another device
+          // would otherwise be grafted onto the new server session.
+          const sameSession =
+            !!stored &&
+            stored.data.templateId === serverSession.templateId &&
+            toDate(stored.data.startedAt)?.getTime() === toDate(serverSession.startedAt)?.getTime();
+          const hasUnsynced = sameSession && stored.localVersion > stored.syncedVersion;
           const merged = normalizeTiming(
-            hasUnsynced ? { ...serverSession, ...(stored.data as ActiveWorkout) } : serverSession
+            hasUnsynced && stored ? { ...serverSession, ...(stored.data as ActiveWorkout) } : serverSession
           );
           setActiveWorkout(merged);
           await writeActiveWorkout(merged, { synced: !hasUnsynced });
@@ -463,8 +500,18 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
       }
     };
 
+    // Backgrounding is the common case on a phone, and the OS may kill a
+    // hidden tab without ever firing pagehide.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') handlePageHide();
+    };
+
     window.addEventListener('pagehide', handlePageHide);
-    return () => window.removeEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   /* ── Mutations ───────────────────────────────────────────────────────── */
@@ -609,6 +656,7 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
       const idempotencyKey = completionIdempotencyKey(current);
       const body = { duration, notes };
 
+      let networkFailed = false;
       try {
         const response = await fetch('/api/session/active/complete', {
           method: 'POST',
@@ -618,6 +666,9 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
           },
           body: JSON.stringify(body),
           credentials: 'same-origin',
+        }).catch((error) => {
+          networkFailed = true;
+          throw error;
         });
 
         if (!response.ok) {
@@ -644,7 +695,10 @@ export function ActiveWorkoutProvider({ children }: { children: React.ReactNode 
         // Offline or the server is down. Queue the completion — the workout is
         // finished as far as the user is concerned, and the idempotency key
         // guarantees the replay cannot double-log it.
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        // Gym wifi often reports "online" while nothing gets through, so a
+        // failed request counts as offline too, not just navigator.onLine.
+        const offline = networkFailed || (typeof navigator !== 'undefined' && !navigator.onLine);
+        if (offline) {
           await enqueue({
             url: '/api/session/active/complete',
             method: 'POST',

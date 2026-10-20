@@ -1,7 +1,8 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
 import { use, useMemo } from 'react';
-import { FlagIcon } from '@heroicons/react/24/outline';
+
 import { motion, useReducedMotion } from 'framer-motion';
 import JsonTemplateForm from '@/components/ui/JsonTemplateForm';
 import { useTemplate } from '@/lib/hooks/useTemplate';
@@ -98,35 +99,7 @@ export default function EditTemplatePage({
       className="w-full h-full py-12 px-4"
     >
       <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 16, scale: 0.98 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
-          transition={{ ...springGentle, delay: 0.05 }}
-          className="app-card rounded-lg shadow-xl overflow-hidden mb-6"
-        >
-          <div className="relative px-8 py-12 text-white greeting-gradient">
-            <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative flex items-center gap-6">
-              <motion.div
-                initial={prefersReducedMotion ? {} : { scale: 0, rotate: -20 }}
-                animate={prefersReducedMotion ? {} : { scale: 1, rotate: 0 }}
-                transition={{ ...springBouncy, delay: 0.1 }}
-              >
-                <FlagIcon className="w-20 h-20" />
-              </motion.div>
-              <motion.div
-                initial={prefersReducedMotion ? {} : { opacity: 0, x: -12 }}
-                animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                transition={{ ...springGentle, delay: 0.15 }}
-              >
-                <h1 className="text-3xl font-display font-bold tracking-wide">Edit Workout Template</h1>
-                <p className="text-accent-100 mt-1">
-                  Update your workout template details
-                </p>
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
+        <PageHeader back title="Edit template" />
 
         <JsonTemplateForm
           mode="edit"

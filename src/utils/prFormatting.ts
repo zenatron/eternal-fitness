@@ -6,12 +6,14 @@ export function formatPRValue(value: number, type: PRType, useMetric: boolean = 
   if (type === 'maxDistance') {
     const unit = useMetric ? 'km' : 'mi';
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k ${unit}`;
-    return `${value.toFixed(1)} ${unit}`;
+    return `${value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${unit}`;
   }
   const unit = useMetric ? 'kg' : 'lbs';
-  // Volume is a running total and reads absurd with decimals; the two
-  // weight-shaped records keep one.
-  return type === 'maxVolume' ? `${value.toFixed(0)} ${unit}` : `${value.toFixed(1)} ${unit}`;
+  // Volume is a running total and reads absurd with decimals; the weight-shaped
+  // records keep one only when it carries information (182.5, not 405.0).
+  // Thousands are grouped: "12150 lbs" read as a typo.
+  const digits = type === 'maxVolume' ? 0 : 1;
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: digits })} ${unit}`;
 }
 
 /** Human label for each record type. */

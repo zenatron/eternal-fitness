@@ -40,7 +40,7 @@ export default function OfflinePage() {
         <SignalSlashIcon className="w-10 h-10 text-accent-500" />
       </motion.div>
 
-      <h1 className="font-display text-3xl uppercase tracking-wide text-surface-50 dark:text-white mb-3">
+      <h1 className="text-3xl text-surface-50 dark:text-white mb-3">
         No connection
       </h1>
 

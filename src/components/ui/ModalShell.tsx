@@ -85,7 +85,7 @@ export function ModalShell({
               <div className="flex shrink-0 items-start gap-3 border-b border-surface-900 p-4 dark:border-surface-300 sm:p-5">
                 {icon}
                 <div className="min-w-0 flex-1">
-                  <DialogTitle className="font-display text-lg font-bold uppercase tracking-wide text-surface-50 dark:text-white">
+                  <DialogTitle className="text-lg font-semibold text-surface-50 dark:text-white">
                     {title}
                   </DialogTitle>
                   {subtitle && (

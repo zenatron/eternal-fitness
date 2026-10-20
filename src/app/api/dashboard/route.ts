@@ -7,6 +7,7 @@ import { addDays, dayKeyOf, monthOf, resolveTimeZone, startOfDayInZone, todayKey
 import { computeStreakFromDates } from '@/lib/workout/completion';
 import { getLevel } from '@/utils/levels';
 import { calculateWeightGoalProgress } from '@/utils/weightGoal';
+import { sessionDisplayName, snapshotNameSql } from '@/lib/sessionName';
 
 /** The dashboard card only ever renders a few of these. */
 const UPCOMING_WORKOUTS_LIMIT = 10;
@@ -107,6 +108,7 @@ export async function GET() {
           completedAt: true,
           totalVolume: true,
         },
+        extras: { snapshotName: snapshotNameSql.as('snapshot_name') },
         with: { workoutTemplate: { columns: { id: true, name: true } } },
       }),
 
@@ -125,7 +127,14 @@ export async function GET() {
       // scheduled workouts from years back — and pulled the full session row with
       // its JSONB for each one.
       db.query.workoutSessions.findMany({
-        where: and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)),
+        // From the start of today: ordered ascending, a long-abandoned plan from
+        // last year sorted to the top and pushed this week's off the card.
+        // Overdue ones stay listed on the Workouts page.
+        where: and(
+          eq(workoutSessions.userId, userId),
+          isNull(workoutSessions.completedAt),
+          gte(workoutSessions.scheduledAt, startOfDayInZone(todayKey(timeZone), timeZone)),
+        ),
         orderBy: asc(workoutSessions.scheduledAt),
         columns: {
           id: true,
@@ -222,13 +231,14 @@ export async function GET() {
 
         return {
           id: session.id,
-          title: session.workoutTemplate?.name || 'Quick Workout',
+          title: sessionDisplayName(session),
           // The raw timestamp, not a rendered "2m ago". This response is cached
           // by React Query for five minutes and persisted to IndexedDB, so any
           // relative string baked in here is stale the moment it is stored — the
           // client formats it at render time instead. See utils/relativeTime.ts.
           completedAt: session.completedAt?.toISOString() ?? null,
-          volumeLabel: `${formattedVolume} Vol.`,
+          // Null for sessions that moved no weight (a run), rather than "0 lbs".
+          volumeLabel: session.totalVolume > 0 ? formattedVolume : null,
         };
       }),
       stats: {

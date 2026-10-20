@@ -60,7 +60,7 @@ export function AccentPicker() {
               {isActive && <CheckIcon className="h-5 w-5 text-white drop-shadow" />}
             </span>
             <span className="min-w-0">
-              <span className="block truncate font-display text-sm font-bold uppercase tracking-wide text-surface-50 dark:text-white">
+              <span className="block truncate text-sm font-semibold text-surface-50 dark:text-white">
                 {theme.name}
               </span>
               <span className="block truncate text-xs text-surface-500 dark:text-surface-600">

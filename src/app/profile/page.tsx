@@ -5,15 +5,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
-  UserCircleIcon,
-  CalendarDaysIcon,
-  TrophyIcon,
-  ArrowLeftIcon,
   Cog6ToothIcon,
   ArrowRightStartOnRectangleIcon,
   ArrowDownTrayIcon,
-  ScaleIcon,
-  SparklesIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
@@ -31,10 +25,9 @@ import { RecentActivity } from '@/components/ui/profile/RecentActivity';
 import { PersonalRecords } from '@/components/ui/profile/PersonalRecords';
 import { TopExercises } from '@/components/ui/profile/TopExercises';
 import { Achievements } from '@/components/ui/profile/Achievements';
-import { getLevel, getLevelTitle, getLevelProgress } from '@/utils/levels';
+import { getLevelTitle, getLevelProgress } from '@/utils/levels';
 
 import dynamic from 'next/dynamic';
-import { springSnappy, springGentle } from '@/lib/motion';
 
 /**
  * These four modals are only reachable behind a tap on a stat card, and each
@@ -59,114 +52,7 @@ const AchievementsModal = dynamic(
 );
 import { MonthlyProgress } from '@/components/ui/profile/MonthlyProgress';
 import { ProfileSkeleton } from '@/components/ui/profile/ProfileSkeleton';
-import { motion, useReducedMotion } from 'framer-motion';
 
-
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
-  },
-};
-
-const fadeUpItem = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: springSnappy },
-};
-
-function FlipLevelCard({ points, totalWorkouts, prefersReducedMotion }: { points: number; totalWorkouts: number; prefersReducedMotion: boolean }) {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const level = getLevel(points);
-  const p = getLevelProgress(points);
-  const title = getLevelTitle(level);
-  const levelRange = p.nextLevelXP - p.currentLevelXP;
-
-  return (
-    <div className="perspective-[600px]" style={{ perspective: '600px' }}>
-      <motion.div
-        className="relative w-[200px] h-[110px] cursor-pointer rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.5, ease: 'easeInOut' }}
-        // Button semantics: the card was a click-only div, invisible to
-        // keyboards and screen readers.
-        role="button"
-        tabIndex={0}
-        aria-pressed={isFlipped}
-        aria-label={isFlipped ? 'Show level card' : 'Show XP details'}
-        onClick={() => setIsFlipped(!isFlipped)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setIsFlipped(!isFlipped);
-          }
-        }}
-        style={{ transformStyle: 'preserve-3d' }}
-      >
-        {/* Front */}
-        <div
-          className="absolute inset-0 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 flex flex-col justify-center"
-          style={{ backfaceVisibility: 'hidden' }}
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-400 via-accent-500 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/25 shrink-0">
-              <span className="text-lg font-display font-black text-white">{level}</span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-accent-100 font-display uppercase tracking-wider">Level {level}</p>
-              <p className="text-sm font-display font-bold text-white truncate">{title}</p>
-            </div>
-          </div>
-          <div className="h-1.5 rounded-full bg-white/15 overflow-hidden mb-1">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-white to-accent-200"
-              initial={prefersReducedMotion ? {} : { width: 0 }}
-              animate={prefersReducedMotion ? {} : { width: `${p.percent}%` }}
-              transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
-            />
-          </div>
-          {/* Uppercased, "725 to 18" read as a nonsense range. Naming the unit
-              and the level makes it parseable at a glance. */}
-          <div className="flex justify-between gap-2 text-[10px] text-accent-100/80 font-display uppercase tracking-wider tabular-nums">
-            <span className="whitespace-nowrap">
-              {levelRange > 0
-                ? `${p.progressInLevel.toLocaleString()} / ${levelRange.toLocaleString()} XP`
-                : 'MAX'}
-            </span>
-            <span className="whitespace-nowrap">
-              {level === 100
-                ? 'MAX'
-                : `${(p.nextLevelXP - points).toLocaleString()} XP → LV ${level + 1}`}
-            </span>
-          </div>
-        </div>
-
-        {/* Back */}
-        <div
-          className="absolute inset-0 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-3 flex flex-col justify-center"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-        >
-          <p className="text-xs text-accent-100 font-display uppercase tracking-wider mb-1">Level {level} · {title}</p>
-          <div className="space-y-1 text-xs text-white font-display">
-            <div className="flex justify-between">
-              <span className="text-accent-100">Total XP</span>
-              <span className="font-bold tabular-nums">{points.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-accent-100">Level Progress</span>
-              <span className="font-bold tabular-nums">{p.percent}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-accent-100">Next Level</span>
-              <span className="font-bold tabular-nums">{level === 100 ? '—' : `${(p.nextLevelXP - points).toLocaleString()} XP`}</span>
-            </div>
-          </div>
-          <p className="text-[9px] text-accent-100/60 text-center mt-2">tap to flip back</p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 function ProfileContent() {
   const router = useRouter();
@@ -177,7 +63,6 @@ function ProfileContent() {
   // Cached via React Query (see useAchievements) — this used to be a bare
   // useEffect + fetch that refetched on every visit to the page.
   const { achievements, loading: achievementsLoading } = useAchievements();
-  const prefersReducedMotion = useReducedMotion();
 
   const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | 'achievements' | null>(null);
 
@@ -226,7 +111,7 @@ function ProfileContent() {
 
   const getDisplayValue = (value: number | null) => {
     if (!value) return '';
-    return value.toFixed(1);
+    return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
   };
 
   const getUnitLabel = (isHeight: boolean) => {
@@ -285,242 +170,129 @@ function ProfileContent() {
     );
   }
 
+  const level = getLevelProgress(profile?.points || 0);
+  const bodyStats = [
+    profile?.age ? { label: 'Age', value: `${profile.age}` } : null,
+    profile?.weight ? { label: 'Weight', value: `${getDisplayValue(profile.weight)} ${getUnitLabel(false)}` } : null,
+    profile?.weightGoal ? { label: 'Goal', value: `${getDisplayValue(profile.weightGoal)} ${getUnitLabel(false)}` } : null,
+    profile?.height ? { label: 'Height', value: `${getDisplayValue(profile.height)} ${getUnitLabel(true)}` } : null,
+  ].filter(Boolean) as { label: string; value: string }[];
+
   return (
-    <motion.div
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-      transition={springGentle}
-      className="py-8 px-4"
-    >
-      <div className="max-w-7xl mx-auto">
-        {/* Back link */}
-        <motion.div
-          className="mb-5"
-          initial={prefersReducedMotion ? {} : { opacity: 0, x: -12 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-          transition={springSnappy}
-        >
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-surface-500 dark:text-surface-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors font-medium"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            Back to Dashboard
+    <div className="pb-16">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {/* Identity. Was an animated gradient banner holding a 3D flip-card for
+            the level and translucent white stat pills; now the facts, plainly. */}
+        <section className="flex items-start gap-4 pb-6 pt-6 sm:pt-8">
+          <AvatarUploader
+            avatarUrl={profile?.avatarUrl}
+            imageUrl={profile?.image}
+            name={profile?.name}
+            email={profile?.email}
+            size={72}
+          />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-[28px] font-semibold leading-tight tracking-tight text-surface-50 dark:text-white">
+              {profile?.name}
+            </h1>
+            <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-600 tabular">
+              {stats ? `${stats.totalWorkouts} workouts` : null}
+              {profile?.joinDate
+                ? ` · since ${new Date(profile.joinDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`
+                : null}
+            </p>
+          </div>
+          <Link href="/profile/edit" className="btn btn-tertiary shrink-0 min-h-[40px]">
+            <Cog6ToothIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit profile</span>
+            <span className="sm:hidden">Edit</span>
           </Link>
-        </motion.div>
+        </section>
 
-        {/* Profile Hero */}
-        <motion.div
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          transition={springGentle}
-          className="forge-card overflow-hidden mb-8"
-        >
-          {/* Hero.
-              Avatar, name, level card and settings all shared one row, so on a
-              phone the level card was squeezed against the name and the stat
-              pills wrapped into a ragged block. Now: identity row, then the
-              level card full-width, then the body stats as a tidy grid. */}
-          <div className="greeting-gradient relative overflow-hidden px-5 py-6 text-white sm:px-8 sm:py-8">
-            <div className="relative">
-              <div className="flex items-start gap-4">
-                <AvatarUploader
-                  avatarUrl={profile?.avatarUrl}
-                  imageUrl={profile?.image}
-                  name={profile?.name}
-                  email={profile?.email}
-                  size={80}
-                />
+        <div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="forge-card p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-500 font-display text-lg font-semibold text-white tabular">
+                {level.currentLevel}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-surface-50 dark:text-white">{getLevelTitle(level.currentLevel)}</p>
+                <p className="text-xs text-surface-500 dark:text-surface-600 tabular">
+                  {(profile?.points || 0).toLocaleString()} XP ·{' '}
+                  {Math.max(0, level.nextLevelXP - (profile?.points || 0)).toLocaleString()} to level{' '}
+                  {level.currentLevel + 1}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+              <div className="h-full rounded-full bg-accent-500" style={{ width: `${level.percent}%` }} />
+            </div>
+          </div>
 
-                <div className="min-w-0 flex-1">
-                  <h1 className="truncate font-display text-2xl font-bold uppercase tracking-wide sm:text-3xl">
-                    {profile?.name}
-                  </h1>
-                  {stats && (
-                    <p className="mt-1 truncate text-sm text-accent-100 tabular">
-                      {stats.totalWorkouts} workouts · {stats.currentStreak}d streak
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-xs text-accent-200">
-                    {profile?.joinDate
-                      ? `Member since ${new Date(profile.joinDate).toLocaleDateString(
-                          undefined,
-                          { month: 'short', year: 'numeric' }
-                        )}`
-                      : null}
-                  </p>
+          {bodyStats.length > 0 && (
+            <dl className="forge-card grid grid-cols-2 gap-4 p-4 sm:grid-cols-4">
+              {bodyStats.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="stat-label">{stat.label}</dt>
+                  <dd className="mt-1 font-display text-lg font-semibold text-surface-50 dark:text-white tabular">
+                    {stat.value}
+                  </dd>
                 </div>
-
-                <motion.div
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                  transition={springSnappy}
-                  className="shrink-0"
-                >
-                  <Link
-                    href="/profile/edit"
-                    className="touch-target flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-colors hover:bg-white/20 tap-control"
-                    aria-label="Edit profile"
-                  >
-                    <Cog6ToothIcon className="h-5 w-5" />
-                  </Link>
-                </motion.div>
-              </div>
-
-              <div className="mt-5">
-                <FlipLevelCard
-                  points={profile?.points || 0}
-                  totalWorkouts={stats?.totalWorkouts || 0}
-                  prefersReducedMotion={prefersReducedMotion ?? false}
-                />
-              </div>
-
-              {/* Body stats as an even grid rather than free-wrapping pills. */}
-              {(profile?.age || profile?.weight || profile?.height || profile?.gender || profile?.weightGoal) && (
-                <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {profile?.age ? (
-                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
-                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Age</dt>
-                      <dd className="font-display text-sm font-bold tabular">{profile.age} yrs</dd>
-                    </div>
-                  ) : null}
-                  {profile?.weight ? (
-                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
-                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Weight</dt>
-                      <dd className="font-display text-sm font-bold tabular">
-                        {getDisplayValue(profile.weight)} {getUnitLabel(false)}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {profile?.weightGoal ? (
-                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm ring-1 ring-inset ring-white/20">
-                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Goal</dt>
-                      <dd className="font-display text-sm font-bold tabular">
-                        {getDisplayValue(profile.weightGoal)} {getUnitLabel(false)}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {profile?.height ? (
-                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
-                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Height</dt>
-                      <dd className="font-display text-sm font-bold tabular">
-                        {getDisplayValue(profile.height)} {getUnitLabel(true)}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {profile?.gender ? (
-                    <div className="rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
-                      <dt className="text-[10px] uppercase tracking-wider text-accent-100">Gender</dt>
-                      <dd className="font-display text-sm font-bold capitalize">{profile.gender}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="p-4 sm:p-6 border-t border-surface-100 dark:border-surface-300">
-            <div className="flex flex-wrap gap-2.5">
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
-                <Link href="/template/create" className="btn btn-primary text-sm inline-flex items-center gap-2">
-                  <CalendarDaysIcon className="w-4 h-4" />
-                  Create Template
-                </Link>
-              </motion.div>
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
-                <Link href="/templates" className="btn btn-secondary text-sm inline-flex items-center gap-2">
-                  <CalendarDaysIcon className="w-4 h-4" />
-                  Templates
-                </Link>
-              </motion.div>
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
-                <button onClick={() => openModal('activity')} className="btn btn-tertiary text-sm inline-flex items-center gap-2">
-                  <ChartBarIcon className="w-4 h-4" />
-                  Activity
-                </button>
-              </motion.div>
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
-                <button onClick={() => window.open('/api/user/export', '_blank')} className="btn btn-tertiary text-sm inline-flex items-center gap-2">
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  Export Data
-                </button>
-              </motion.div>
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.03 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }} transition={springSnappy}>
-                <button onClick={() => signOut({ callbackUrl: '/login' })} className="btn btn-danger text-sm inline-flex items-center gap-2">
-                  <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </motion.div>
-            </div>
-          </div>
-        </motion.div>
+              ))}
+            </dl>
+          )}
+        </div>
 
         {/* Notification opt-in — renders nothing when push is unavailable
             (unsupported browser, or no VAPID keys configured). */}
-        <motion.div
-          className="mb-8"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          transition={{ ...springGentle, delay: 0.05 }}
-        >
+        <div className="mb-8">
           <NotificationSettings />
-        </motion.div>
+        </div>
 
         {/* Stats Overview */}
         {stats && (
-          <motion.div
-            className="mb-8"
-            initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-            transition={{ ...springGentle, delay: 0.1 }}
-          >
-            <h2 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-5">Your Statistics</h2>
+          <section className="mb-8">
+            <h2 className="section-title mb-2">All time</h2>
             <StatsOverview stats={stats} useMetric={profile?.useMetric || false} />
-          </motion.div>
+          </section>
         )}
 
         {/* Content Grid — bento-box columns layout */}
-        <motion.div
-          className="columns-1 lg:columns-2 gap-6 mb-8 [&>*]:break-inside-avoid [&>*]:mb-6"
-          variants={staggerContainer}
-          initial={prefersReducedMotion ? {} : 'hidden'}
-          animate={prefersReducedMotion ? {} : 'visible'}
-        >
+        <div className="mb-8 columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
           {stats && (
-            <motion.div variants={fadeUpItem}>
+            <div>
               <RecentActivity
                 stats={stats}
                 useMetric={profile?.useMetric || false}
                 onViewAll={() => openModal('activity')}
               />
-            </motion.div>
+            </div>
           )}
           {stats && (
-            <motion.div variants={fadeUpItem}>
+            <div>
               <PersonalRecords
                 stats={stats}
                 useMetric={profile?.useMetric || false}
                 onViewAll={() => openModal('records')}
               />
-            </motion.div>
+            </div>
           )}
           {stats && (
-            <motion.div variants={fadeUpItem}>
+            <div>
               <TopExercises
                 stats={stats}
                 useMetric={profile?.useMetric || false}
                 onViewAll={() => openModal('exercises')}
               />
-            </motion.div>
+            </div>
           )}
           {stats && (
-            <motion.div variants={fadeUpItem}>
+            <div>
               <MonthlyProgress stats={stats} useMetric={profile?.useMetric || false} />
-            </motion.div>
+            </div>
           )}
           {achievements && !achievementsLoading && (
-            <motion.div variants={fadeUpItem}>
+            <div>
               <Achievements
                 achievements={achievements.achievements}
                 unlockedCount={achievements.unlockedCount}
@@ -528,20 +300,35 @@ function ProfileContent() {
                 useMetric={profile?.useMetric || false}
                 onViewAll={() => openModal('achievements')}
               />
-            </motion.div>
+            </div>
           )}
-        </motion.div>
+        </div>
 
-        {/* Favorite Templates */}
-        <motion.div
-          className="mb-8"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          transition={{ ...springGentle, delay: 0.2 }}
-        >
-          <h2 className="text-xl font-display font-bold tracking-wide text-surface-50 dark:text-white mb-5">Favorite Templates</h2>
+        <section className="mb-8">
+          <h2 className="section-title mb-2">Favorite workouts</h2>
           <SavedWorkouts />
-        </motion.div>
+        </section>
+
+        {/* Account. Sign out used to be a solid red button in the hero, the
+            loudest control on the page for the action people want least. */}
+        <section className="forge-card divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+          {[
+            { label: 'Workout history', onClick: () => router.push('/history'), icon: ChartBarIcon },
+            { label: 'Export my data (JSON)', onClick: () => { window.location.href = '/api/user/export'; }, icon: ArrowDownTrayIcon },
+            { label: 'Sign out', onClick: () => signOut({ callbackUrl: '/login' }), icon: ArrowRightStartOnRectangleIcon, danger: true },
+          ].map((row) => (
+            <button
+              key={row.label}
+              onClick={row.onClick}
+              className={`flex min-h-[48px] w-full items-center gap-3 px-4 text-left text-sm transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] ${
+                row.danger ? 'text-danger-600 dark:text-danger-400' : 'text-surface-100 dark:text-surface-950'
+              }`}
+            >
+              <row.icon className="h-[18px] w-[18px] shrink-0 opacity-70" />
+              {row.label}
+            </button>
+          ))}
+        </section>
       </div>
 
       {/* Modals */}
@@ -578,7 +365,7 @@ function ProfileContent() {
           useMetric={profile?.useMetric || false}
         />
       )}
-    </motion.div>
+    </div>
   );
 }
 

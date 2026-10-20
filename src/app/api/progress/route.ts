@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { workoutSessions, workoutTemplates } from '@/lib/db/schema';
-import { eq, and, isNotNull, gte, lte, desc, sql } from 'drizzle-orm';
+import { eq, and, isNotNull, gte, lt, lte, desc, sql } from 'drizzle-orm';
 import { WorkoutSessionData } from '@/types/workout';
 import { exerciseDisplayName } from '@/lib/exerciseLookup';
-import { dayKeyOf, monthOf, startOfWeek } from '@/utils/datetime';
+import { addDays, dayKeyOf, monthOf, startOfDayInZone, startOfWeek, todayKey } from '@/utils/datetime';
 import { getUserTimeZone } from '@/lib/userTimeZone';
+import { snapshotNameSql } from '@/lib/sessionName';
 
 const VALID_PERIODS = ['7d', '30d', '90d', '1y', 'all'] as const;
 type Period = (typeof VALID_PERIODS)[number];
@@ -40,27 +41,30 @@ export async function GET(request: Request) {
     let prevStartDate = new Date();
     let prevEndDate = new Date();
 
+    /*
+     * Day-count periods are whole calendar days in the user's zone, ending
+     * today: "7 days" is today and the six before it. It used to be 7×24h back
+     * from this instant, which straddles eight calendar days and produced an
+     * eighth, partial bar.
+     */
+    const today = todayKey(timeZone);
+    const lastNDays = (n: number) => {
+      startDate = startOfDayInZone(addDays(today, -(n - 1)), timeZone);
+      prevEndDate = startDate;
+      prevStartDate = startOfDayInZone(addDays(today, -(2 * n - 1)), timeZone);
+    };
     switch (period) {
       case '7d':
-        startDate.setDate(now.getDate() - 7);
+        lastNDays(7);
         groupBy = 'day';
-        prevEndDate = new Date(startDate);
-        prevStartDate = new Date(startDate);
-        prevStartDate.setDate(prevStartDate.getDate() - 7);
         break;
       case '30d':
-        startDate.setDate(now.getDate() - 30);
+        lastNDays(30);
         groupBy = 'day';
-        prevEndDate = new Date(startDate);
-        prevStartDate = new Date(startDate);
-        prevStartDate.setDate(prevStartDate.getDate() - 30);
         break;
       case '90d':
-        startDate.setDate(now.getDate() - 90);
+        lastNDays(90);
         groupBy = 'week';
-        prevEndDate = new Date(startDate);
-        prevStartDate = new Date(startDate);
-        prevStartDate.setDate(prevStartDate.getDate() - 90);
         break;
       case '1y':
         startDate.setFullYear(now.getFullYear() - 1);
@@ -106,6 +110,7 @@ export async function GET(request: Request) {
       totalExercises: workoutSessions.totalExercises,
       performance: performanceColumn,
       templateName: workoutTemplates.name,
+      snapshotName: snapshotNameSql,
     };
 
     const sessions = await db
@@ -129,7 +134,7 @@ export async function GET(request: Request) {
           eq(workoutSessions.userId, userId),
           isNotNull(workoutSessions.completedAt),
           gte(workoutSessions.completedAt, prevStartDate),
-          lte(workoutSessions.completedAt, prevEndDate),
+          lt(workoutSessions.completedAt, prevEndDate),
         ))
         .orderBy(desc(workoutSessions.completedAt))
         .limit(PERIOD_SESSION_LIMIT);
@@ -195,15 +200,37 @@ export async function GET(request: Request) {
       frequencyMap.set(key, entry);
     }
 
-    const frequency = Array.from(frequencyMap.entries())
-      .map(([date, data]) => ({
+    /*
+     * Every bucket in the period, including empty ones. Only buckets with a
+     * session used to be returned, so the charts drew trained days side by side
+     * and a fortnight off was invisible — the x-axis was not time at all.
+     */
+    const bucketKeys: string[] = [];
+    const lastKey = getKey(now);
+    const oldest = sessions.length > 0 ? sessions[sessions.length - 1].completedAt : null;
+    const firstKey = getKey(period === 'all' ? (oldest ?? now) : startDate);
+    {
+      let cursor = dayKeyOf(period === 'all' ? (oldest ?? now) : startDate, timeZone);
+      // Bounded: the coarsest grouping over 'all' is months, so this is small.
+      for (let guard = 0; guard < 4000; guard++) {
+        const key = getKey(startOfDayInZone(cursor, timeZone));
+        if (bucketKeys[bucketKeys.length - 1] !== key) bucketKeys.push(key);
+        if (key === lastKey) break;
+        cursor = addDays(cursor, 1);
+      }
+    }
+    if (bucketKeys[0] !== firstKey) bucketKeys.unshift(firstKey);
+
+    const frequency = bucketKeys.map((date) => {
+      const data = frequencyMap.get(date) ?? { workouts: 0, volume: 0, hours: 0, distance: 0 };
+      return {
         date,
         workouts: data.workouts,
         volume: Math.round(data.volume),
         hours: Math.round(data.hours * 10) / 10,
         distance: Math.round(data.distance * 100) / 100,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      };
+    });
 
     // Top exercises for the period
     const exerciseMap = new Map<string, { name: string; volume: number; sets: number; sessions: number }>();
@@ -216,7 +243,8 @@ export async function GET(request: Request) {
         const exName = ep.exerciseKey ? exerciseDisplayName(ep.exerciseKey) : exerciseId;
         const entry = exerciseMap.get(exName) || { name: exName, volume: 0, sets: 0, sessions: 0 };
         entry.volume += ep.totalVolume || 0;
-        entry.sets += ep.sets?.length || 0;
+        // Sets actually done — planned-but-skipped sets are not training.
+        entry.sets += (ep.sets ?? []).filter((set) => set.completed && !set.skipped).length;
         entry.sessions++;
         exerciseMap.set(exName, entry);
       }
@@ -229,7 +257,7 @@ export async function GET(request: Request) {
     // Recent sessions list
     const recentSessions = sessions.slice(0, 20).map(s => ({
       date: s.completedAt?.toISOString() || '',
-      name: s.templateName || 'Workout',
+      name: s.templateName || s.snapshotName || 'Quick Workout',
       volume: s.totalVolume || 0,
       sets: s.totalSets || 0,
       duration: s.duration || 0,

@@ -1,8 +1,8 @@
 import { UserPersonalRecords, PRUpdate, PRType } from '@/types/personalRecords';
 import { PerformedSet, ExercisePerformance, WorkoutSessionData } from '@/types/workout';
 import { db } from '@/lib/db';
-import { userStats } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { userStats, workoutSessions } from '@/lib/db/schema';
+import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/lib/workout/completion';
 import { formatPRValue } from '@/utils/prFormatting';
 import { bestOneRepMax } from '@/utils/oneRepMax';
@@ -91,13 +91,20 @@ export function detectPersonalRecords(
   return newPRs;
 }
 
-export function updatePersonalRecords(currentPRs: UserPersonalRecords, newPRs: PRUpdate[]): UserPersonalRecords {
+/**
+ * `achievedAt` is when the session happened, not when it was saved: a workout
+ * logged after the fact used to date its records to the moment of logging.
+ */
+export function updatePersonalRecords(
+  currentPRs: UserPersonalRecords,
+  newPRs: PRUpdate[],
+  achievedAt: Date = new Date(),
+): UserPersonalRecords {
   const updatedPRs = { ...currentPRs };
+  const now = achievedAt.toISOString();
 
   newPRs.forEach(pr => {
-    if (!updatedPRs[pr.exerciseName]) updatedPRs[pr.exerciseName] = {};
-
-    const now = new Date().toISOString();
+    updatedPRs[pr.exerciseName] = { ...(updatedPRs[pr.exerciseName] ?? {}) };
 
     if (pr.type === 'maxOneRepMax') {
       updatedPRs[pr.exerciseName].maxOneRepMax = {
@@ -237,6 +244,7 @@ export async function processWorkoutSessionPRs(
   performanceData: { [exerciseId: string]: ExercisePerformance },
   templateData: WorkoutSessionData['templateSnapshot'],
   tx?: Tx,
+  achievedAt?: Date,
 ): Promise<{ newPRs: PRUpdate[]; updatedUserPRs: UserPersonalRecords }> {
   const executor = tx ?? db;
 
@@ -247,7 +255,7 @@ export async function processWorkoutSessionPRs(
   const currentPRs = (statsRow?.personalRecords as UserPersonalRecords) || {};
 
   const newPRs = detectSessionPRs(performanceData, templateData, currentPRs, sessionId);
-  const updatedPRs = updatePersonalRecords(currentPRs, newPRs);
+  const updatedPRs = updatePersonalRecords(currentPRs, newPRs, achievedAt);
 
   await executor
     .insert(userStats)
@@ -258,4 +266,44 @@ export async function processWorkoutSessionPRs(
     });
 
   return { newPRs, updatedUserPRs: updatedPRs };
+}
+
+/**
+ * Re-derives every record from the user's completed history, oldest first.
+ *
+ * Records are a running maximum, so they can only be appended to cheaply —
+ * there is no way to "subtract" a session from them. Without this, deleting a
+ * workout left its records in place pointing at a session that no longer
+ * existed, and fixing a typo (a 1,000 lb bench entered by a slipped thumb) in
+ * the history editor left the typo as a permanent PR. Edit and delete call
+ * this after their write, inside the same transaction.
+ *
+ * O(sessions), which is fine at this app's scale and only runs on corrections.
+ */
+export async function rebuildPersonalRecords(tx: Tx, userId: string): Promise<UserPersonalRecords> {
+  const sessions = await tx
+    .select({
+      id: workoutSessions.id,
+      completedAt: workoutSessions.completedAt,
+      performance: sql<Record<string, ExercisePerformance> | null>`${workoutSessions.performanceData} -> 'performance'`,
+      templateSnapshot: sql<WorkoutSessionData['templateSnapshot'] | null>`${workoutSessions.performanceData} -> 'templateSnapshot'`,
+    })
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.completedAt)))
+    .orderBy(asc(workoutSessions.completedAt));
+
+  let records: UserPersonalRecords = {};
+  for (const session of sessions) {
+    if (!session.performance || !session.completedAt) continue;
+    const snapshot = session.templateSnapshot ?? ({ exercises: [] } as unknown as WorkoutSessionData['templateSnapshot']);
+    const found = detectSessionPRs(session.performance, { ...snapshot, exercises: snapshot.exercises ?? [] }, records, session.id);
+    if (found.length > 0) records = updatePersonalRecords(records, found, session.completedAt);
+  }
+
+  await tx
+    .update(userStats)
+    .set({ personalRecords: records })
+    .where(eq(userStats.userId, userId));
+
+  return records;
 }

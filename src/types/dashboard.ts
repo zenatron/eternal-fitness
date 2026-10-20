@@ -12,8 +12,8 @@ export interface ActivityEntry {
   title: string;
   /** ISO timestamp. Formatted client-side — see utils/relativeTime.ts. */
   completedAt: string | null;
-  /** Pre-formatted because the unit depends on the user's profile, not the clock. */
-  volumeLabel: string;
+  /** Pre-formatted because the unit depends on the user's profile, not the clock. Null when no weight was moved. */
+  volumeLabel: string | null;
 }
 // Progress data
 export interface ProgressData {

@@ -26,5 +26,5 @@ export const formatWeight = (
     return '-';
   }
   const unit = useMetric ? 'kg' : 'lbs';
-  return `${weight.toFixed(1)} ${unit}`;
+  return `${weight.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`;
 };

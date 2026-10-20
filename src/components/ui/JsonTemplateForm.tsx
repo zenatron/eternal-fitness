@@ -54,8 +54,6 @@ interface JsonTemplateFormProps {
   onSuccess?: () => void;
 }
 
-
-
 export default function JsonTemplateForm({ mode, templateId, initialData, onSuccess }: JsonTemplateFormProps) {
   const router = useRouter();
   const createTemplateMutation = useCreateTemplate();
@@ -180,8 +178,6 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
     setTemplateExercises(updated);
   };
 
-
-
   const updateSet = (exerciseIndex: number, setIndex: number, field: keyof ExerciseSet, value: any) => {
     const updated = [...templateExercises];
     updated[exerciseIndex].sets[setIndex] = {
@@ -293,17 +289,10 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           initial="hidden"
           animate="visible"
           transition={springSnappy}
-          whileHover={{ y: -2 }}
           className="forge-card overflow-hidden"
         >
-          <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
           <div className="p-4 sm:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
-                <PlusCircleIcon className="h-6 w-6 text-accent-600 dark:text-accent-400" />
-              </div>
-              <h3 className="text-2xl font-bold text-surface-50 dark:text-white">Template Information</h3>
-            </div>
+            <h2 className="mb-5 text-base font-semibold text-surface-50 dark:text-white">Details</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -329,11 +318,11 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                   onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
                   className="form-input"
                 >
-                  <option value="strength">💪 Strength Training</option>
-                  <option value="cardio">🏃 Cardio</option>
-                  <option value="hybrid">⚡ Hybrid</option>
-                  <option value="flexibility">🧘 Flexibility</option>
-                  <option value="sports">⚽ Sports</option>
+                  <option value="strength">Strength</option>
+                  <option value="cardio">Cardio</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="flexibility">Flexibility</option>
+                  <option value="sports">Sports</option>
                 </select>
               </div>
 
@@ -346,9 +335,9 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                   onChange={(e) => setDifficulty(e.target.value as Difficulty)}
                   className="form-input"
                 >
-                  <option value="beginner">🌱 Beginner</option>
-                  <option value="intermediate">🔥 Intermediate</option>
-                  <option value="advanced">💎 Advanced</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
                 </select>
               </div>
 
@@ -396,20 +385,11 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           initial="hidden"
           animate="visible"
           transition={{ ...springSnappy, delay: 0.1 }}
-          whileHover={{ y: -2 }}
           className="forge-card overflow-hidden"
         >
-          <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
           <div className="p-4 sm:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-success-100 dark:bg-success-900/30 rounded-xl">
-                <PlusCircleIcon className="h-6 w-6 text-success-600 dark:text-success-400" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-surface-50 dark:text-white">Exercise Library</h3>
-                <p className="text-surface-500 dark:text-surface-600">Choose exercises to build your workout</p>
-              </div>
-            </div>
+            <h2 className="text-base font-semibold text-surface-50 dark:text-white">Add exercises</h2>
+            <p className="mb-4 text-sm text-surface-500 dark:text-surface-600">Tap one to add it below.</p>
 
             <ExercisePicker onSelect={(key) => addExercise(key)} layout="grid" />
           </div>
@@ -418,17 +398,9 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
         {/* Template Exercises */}
         {templateExercises.length === 0 ? (
           <div className="forge-card p-12 text-center">
-            <div className="p-4 bg-surface-900 dark:bg-surface-200 rounded-full w-20 h-20 mx-auto mb-6">
-              <PlusCircleIcon className="w-12 h-12 text-surface-600 mx-auto" />
-            </div>
-            <h3 className="text-xl font-bold text-surface-50 dark:text-white mb-2">
-              No Exercises Added Yet
-            </h3>
-            <p className="text-surface-500 dark:text-surface-600 mb-4">
-              Choose exercises from the library above to start building your workout template
-            </p>
-            <p className="text-sm text-surface-500 dark:text-surface-500">
-              💡 Tip: Start with compound movements like squats, deadlifts, or bench press
+            <p className="font-medium text-surface-50 dark:text-white">No exercises yet</p>
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
+              Pick from the list above. Compound lifts first is a good default.
             </p>
           </div>
         ) : (
@@ -442,10 +414,8 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
               initial="hidden"
               animate="visible"
               transition={{ ...springSnappy, delay: 0.1 + exerciseIndex * 0.05 }}
-              whileHover={{ y: -2 }}
               className="forge-card overflow-hidden"
             >
-              <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
               <div className="p-4 sm:p-8">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
@@ -506,7 +476,7 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                     fields on a two-column grid beneath, using the same stepper
                     control as the live workout tracker. */}
                 <div>
-                  <h5 className="mb-3 font-display text-base font-bold uppercase tracking-wide text-surface-50 dark:text-white">
+                  <h5 className="mb-3 text-base font-semibold text-surface-50 dark:text-white">
                     Sets
                   </h5>
 
@@ -662,12 +632,11 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           transition={{ ...springSnappy, delay: 0.2 }}
           className="forge-card overflow-hidden"
         >
-          <div className="h-2 bg-gradient-to-r from-accent-500 to-accent-700"></div>
           <div className="p-4 sm:p-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div>
                 <h3 className="text-xl font-bold text-surface-50 dark:text-white mb-2">
-                  Ready to Create Your Template?
+                  {mode === 'edit' ? 'Save changes' : 'Save template'}
                 </h3>
                 <p className="text-surface-500 dark:text-surface-600">
                   {templateExercises.length === 0

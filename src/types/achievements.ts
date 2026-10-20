@@ -26,6 +26,8 @@ export interface UserAchievements {
   unlockedAchievements: string[]; // Array of achievement IDs
   progress: Record<string, number>; // Current progress for each category
   lastUpdated: string;
+  /** ISO time each achievement unlocked. Absent for unlocks recorded before this existed. */
+  unlockedAt?: Record<string, string>;
 }
 
 export type AchievementCategory =
