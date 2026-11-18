@@ -49,7 +49,7 @@ export function NotificationSettings() {
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
               isSubscribed
                 ? 'bg-accent-500/10 border-accent-500/25'
-                : 'bg-surface-200/60 border-surface-300'
+                : 'bg-black/[0.03] border-black/10 dark:bg-white/[0.04] dark:border-white/10'
             }`}
           >
             {isSubscribed ? (

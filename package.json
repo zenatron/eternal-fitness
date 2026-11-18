@@ -22,7 +22,8 @@
     "docker:builder": "docker buildx create --name eternal-fitness --driver docker-container --bootstrap",
     "docker:build": "docker buildx build --builder eternal-fitness --platform linux/amd64,linux/arm64 -t zenatron/eternal-fitness:v$npm_package_version -t zenatron/eternal-fitness:latest --push .",
     "docker:push": "echo 'multi-arch images are pushed by docker:build (--push); docker:push is a no-op'",
-    "docker:release": "bun run docker:build"
+    "docker:release": "bun run docker:build",
+    "db:seed-dev": "bun run scripts/seed-dev-history.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.27",

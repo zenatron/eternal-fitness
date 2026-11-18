@@ -1,3 +1,4 @@
+import { formatVolume } from '@/utils/formatters';
 import { NextResponse } from 'next/server';
 import { getUserId } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -222,12 +223,9 @@ export async function GET() {
         })(),
       },
       recentActivity: recentSessions.map(session => {
-        const unit = user.useMetric ? 'kg' : 'lbs';
-        const formattedVolume = session.totalVolume >= 1000000
-          ? `${(session.totalVolume / 1000000).toFixed(1)}M ${unit}`
-          : session.totalVolume >= 1000
-          ? `${(session.totalVolume / 1000).toFixed(1)}K ${unit}`
-          : `${session.totalVolume.toFixed(0)} ${unit}`;
+        // Same formatter as every other volume figure, so this one stops being
+        // the lone capital "K".
+        const formattedVolume = formatVolume(session.totalVolume, user.useMetric);
 
         return {
           id: session.id,

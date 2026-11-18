@@ -5,6 +5,7 @@ import {
   HeartIcon,
   ListBulletIcon,
   UserIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
 import { ChevronRightIcon } from '@heroicons/react/20/solid';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import { DashboardCard } from './DashboardCard';
 // away in the bottom nav, while history previously had no surface at all.
 const actions = [
   { href: '/history', label: 'Workout history', icon: ListBulletIcon },
+  { href: '/progress?view=strength', label: 'Strength trends', icon: ArrowTrendingUpIcon },
   { href: '/recovery', label: 'Recovery map', icon: HeartIcon },
   { href: '/session/log', label: 'Log a past workout', icon: ClockIcon },
   { href: '/template/create', label: 'New template', icon: PlusIcon },

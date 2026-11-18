@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG } from '@/types/dashboard-config';
+import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG, withDefaultTiles } from '@/types/dashboard-config';
 
 /**
  * Validated before anything is persisted. This used to be a raw `request.json()`
@@ -43,7 +43,7 @@ export async function GET() {
 
     if (!user) return new NextResponse('User not found', { status: 404 });
 
-    const config = (user.dashboardConfig as DashboardConfig) || DEFAULT_DASHBOARD_CONFIG;
+    const config = withDefaultTiles((user.dashboardConfig as DashboardConfig) || DEFAULT_DASHBOARD_CONFIG);
     return NextResponse.json(config);
   } catch (error) {
     console.error('Dashboard config GET error:', error);

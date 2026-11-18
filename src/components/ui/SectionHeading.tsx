@@ -20,8 +20,11 @@ export function SectionHeading({
 }) {
   return (
     <div className="mb-5 flex items-start gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
-        <Icon className="h-5 w-5 text-accent-600 dark:text-accent-400" />
+      {/* Neutral, not an accent tile: the accent is kept for things you can
+          press and for progress, and five orange squares down one form made
+          the section icons the loudest thing on the page. */}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
+        <Icon className="h-5 w-5 text-surface-400 dark:text-surface-800" />
       </span>
       <div className="min-w-0">
         <h2 className="text-sm font-semibold text-surface-50 dark:text-white">

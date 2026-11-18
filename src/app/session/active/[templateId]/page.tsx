@@ -236,7 +236,7 @@ export default function ActiveSessionPage({
       await startWorkout(template.id, template.name, template.workoutData);
     } catch (error) {
       console.error('Failed to start workout:', error);
-      // Previously this only logged, so tapping "Start Workout" appeared to do
+      // Previously this only logged, so tapping "Start workout" appeared to do
       // nothing at all when it failed.
       const status = (error as { status?: number })?.status;
       if (status === 409) {
@@ -266,7 +266,7 @@ export default function ActiveSessionPage({
       await startWorkout(template.id, template.name, template.workoutData);
     } catch (error) {
       console.error('Failed to switch workouts:', error);
-      toast.error('Could not switch workouts. Finish or discard the other one first.');
+      toast.error("Couldn't switch workouts. Finish or discard the other one first.");
     }
   };
 
@@ -293,7 +293,7 @@ export default function ActiveSessionPage({
       await endWorkout();
       router.push('/profile');
     } catch {
-      toast.error('Could not discard the workout. It will be cleared when you reconnect.');
+      toast.error("Couldn't discard the workout. It will be cleared when you reconnect.");
       router.push('/profile');
     }
   };
@@ -608,10 +608,14 @@ export default function ActiveSessionPage({
                 <li key={exercise.id} className="flex items-baseline justify-between gap-3 px-4 py-3">
                   <span className="truncate text-sm font-medium text-surface-50 dark:text-white">{exercise.name}</span>
                   <span className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
-                    {exercise.sets.length} ×{' '}
+                    {/* Same notation as a set everywhere else — weight first,
+                        with its unit — prefixed by how many sets. */}
+                    {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'} ·{' '}
                     {first?.targetDuration
                       ? `${Math.round(first.targetDuration / 60)} min`
-                      : `${reps ?? '—'}${first?.targetWeight ? ` @ ${first.targetWeight}` : ''}`}
+                      : first?.targetWeight
+                        ? `${first.targetWeight} ${profile?.useMetric ? 'kg' : 'lbs'} × ${reps ?? '—'}`
+                        : `${reps ?? '—'} reps`}
                   </span>
                 </li>
               );

@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
-import { ScaleIcon } from '@heroicons/react/24/outline';
 import {
   BAR_OPTIONS,
   barWeight,
@@ -100,20 +99,15 @@ export function PlateSheet({
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title="Plate Loading"
+      title="Plate loading"
       subtitle={`${exerciseName} · ${target}${unit}`}
       maxWidth="max-w-md"
-      icon={
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent-500/25 bg-accent-500/10">
-          <ScaleIcon className="h-5 w-5 text-accent-500" />
-        </div>
-      }
     >
       <div className="text-center">
-        <p className="font-display text-xs uppercase tracking-[0.2em] text-surface-500 dark:text-surface-600">
+        <p className="stat-label">
           Per side
         </p>
-        <p className="mt-1 font-display text-3xl font-black tabular text-surface-50 dark:text-white">
+        <p className="figure mt-1.5 text-3xl">
           {loading.perSide.length > 0
             ? loading.perSide
                 .flatMap(({ plate, count }) => Array.from({ length: count }, () => plate))
@@ -177,7 +171,7 @@ export function PlateSheet({
                 className={`tap-control rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                   active
                     ? 'border-accent-500 bg-accent-500/10 text-accent-700 dark:text-accent-300'
-                    : 'border-surface-300 text-surface-600 hover:border-surface-400 dark:border-surface-400 dark:text-surface-800'
+                    : 'border-black/10 text-surface-600 hover:border-surface-400 dark:border-surface-400 dark:text-surface-800'
                 }`}
               >
                 {option.name}

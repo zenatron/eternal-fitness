@@ -18,7 +18,7 @@ import { chromium, devices } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE ?? 'http://localhost:3000';
 const OUT = process.argv[2] ?? 'shots';
 const ONLY = process.argv[3];
 
@@ -34,9 +34,25 @@ const VIEWPORTS = {
 const DEVICE = VIEWPORTS[process.env.DEVICE ?? 'phone'] ?? VIEWPORTS.phone;
 
 const PAGES = [
+  ['login', '/login'],
   ['dashboard', '/'],
+  ['history', '/history'],
+  ['recovery', '/recovery'],
+  ['offline', '/offline'],
+  ['exercise', '/exercise/Bench%20Press'],
+  ...(process.env.TEMPLATE_ID
+    ? [
+        ['template-detail', `/template/${process.env.TEMPLATE_ID}`],
+        ['template-edit', `/template/edit/${process.env.TEMPLATE_ID}`],
+        ['session-active', `/session/active/${process.env.TEMPLATE_ID}`],
+      ]
+    : []),
+  ['profile-setup', '/profile/setup'],
+  ['not-found', '/this-page-does-not-exist'],
   ['templates', '/templates'],
   ['progress', '/progress'],
+  ['progress-strength', '/progress?view=strength'],
+  ['progress-muscles', '/progress?view=muscles'],
   ['profile', '/profile'],
   ['personal-records', '/personal-records'],
   ['leaderboard', '/leaderboard'],
@@ -87,6 +103,16 @@ async function main() {
       await page.waitForTimeout(2200);
 
       await page.screenshot({ path: path.join(OUT, `${name}.png`) });
+      // <main> is the only scroll container (AppShell), so a plain fullPage
+      // shot stops at the viewport. Unroll it for the capture, then restore.
+      // The install banner is hidden too: it floats over every page's content.
+      await page.addStyleTag({
+        content:
+          'html,body{height:auto!important;overflow:visible!important}' +
+          '.h-dvh{height:auto!important;overflow:visible!important}' +
+          'main{overflow:visible!important}' +
+          '[aria-label="Install Eternal Fitness"],nextjs-portal{display:none!important}',
+      });
       await page.screenshot({
         path: path.join(OUT, `${name}-full.png`),
         fullPage: true,

@@ -93,5 +93,6 @@ export function bestOneRepMax(sets: readonly SetLike[]): BestEstimate | null {
 export function formatOneRepMax(value: number, useMetric: boolean): string {
   const rounded = Math.round(value * 10) / 10;
   const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  return `${text} ${useMetric ? 'kg' : 'lb'}`;
+  // "lbs", matching every other weight in the app.
+  return `${text} ${useMetric ? 'kg' : 'lbs'}`;
 }

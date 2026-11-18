@@ -1,5 +1,6 @@
 'use client';
 
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,20 +31,16 @@ import { getLevelTitle, getLevelProgress } from '@/utils/levels';
 import dynamic from 'next/dynamic';
 
 /**
- * These four modals are only reachable behind a tap on a stat card, and each
- * pulls in its own tables and charts. Splitting them out cuts what the profile
- * page has to download before it can render anything.
+ * These modals are only reachable behind a tap on a stat card, and each pulls
+ * in its own tables. Splitting them out cuts what the profile page has to
+ * download before it can render anything.
+ *
+ * Records and recent workouts link to their own pages instead: both used to
+ * open a modal that was a second, smaller copy of /personal-records and
+ * /history, without the editing those pages have.
  */
-const PersonalRecordsModal = dynamic(
-  () => import('@/components/modals/PersonalRecordsModal').then((m) => m.PersonalRecordsModal),
-  { ssr: false }
-);
 const TopExercisesModal = dynamic(
   () => import('@/components/modals/TopExercisesModal').then((m) => m.TopExercisesModal),
-  { ssr: false }
-);
-const RecentActivityModal = dynamic(
-  () => import('@/components/modals/RecentActivityModal').then((m) => m.RecentActivityModal),
   { ssr: false }
 );
 const AchievementsModal = dynamic(
@@ -64,11 +61,11 @@ function ProfileContent() {
   // useEffect + fetch that refetched on every visit to the page.
   const { achievements, loading: achievementsLoading } = useAchievements();
 
-  const [activeModal, setActiveModal] = useState<'records' | 'exercises' | 'activity' | 'achievements' | null>(null);
+  const [activeModal, setActiveModal] = useState<'exercises' | 'achievements' | null>(null);
 
   useEffect(() => {
     const modal = searchParams.get('modal');
-    if (modal === 'records' || modal === 'exercises' || modal === 'activity' || modal === 'achievements') {
+    if (modal === 'exercises' || modal === 'achievements') {
       setActiveModal(modal);
     } else {
       // The param disappearing (browser Back, or closeModal's pushState) must
@@ -78,7 +75,7 @@ function ProfileContent() {
     }
   }, [searchParams]);
 
-  const openModal = (modalType: 'records' | 'exercises' | 'activity' | 'achievements') => {
+  const openModal = (modalType: 'exercises' | 'achievements') => {
     setActiveModal(modalType);
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set('modal', modalType);
@@ -138,12 +135,10 @@ function ProfileContent() {
   if (!hasMounted || (error && !profile)) {
     if (isLoading || statsLoading) return <ProfileSkeleton />;
     return (
-      <div className="py-8 px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
+        <div className="mx-auto max-w-6xl">
           <div className="form-error">
-            <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold">!</span>
-            </div>
+            <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
             {error?.message || 'Could not load your profile. Check your connection and try again.'}
           </div>
         </div>
@@ -157,12 +152,10 @@ function ProfileContent() {
 
   if (statsError) {
     return (
-      <div className="py-8 px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
+        <div className="mx-auto max-w-6xl">
           <div className="form-error">
-            <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold">!</span>
-            </div>
+            <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
             {statsError?.message || 'Could not load your stats.'}
           </div>
         </div>
@@ -204,8 +197,7 @@ function ProfileContent() {
           </div>
           <Link href="/profile/edit" className="btn btn-tertiary shrink-0 min-h-[40px]">
             <Cog6ToothIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Edit profile</span>
-            <span className="sm:hidden">Edit</span>
+            Settings
           </Link>
         </section>
 
@@ -261,20 +253,12 @@ function ProfileContent() {
         <div className="mb-8 columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
           {stats && (
             <div>
-              <RecentActivity
-                stats={stats}
-                useMetric={profile?.useMetric || false}
-                onViewAll={() => openModal('activity')}
-              />
+              <RecentActivity stats={stats} useMetric={profile?.useMetric || false} />
             </div>
           )}
           {stats && (
             <div>
-              <PersonalRecords
-                stats={stats}
-                useMetric={profile?.useMetric || false}
-                onViewAll={() => openModal('records')}
-              />
+              <PersonalRecords stats={stats} useMetric={profile?.useMetric || false} />
             </div>
           )}
           {stats && (
@@ -334,20 +318,8 @@ function ProfileContent() {
       {/* Modals */}
       {stats && (
         <>
-          <PersonalRecordsModal
-            isOpen={activeModal === 'records'}
-            onClose={closeModal}
-            stats={stats}
-            useMetric={profile?.useMetric || false}
-          />
           <TopExercisesModal
             isOpen={activeModal === 'exercises'}
-            onClose={closeModal}
-            stats={stats}
-            useMetric={profile?.useMetric || false}
-          />
-          <RecentActivityModal
-            isOpen={activeModal === 'activity'}
             onClose={closeModal}
             stats={stats}
             useMetric={profile?.useMetric || false}

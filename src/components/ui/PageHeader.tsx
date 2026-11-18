@@ -20,6 +20,7 @@ export function PageHeader({
   description,
   actions,
   back,
+  children,
 }: {
   title: ReactNode;
   /** Small line above the title — a date, a parent section. */
@@ -27,8 +28,11 @@ export function PageHeader({
   description?: ReactNode;
   /** Buttons for this page, right-aligned on wide screens, below on phones. */
   actions?: ReactNode;
-  /** `true` goes back in history; a string links to that path. */
-  back?: boolean | string;
+  /** `true` goes back in history; a string links to that path; a function
+   *  handles it (a multi-step flow stepping back a step). */
+  back?: boolean | string | (() => void);
+  /** Rendered under the title row — a step rail, a filter. */
+  children?: ReactNode;
 }) {
   const router = useRouter();
 
@@ -37,7 +41,9 @@ export function PageHeader({
       {back && (
         <button
           type="button"
-          onClick={() => (typeof back === 'string' ? router.push(back) : router.back())}
+          onClick={() =>
+            typeof back === 'function' ? back() : typeof back === 'string' ? router.push(back) : router.back()
+          }
           className="tap-control -ml-2 mb-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 text-sm text-surface-500 transition-colors hover:text-surface-50 dark:text-surface-600 dark:hover:text-white"
         >
           <ArrowLeftIcon className="h-4 w-4" />
@@ -60,6 +66,7 @@ export function PageHeader({
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
+      {children && <div className="mt-4">{children}</div>}
     </header>
   );
 }

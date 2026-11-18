@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
-import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG } from '@/types/dashboard-config';
+import { DashboardConfig, DEFAULT_DASHBOARD_CONFIG, withDefaultTiles } from '@/types/dashboard-config';
 import { toast } from 'react-hot-toast';
 
 /**
@@ -23,7 +23,9 @@ export const useDashboardConfig = () => {
         throw new Error('Failed to fetch dashboard configuration');
       }
       
-      return response.json();
+      // Merged here too: a config persisted in the offline cache before a tile
+      // existed would otherwise hide it until the next network fetch.
+      return withDefaultTiles(await response.json());
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -47,10 +49,10 @@ export const useDashboardConfig = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboardConfig });
-      toast.success('Dashboard settings saved!');
+      toast.success('Home screen saved');
     },
     onError: (error) => {
-      toast.error('Failed to save dashboard settings');
+      toast.error("Couldn't save your home screen");
       console.error('Dashboard config save error:', error);
     },
   });

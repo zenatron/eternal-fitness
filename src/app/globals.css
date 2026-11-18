@@ -365,8 +365,22 @@
     @apply bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat pr-10;
   }
 
+  /* One card per group of fields. Every form uses this, at this padding —
+     they had drifted to five different paddings between p-4 and p-8. */
   .form-section {
-    @apply bg-white dark:bg-surface-100 rounded-xl p-5 border border-black/[0.08] dark:border-white/[0.06];
+    @apply bg-white dark:bg-surface-100 rounded-xl p-4 sm:p-5 border border-black/[0.08] dark:border-white/[0.06];
+  }
+
+  /* Invalid fields are styled from aria-invalid, so marking a field invalid
+     for screen readers and colouring it red are one act, not two that can
+     drift apart. */
+  .form-input[aria-invalid='true'],
+  .form-select[aria-invalid='true'] {
+    @apply border-danger-400 focus:border-danger-500 focus:ring-danger-500/10 dark:border-danger-500/60;
+  }
+
+  .form-field-error {
+    @apply mt-1 text-xs text-danger-600 dark:text-danger-400;
   }
 
   .form-error {
@@ -445,6 +459,44 @@
 
   .stat-value {
     @apply font-display text-2xl font-semibold leading-none text-surface-50 dark:text-white tabular;
+  }
+
+  /*
+   * The type rule the whole app follows:
+   *
+   *   Oswald (font-display) is for figures — a weight, a rep count, XP, a
+   *   streak, a rank — and for the page title. It is what you lifted.
+   *   Manrope is for everything you read: exercise names, people, labels.
+   *
+   * Before this was written down, Oswald turned up on exercise names in one
+   * list, on people's names on the leaderboard and on a template name in the
+   * recovery card, while the same names elsewhere were Manrope — so the same
+   * thing looked different depending on which screen you were on.
+   */
+  .figure {
+    @apply font-display font-semibold tabular text-surface-50 dark:text-white;
+  }
+
+  /* Rows inside a card: one hairline between them, none at the ends. */
+  .row-list {
+    @apply divide-y divide-black/[0.06] dark:divide-white/[0.06];
+  }
+
+  /* Small neutral tag ("Est. 1RM", "Bronze", "You"). Never filled with the
+     accent — a solid orange chip on every row made each row shout. */
+  .tag {
+    @apply inline-flex items-center rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[11px] font-medium leading-none text-surface-400 dark:bg-white/[0.07] dark:text-surface-800;
+  }
+
+  /* Filter / sort / view chips. Selection is carried by aria-pressed or
+     aria-checked so the styling and the accessibility state cannot disagree. */
+  .chip {
+    @apply tap-control inline-flex min-h-[36px] items-center gap-1 rounded-full border border-black/10 px-3.5 text-xs font-medium text-surface-500 transition-colors hover:text-surface-50 dark:border-white/10 dark:text-surface-700 dark:hover:text-white;
+  }
+
+  .chip[aria-pressed='true'],
+  .chip[aria-checked='true'] {
+    @apply border-transparent bg-surface-50 text-white dark:bg-white dark:text-surface-0;
   }
 
   /* Page transition classes */

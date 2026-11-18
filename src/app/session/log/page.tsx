@@ -1,16 +1,15 @@
 'use client';
 
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  ArrowLeftIcon,
-  CalendarDaysIcon,
-  ClockIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   TrashIcon,
-  DocumentTextIcon,
   ChevronRightIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
@@ -29,7 +28,7 @@ import { formatVolume } from '@/utils/formatters';
 import { formatSessionDateTime } from '@/utils/relativeTime';
 import { performedSetsVolume } from '@/lib/volume';
 import { WorkoutTemplate } from '@/types/workout';
-import { springSnappy, springGentle } from '@/lib/motion';
+import { springSnappy } from '@/lib/motion';
 
 /**
  * Log a workout that already happened.
@@ -352,70 +351,41 @@ export default function LogPastWorkoutPage() {
   return (
     <div className="px-4 pb-16 sm:px-6">
       <div className="max-w-3xl mx-auto">
-        <motion.div
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 16, scale: 0.98 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, y: 0, scale: 1 }}
-          transition={{ ...springGentle, delay: 0.05 }}
-          className="mb-6"
-        >
-          <div className="forge-card overflow-hidden">
-            <div className="flex items-center gap-3 px-5 pb-2 pt-5 sm:px-6">
-              <button
-                onClick={goBack}
-                aria-label="Go back"
-                className="touch-target tap-control -ml-2 flex items-center justify-center rounded-lg text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </button>
-              <div className="min-w-0">
-                <h1 className="font-display text-2xl font-semibold tracking-tight text-surface-50 dark:text-white">
-                  Log a past workout
-                </h1>
-                <p className="text-sm text-surface-500 dark:text-surface-600">{current.hint}</p>
-              </div>
-            </div>
-
-            {/* Step rail. Completed steps are clickable so a wrong template is one
-                tap to fix rather than a full restart. */}
-            <div className="flex items-center gap-2 border-b border-black/10 px-6 py-4 dark:border-surface-300 sm:px-8">
-              {STEPS.map(({ id, label }, i) => (
-                <div key={id} className="flex flex-1 items-center gap-2">
-                  <button
-                    onClick={() => i < stepIndex && setStep(id)}
-                    disabled={i > stepIndex}
-                    className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+        <PageHeader back={goBack} title="Log a past workout" description={current.hint}>
+          {/* Step rail: three segments under the title, the same rule-and-label
+              shape as everything else on the page. Finished steps stay
+              tappable, so a wrong template is one tap to fix, not a restart. */}
+          <ol className="grid grid-cols-3 gap-2" aria-label="Steps">
+            {STEPS.map(({ id, label }, i) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => i < stepIndex && setStep(id)}
+                  disabled={i > stepIndex}
+                  aria-current={i === stepIndex ? 'step' : undefined}
+                  className="tap-control group block w-full text-left disabled:cursor-default"
+                >
+                  <span
+                    className={`block h-1 rounded-full transition-colors ${
+                      i <= stepIndex ? 'bg-accent-500' : 'bg-black/10 dark:bg-white/10'
+                    }`}
+                  />
+                  <span
+                    className={`mt-1.5 block text-xs font-medium ${
                       i === stepIndex
-                        ? 'text-accent-600 dark:text-accent-400'
+                        ? 'text-surface-50 dark:text-white'
                         : i < stepIndex
-                          ? 'cursor-pointer text-success-600 hover:text-success-500 dark:text-success-400'
-                          : 'text-surface-600'
+                          ? 'text-surface-500 group-hover:text-surface-50 dark:text-surface-600 dark:group-hover:text-white'
+                          : 'text-surface-600 dark:text-surface-500'
                     }`}
                   >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        i === stepIndex
-                          ? 'bg-accent-500 text-white'
-                          : i < stepIndex
-                            ? 'bg-success-500 text-white'
-                            : 'bg-surface-900 text-surface-500 dark:bg-surface-400'
-                      }`}
-                    >
-                      {i < stepIndex ? '✓' : i + 1}
-                    </span>
-                    <span className="hidden sm:inline">{label}</span>
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <div
-                      className={`h-px flex-1 ${
-                        i < stepIndex ? 'bg-success-400' : 'bg-surface-900 dark:bg-surface-400'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+                    {label}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </PageHeader>
 
         <AnimatePresence mode="wait">
           {step === 'choose' && (
@@ -431,7 +401,7 @@ export default function LogPastWorkoutPage() {
                 <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-surface-500" />
                 <input
                   type="text"
-                  placeholder="Search your templates..."
+                  placeholder="Search your templates"
                   value={templateSearch}
                   onChange={(e) => setTemplateSearch(e.target.value)}
                   aria-label="Search templates"
@@ -455,9 +425,10 @@ export default function LogPastWorkoutPage() {
                     ))}
                   </div>
                 ) : filteredTemplates.length === 0 ? (
-                  <div className="forge-card p-12 text-center text-surface-500 dark:text-surface-600">
-                    {templateSearch ? 'No templates match that search' : 'No templates yet'}
-                  </div>
+                  <EmptyState
+                    title={templateSearch ? 'No templates match' : 'No templates yet'}
+                    hint={templateSearch ? 'Try another name, or log it without a template.' : 'Log it without a template below.'}
+                  />
                 ) : (
                   filteredTemplates.map((template, i) => (
                     <motion.button
@@ -468,7 +439,7 @@ export default function LogPastWorkoutPage() {
                       transition={{ ...springSnappy, delay: Math.min(i * 0.04, 0.24) }}
                       whileHover={prefersReducedMotion ? {} : { scale: 1.01 }}
                       whileTap={prefersReducedMotion ? {} : { scale: 0.99 }}
-                      className="forge-card heat-glow w-full overflow-hidden text-left hover:border-accent-400/40 dark:hover:border-accent-500/40"
+                      className="forge-card w-full overflow-hidden text-left transition-colors hover:border-black/20 dark:hover:border-white/15"
                     >
                       <div className="p-4">
                         {/* Same summary block as the cards on /templates. */}
@@ -506,9 +477,9 @@ export default function LogPastWorkoutPage() {
             >
               {/* What is being logged, so the choice made on the previous step
                   stays visible rather than being something to remember. */}
-              <div className="forge-card flex items-center gap-3 p-4">
+              <div className="form-section flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-surface-50 dark:text-white">
+                  <p className="truncate text-sm font-semibold text-surface-50 dark:text-white">
                     {selectedTemplate?.name || adHocName || 'Ad-hoc workout'}
                   </p>
                   <p className="text-xs text-surface-500 dark:text-surface-600">
@@ -519,19 +490,19 @@ export default function LogPastWorkoutPage() {
                 </div>
                 <button
                   onClick={() => setStep('choose')}
-                  className="btn btn-tertiary shrink-0 !px-3 !py-1.5 text-xs"
+                  className="btn btn-tertiary min-h-[36px] shrink-0 !px-3 text-xs"
                 >
                   Change
                 </button>
               </div>
 
-              <div className="forge-card overflow-hidden">
-                <div className="space-y-6 p-6 sm:p-8">
+              <div className="form-section">
+                <div className="space-y-5">
                   {isAdHoc && (
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label htmlFor="adhoc-name" className="form-label">
-                          Workout Name
+                          Workout name
                         </label>
                         <input
                           id="adhoc-name"
@@ -539,12 +510,12 @@ export default function LogPastWorkoutPage() {
                           value={adHocName}
                           onChange={(e) => setAdHocName(e.target.value)}
                           className="form-input"
-                          placeholder="e.g. Morning Run"
+                          placeholder="Morning run"
                         />
                       </div>
                       <div>
                         <label htmlFor="adhoc-type" className="form-label">
-                          Workout Type
+                          Workout type
                         </label>
                         <select
                           id="adhoc-type"
@@ -563,17 +534,14 @@ export default function LogPastWorkoutPage() {
                   )}
 
                   <div>
-                    <h2 className="mb-1 text-base font-semibold text-surface-50 dark:text-white">
-                      When and how long
-                    </h2>
-                    <p className="mb-5 text-xs text-surface-500 dark:text-surface-600">
+                    <h2 className="section-title">When and how long</h2>
+                    <p className="mb-4 text-xs text-surface-500 dark:text-surface-600">
                       Defaults to right now — change it if you are catching up on an earlier session.
                     </p>
 
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label htmlFor="completed-at" className="form-label">
-                          <CalendarDaysIcon className="mr-1.5 inline h-3.5 w-3.5" />
                           Finished
                         </label>
                         <input
@@ -587,7 +555,6 @@ export default function LogPastWorkoutPage() {
                       </div>
                       <div>
                         <label htmlFor="duration" className="form-label">
-                          <ClockIcon className="mr-1.5 inline h-3.5 w-3.5" />
                           Duration
                         </label>
                         <DurationInput id="duration" value={duration} onChange={setDuration} />
@@ -599,11 +566,8 @@ export default function LogPastWorkoutPage() {
                               key={mins}
                               type="button"
                               onClick={() => setDuration(mins * 60)}
-                              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                                duration === mins * 60
-                                  ? 'bg-accent-500 text-white'
-                                  : 'bg-surface-900 text-surface-500 hover:bg-accent-100 hover:text-accent-700 dark:bg-surface-200 dark:text-surface-600 dark:hover:bg-accent-900/30 dark:hover:text-accent-300'
-                              }`}
+                              aria-pressed={duration === mins * 60}
+                              className="chip"
                             >
                               {mins}m
                             </button>
@@ -615,8 +579,7 @@ export default function LogPastWorkoutPage() {
 
                   <div>
                     <label htmlFor="notes" className="form-label">
-                      <DocumentTextIcon className="mr-1.5 inline h-3.5 w-3.5" />
-                      Notes <span className="font-normal normal-case">(optional)</span>
+                      Notes <span className="text-surface-600 dark:text-surface-500">(optional)</span>
                     </label>
                     <textarea
                       id="notes"
@@ -628,16 +591,16 @@ export default function LogPastWorkoutPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-black/10 pt-5 dark:border-surface-300">
+                  <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]">
                     <p className="text-xs text-surface-500 dark:text-surface-600">
                       {duration ? formatDurationHuman(duration) : 'Enter a duration to continue'}
                     </p>
                     <button
                       onClick={() => setStep('performance')}
                       disabled={!duration || duration <= 0}
-                      className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      className="btn btn-primary min-h-[44px]"
                     >
-                      Next: Performance
+                      Next: performance
                     </button>
                   </div>
                 </div>
@@ -654,8 +617,8 @@ export default function LogPastWorkoutPage() {
               transition={springSnappy}
               className="space-y-4"
             >
-              <div className="forge-card overflow-hidden">
-                <div className="space-y-4 p-4 sm:p-6">
+              <div className="form-section">
+                <div className="space-y-3">
                   {exercises.map((exercise) => {
                     const isExpanded = expandedExercise === exercise.id;
                     const isCardio = exercise.exerciseType === 'cardio';
@@ -683,7 +646,7 @@ export default function LogPastWorkoutPage() {
                               }`}
                             />
                             <span className="min-w-0">
-                              <span className="block truncate font-display text-sm font-bold tracking-wide text-surface-50 dark:text-white">
+                              <span className="block truncate text-sm font-medium text-surface-50 dark:text-white">
                                 {exercise.name}
                               </span>
                               <span className="mt-0.5 flex items-center gap-1.5 text-xs text-surface-500 dark:text-surface-600">
@@ -695,9 +658,7 @@ export default function LogPastWorkoutPage() {
                                   </>
                                 )}
                                 {isCardio && (
-                                  <span className="rounded bg-info-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-info-600 dark:bg-info-900/30 dark:text-info-400">
-                                    cardio
-                                  </span>
+                                  <span className="tag">Cardio</span>
                                 )}
                               </span>
                             </span>
@@ -727,17 +688,14 @@ export default function LogPastWorkoutPage() {
                                     className={`rounded-xl border p-3 transition-colors ${
                                       set.completed
                                         ? 'border-success-200 bg-success-50/50 dark:border-success-800/40 dark:bg-success-900/10'
-                                        : 'border-surface-200 bg-surface-950/50 dark:border-surface-400 dark:bg-surface-200/20'
+                                        : 'border-black/10 bg-surface-950/50 dark:border-surface-400 dark:bg-surface-200/20'
                                     }`}
                                   >
                                     <div className="mb-2.5 flex items-center gap-2">
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-100 font-display text-sm font-bold tabular text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
-                                        {setIdx + 1}
+                                      <span className="min-w-0 flex-1 text-sm font-medium text-surface-50 dark:text-white">
+                                        Set <span className="figure">{setIdx + 1}</span>
                                       </span>
-                                      <span className="min-w-0 flex-1 text-xs uppercase tracking-wider text-surface-500 dark:text-surface-600">
-                                        Set {setIdx + 1}
-                                      </span>
-                                      <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-surface-500">
+                                      <label className="flex min-h-[44px] cursor-pointer select-none items-center gap-2 px-1 text-sm text-surface-500 dark:text-surface-700">
                                         <input
                                           type="checkbox"
                                           checked={set.completed}
@@ -746,17 +704,15 @@ export default function LogPastWorkoutPage() {
                                               completed: e.target.checked,
                                             })
                                           }
-                                          className="h-4 w-4 rounded border-black/10 text-accent-500 accent-accent-500 focus:ring-accent-500"
+                                          className="h-5 w-5 accent-accent-500"
                                         />
-                                        <span className="font-display text-[10px] font-semibold uppercase tracking-wider">
-                                          Done
-                                        </span>
+                                        Done
                                       </label>
                                       <button
                                         onClick={() => removeSet(exercise.id, set.id)}
                                         disabled={exercise.sets.length <= 1}
                                         aria-label={`Remove set ${setIdx + 1}`}
-                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-danger-600 transition-colors hover:bg-danger-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-danger-400 dark:hover:bg-danger-900/30 tap-control"
+                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-danger-500/10 hover:text-danger-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-surface-700 dark:hover:text-danger-400 tap-control"
                                       >
                                         <TrashIcon className="h-4 w-4" />
                                       </button>
@@ -822,10 +778,10 @@ export default function LogPastWorkoutPage() {
 
                                 <button
                                   onClick={() => addSet(exercise.id)}
-                                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-accent-100 text-xs font-semibold text-accent-700 transition-colors hover:bg-accent-200 dark:bg-accent-900/30 dark:text-accent-400 dark:hover:bg-accent-900/50 tap-control"
+                                  className="btn btn-tertiary min-h-[44px] w-full border-dashed tap-control"
                                 >
                                   <PlusIcon className="h-4 w-4" />
-                                  Add Set
+                                  Add set
                                 </button>
                               </div>
                             </motion.div>
@@ -838,7 +794,7 @@ export default function LogPastWorkoutPage() {
                   {/* Same picker as the template builder — same search, same
                       ranking, same rows. */}
                   {showExercisePicker ? (
-                    <div className="rounded-xl border border-black/10 p-4 dark:border-surface-300">
+                    <div className="rounded-xl border border-black/10 p-4 dark:border-white/10">
                       <ExercisePicker
                         onSelect={addExercise}
                         layout="list"
@@ -847,7 +803,7 @@ export default function LogPastWorkoutPage() {
                       />
                       <button
                         onClick={() => setShowExercisePicker(false)}
-                        className="btn btn-tertiary mt-3 w-full text-xs"
+                        className="btn btn-tertiary mt-3 min-h-[44px] w-full"
                       >
                         Cancel
                       </button>
@@ -855,10 +811,10 @@ export default function LogPastWorkoutPage() {
                   ) : (
                     <button
                       onClick={() => setShowExercisePicker(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/10 py-4 text-sm font-semibold text-surface-500 transition-colors hover:border-accent-400/60 hover:text-accent-600 dark:border-surface-400 dark:text-surface-600 dark:hover:border-accent-500/40 dark:hover:text-accent-400"
+                      className="btn btn-tertiary min-h-[48px] w-full border-dashed"
                     >
                       <PlusIcon className="h-4 w-4" />
-                      Add Exercise
+                      Add exercise
                     </button>
                   )}
 
@@ -873,45 +829,35 @@ export default function LogPastWorkoutPage() {
               {/* Sticky summary + submit: on a long exercise list the action was
                   scrolled off the bottom of the page. */}
               <div className="forge-card sticky bottom-4 p-4">
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                  <span className="text-surface-500 dark:text-surface-600">
-                    Volume{' '}
-                    <strong className="tabular text-surface-50 dark:text-white">
-                      {formatVolume(totalVolume, useMetric)}
-                    </strong>
-                  </span>
-                  <span className="text-surface-500 dark:text-surface-600">
-                    Exercises{' '}
-                    <strong className="tabular text-surface-50 dark:text-white">
-                      {exercises.length}
-                    </strong>
-                  </span>
-                  <span className="text-surface-500 dark:text-surface-600">
-                    Sets{' '}
-                    <strong className="tabular text-surface-50 dark:text-white">
-                      {completedSetCount}
-                    </strong>
-                  </span>
-                </div>
+                <dl className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Volume', value: formatVolume(totalVolume, useMetric) },
+                    { label: 'Exercises', value: exercises.length },
+                    { label: 'Sets done', value: completedSetCount },
+                  ].map((f) => (
+                    <div key={f.label}>
+                      <dt className="stat-label">{f.label}</dt>
+                      <dd className="figure mt-1 text-lg leading-none">{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
 
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <button onClick={() => setStep('details')} className="btn btn-tertiary">
+                  <button onClick={() => setStep('details')} className="btn btn-tertiary min-h-[44px]">
                     Back
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={logWorkout.isPending || exercises.length === 0}
-                    className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="btn btn-primary min-h-[44px]"
                   >
-                    {logWorkout.isPending ? 'Logging...' : 'Log Workout'}
+                    {logWorkout.isPending ? 'Logging…' : 'Log workout'}
                   </button>
                 </div>
 
                 {logWorkout.isError && (
                   <div className="form-error mt-3">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-danger-500">
-                      <span className="text-xs font-bold text-white">!</span>
-                    </div>
+                    <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
                     {logWorkout.error?.message || 'Failed to log workout'}
                   </div>
                 )}

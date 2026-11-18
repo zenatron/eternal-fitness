@@ -41,10 +41,10 @@ export function AccentPicker() {
             onClick={() => setAccent(theme.id)}
             whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className={`tap-control flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors ${
+            className={`tap-control flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
               isActive
                 ? 'border-accent-500 bg-accent-50 dark:bg-accent-900/20'
-                : 'border-surface-200 hover:border-surface-300 dark:border-surface-300 dark:hover:border-surface-400'
+                : 'border-black/10 hover:border-black/20 dark:border-surface-300 dark:hover:border-surface-400'
             }`}
           >
             {/*

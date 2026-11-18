@@ -1,5 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Spinner } from '@/components/ui/Spinner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,7 +12,7 @@ import {
   PencilIcon,
   TrashIcon,
   StarIcon as StarOutline,
-  PlayCircleIcon,
+  PlayIcon,
   } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { toast } from 'react-hot-toast';
@@ -72,8 +76,7 @@ function ExerciseDisplay({ exercise, profile }: ExerciseDisplayProps) {
             className="rounded-md bg-black/[0.04] px-2 py-1 text-xs text-surface-100 dark:bg-white/[0.05] dark:text-surface-900 tabular"
             title={`Set ${index + 1}${set.type && set.type !== 'standard' ? ` (${set.type})` : ''}`}
           >
-            {formatSetDisplay(set, profile?.useMetric)}
-            {exercise.perSide && set.targetWeight ? '/side' : ''}
+            {formatSetDisplay(set, profile?.useMetric, exercise.perSide)}
             {set.type && set.type !== 'standard' && (
               <span className="ml-1 text-surface-500">{set.type}</span>
             )}
@@ -122,7 +125,7 @@ export default function TemplateDetailPage({
       router.push('/templates');
     } catch (error) {
       console.error('Error deleting template:', error);
-      toast.error('Failed to delete template.');
+      toast.error("Couldn't delete the template");
     }
   };
 
@@ -130,10 +133,10 @@ export default function TemplateDetailPage({
 
   if (isLoading) {
     return (
-      <div className="w-full h-full py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent-500 border-t-transparent"></div>
+      <div className="px-4 pb-16 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex min-h-page items-center justify-center" role="status" aria-label="Loading">
+            <Spinner className="h-8 w-8 text-accent-500" />
           </div>
         </div>
       </div>
@@ -142,10 +145,18 @@ export default function TemplateDetailPage({
 
   if (templateError || !template) {
     return (
-      <div className="w-full h-full py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-500/30 text-danger-700 dark:text-danger-400 rounded-lg">
-            {templateError ? String(templateError) : 'Template not found'}
+      <div className="px-4 pb-16 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <div className="pt-8">
+            {templateError ? (
+              <ErrorState what="this workout" />
+            ) : (
+              <EmptyState
+                title="This workout no longer exists"
+                hint="It may have been deleted. Workouts you did with it are still in your history."
+                action={<Link href="/templates" className="btn btn-tertiary">All workouts</Link>}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -157,9 +168,9 @@ export default function TemplateDetailPage({
       initial={prefersReducedMotion ? {} : { opacity: 0 }}
       animate={prefersReducedMotion ? {} : { opacity: 1 }}
       transition={springGentle}
-      className="w-full py-8 px-4 app-bg"
+      className="px-4 pb-16 sm:px-6"
     >
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-3xl">
         {/* Header.
             Was a blue-to-purple gradient with the title, four icon buttons and
             six stat tiles competing for one row — at phone width the title
@@ -181,7 +192,7 @@ export default function TemplateDetailPage({
                 onClick={() => router.push(`/session/active/${templateId}`)}
                 className="btn btn-primary tap-control min-h-[44px] flex-1 px-6 sm:flex-none"
               >
-                <PlayCircleIcon className="h-5 w-5" />
+                <PlayIcon className="h-4 w-4" />
                 Start
               </button>
               <button
@@ -213,16 +224,16 @@ export default function TemplateDetailPage({
           }
         />
 
-        <dl className="forge-card mb-4 grid grid-cols-4 gap-px overflow-hidden bg-black/[0.06] dark:bg-white/[0.06]">
+        <dl className="forge-card mb-4 grid grid-cols-4 divide-x divide-black/[0.06] overflow-hidden dark:divide-white/[0.06]">
           {[
             { label: 'Exercises', value: exercises.length },
             { label: 'Sets', value: getTotalSetsCount(template) },
             { label: 'Volume', value: template.totalVolume > 0 ? formatVolume(template.totalVolume, profile?.useMetric) : '—' },
             { label: 'Time', value: `~${template.estimatedDuration}m` },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white px-3 py-3 dark:bg-surface-100">
+            <div key={stat.label} className="px-3 py-3">
               <dt className="stat-label">{stat.label}</dt>
-              <dd className="mt-1 font-display text-base font-semibold text-surface-50 dark:text-white tabular">{stat.value}</dd>
+              <dd className="figure mt-1.5 text-base leading-none">{stat.value}</dd>
             </div>
           ))}
         </dl>

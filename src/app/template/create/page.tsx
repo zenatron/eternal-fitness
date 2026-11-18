@@ -12,7 +12,7 @@ export default function CreateTemplatePage() {
 
   return (
     <div className="px-4 pb-16 sm:px-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="mx-auto max-w-3xl">
         {/* Enhanced Header */}
         <PageHeader back title="New template" description="Pick exercises, set your targets, save it once." />
 

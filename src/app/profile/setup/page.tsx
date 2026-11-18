@@ -1,5 +1,7 @@
 'use client';
 
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -7,6 +9,7 @@ import {
   UserCircleIcon,
   ArrowRightStartOnRectangleIcon,
   ScaleIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 import { signOut } from 'next-auth/react';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
@@ -131,23 +134,22 @@ export default function ProfileSetup() {
   };
 
   return (
-    <div className="py-8 px-4">
+    <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
       <motion.div
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
         transition={springGentle}
-        className="w-full max-w-xl mx-auto"
+        className="mx-auto w-full max-w-2xl"
       >
-        <div className="forge-card overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-black/[0.06] px-5 py-6 dark:border-white/[0.06] sm:px-8">
-            <h1 className="font-display text-[28px] font-semibold tracking-tight text-surface-50 dark:text-white">Welcome</h1>
-            <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
-              A few details so weights, recovery and goals make sense. You can change them later.
-            </p>
-          </div>
+        <div>
+          {/* Same header and section cards as Settings, which edits the same
+              fields — this was a card holding a card per section. */}
+          <PageHeader
+            title="Welcome"
+            description="A few details so weights, recovery and goals make sense. You can change them later."
+          />
 
-          <form onSubmit={handleSubmit} className="space-y-8 p-5 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error */}
             {error && (
               <motion.div
@@ -160,9 +162,7 @@ export default function ProfileSetup() {
                 }
                 transition={shakeError ? { duration: 0.5 } : springSnappy}
               >
-                <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
-                  <span className="text-white text-xs font-bold">!</span>
-                </div>
+                <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {error}
               </motion.div>
             )}
@@ -175,25 +175,25 @@ export default function ProfileSetup() {
             >
               {/* Personal Info */}
               <motion.div variants={formItem} className="form-section">
-                <SectionHeading icon={UserCircleIcon} title="Personal Information">
+                <SectionHeading icon={UserCircleIcon} title="Personal information">
                   Shown on your profile and the leaderboard.
                 </SectionHeading>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="name" className="form-label">Full Name</label>
+                    <label htmlFor="name" className="form-label">Full name</label>
                     <input
                       id="name"
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors['name'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['name']}
+                      className="form-input" aria-invalid={!!fieldErrors['name']}
                       placeholder="Your full name"
                       autoComplete="name"
                       required
                     />
                       {fieldErrors['name'] && (
-                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter your name</p>
+                        <p className="form-field-error" role="alert">Please enter your name</p>
                       )}
                   </div>
                   <div>
@@ -204,14 +204,14 @@ export default function ProfileSetup() {
                       name="age"
                       value={formData.age}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors['age'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['age']}
+                      className="form-input" aria-invalid={!!fieldErrors['age']}
                       placeholder="Your age"
                       min={13}
                       max={120}
                       required
                     />
                       {fieldErrors['age'] && (
-                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid age (13–120)</p>
+                        <p className="form-field-error" role="alert">Please enter a valid age (13–120)</p>
                       )}
                   </div>
                   <div className="sm:col-span-2">
@@ -221,7 +221,7 @@ export default function ProfileSetup() {
                       name="gender"
                       value={formData.gender}
                       onChange={handleChange}
-                      className={`form-select ${fieldErrors['gender'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['gender']}
+                      className="form-select" aria-invalid={!!fieldErrors['gender']}
                       required
                     >
                       <option value="">Select gender</option>
@@ -229,6 +229,9 @@ export default function ProfileSetup() {
                       <option value="female">Female</option>
                       <option value="other">Other</option>
                     </select>
+                    {fieldErrors['gender'] && (
+                      <p className="form-field-error" role="alert">Please select your gender</p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -238,7 +241,7 @@ export default function ProfileSetup() {
                   thing that looked like the choice was not the thing you could
                   press. Same control as the profile editor now. */}
               <motion.div variants={formItem} className="form-section">
-                <SectionHeading icon={ScaleIcon} title="Measurement System">
+                <SectionHeading icon={ArrowsRightLeftIcon} title="Units">
                   Pick one — anything you have already entered is converted.
                 </SectionHeading>
 
@@ -251,9 +254,6 @@ export default function ProfileSetup() {
                     { value: true, label: 'Metric', hint: 'kg, cm' },
                   ]}
                 />
-                      {fieldErrors['gender'] && (
-                        <p className="mt-1 text-xs text-danger-500" role="alert">Please select your gender</p>
-                      )}
               </motion.div>
 
               {/* Measurements */}
@@ -261,7 +261,7 @@ export default function ProfileSetup() {
                 <SectionHeading icon={ScaleIcon} title="Measurements">
                   Used for your weight goal and body-composition estimates.
                 </SectionHeading>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="height" className="form-label">
                       Height ({formData.useMetric ? 'cm' : 'inches'})
@@ -272,13 +272,13 @@ export default function ProfileSetup() {
                       name="height"
                       value={formData.height}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors['height'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['height']}
-                      placeholder={formData.useMetric ? 'e.g. 175' : 'e.g. 69'}
+                      className="form-input" aria-invalid={!!fieldErrors['height']}
+                      placeholder={formData.useMetric ? '175' : '69'}
                       step="0.1"
                       required
                     />
                       {fieldErrors['height'] && (
-                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid height</p>
+                        <p className="form-field-error" role="alert">Please enter a valid height</p>
                       )}
                   </div>
                   <div>
@@ -291,13 +291,13 @@ export default function ProfileSetup() {
                       name="weight"
                       value={formData.weight}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors['weight'] ? '!border-danger-400 focus:!border-danger-500' : ''}`} aria-invalid={!!fieldErrors['weight']}
-                      placeholder={formData.useMetric ? 'e.g. 70' : 'e.g. 154'}
+                      className="form-input" aria-invalid={!!fieldErrors['weight']}
+                      placeholder={formData.useMetric ? '70' : '154'}
                       step="0.1"
                       required
                     />
                       {fieldErrors['weight'] && (
-                        <p className="mt-1 text-xs text-danger-500" role="alert">Please enter a valid weight</p>
+                        <p className="form-field-error" role="alert">Please enter a valid weight</p>
                       )}
                   </div>
                 </div>
@@ -305,35 +305,29 @@ export default function ProfileSetup() {
             </motion.div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-black/10 dark:border-surface-300">
-              <motion.button
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="flex-1 px-6 py-3 bg-black/[0.04] dark:bg-surface-100 text-surface-500 dark:text-surface-600 rounded-xl hover:bg-black/[0.07] dark:hover:bg-surface-200 transition-colors inline-flex items-center justify-center gap-2 font-medium text-sm"
-                whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-                transition={springSnappy}
+                className="btn btn-tertiary min-h-[48px] flex-1"
               >
-                <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
-                Sign Out
-              </motion.button>
-              <motion.button
+                <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+                Sign out
+              </button>
+              <button
                 type="submit"
-                className="btn btn-primary flex-[2] !py-3 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                className="btn btn-primary min-h-[48px] flex-[2]"
                 disabled={updateProfileMutation.isPending}
-                whileHover={prefersReducedMotion || updateProfileMutation.isPending ? {} : { scale: 1.02 }}
-                whileTap={prefersReducedMotion || updateProfileMutation.isPending ? {} : { scale: 0.98 }}
-                transition={springSnappy}
               >
                 {updateProfileMutation.isPending ? (
                   <>
                     <Spinner className="h-4 w-4" />
-                    Saving...
+                    Saving…
                   </>
                 ) : (
-                  'Complete Setup'
+                  'Finish setup'
                 )}
-              </motion.button>
+              </button>
             </div>
           </form>
         </div>

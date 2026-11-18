@@ -5,7 +5,6 @@ import {
   EyeIcon,
   EyeSlashIcon,
   Bars3Icon,
-  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
@@ -86,14 +85,9 @@ export default function DashboardSettingsModal({
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title="Dashboard Settings"
+      title="Customize home"
       subtitle="Drag to reorder tiles and toggle visibility"
       maxWidth="max-w-lg"
-      icon={
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 border border-accent-500/25">
-          <Squares2X2Icon className="h-5 w-5 text-accent-500" />
-        </div>
-      }
       footer={
         <div className="flex items-center justify-between gap-3">
           <button

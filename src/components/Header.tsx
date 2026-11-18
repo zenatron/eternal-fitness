@@ -30,6 +30,7 @@ const navLinks = [
 /** Destinations the bottom nav has no room for, offered in the phone menu. */
 const moreLinks = [
   { href: '/history', label: 'History' },
+  { href: '/progress?view=strength', label: 'Strength trends' },
   { href: '/personal-records', label: 'Personal records' },
   { href: '/recovery', label: 'Recovery' },
   { href: '/leaderboard', label: 'Leaderboard' },

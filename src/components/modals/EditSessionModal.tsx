@@ -1,12 +1,9 @@
 'use client';
 
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 import { useState, useEffect, useMemo } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
 import {
-  PencilSquareIcon,
-  ClockIcon,
-  CalendarDaysIcon,
-  DocumentTextIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
@@ -190,86 +187,70 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit Workout"
+      title="Edit workout"
       subtitle={session.templateName}
       maxWidth="max-w-2xl"
-      icon={
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-100 dark:bg-accent-900/30">
-          <PencilSquareIcon className="h-5 w-5 text-accent-500" />
-        </div>
-      }
       footer={
         <div className="space-y-3">
           {updateSession.isError && (
             <div className="form-error">
-              <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
-                <span className="text-white text-xs font-bold">!</span>
-              </div>
+              <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
               {updateSession.error?.message || 'Failed to save changes'}
             </div>
           )}
           <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="btn btn-tertiary">
+            <button onClick={onClose} className="btn btn-tertiary min-h-[44px]">
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={updateSession.isPending}
-              className="btn btn-primary disabled:opacity-50"
+              className="btn btn-primary min-h-[44px]"
             >
-              {updateSession.isPending ? 'Saving...' : 'Save Changes'}
+              {updateSession.isPending ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </div>
       }
     >
-      {/* Duration + Date */}
-      <div className="form-section mb-5">
-        <h2 className="text-sm font-semibold text-surface-600 dark:text-surface-500 uppercase tracking-wider mb-4">
-          Session Info
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Same fields, labels and order as step 2 of "Log a past workout". */}
+      <div className="form-section mb-4 space-y-4">
+        <h2 className="section-title">When and how long</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="form-label">
-              <ClockIcon className="w-3.5 h-3.5 inline mr-1.5" />
-              Duration
-            </label>
-            <DurationInput value={duration} onChange={(v) => setDuration(v ?? 0)} className="!py-2" />
-          </div>
-          <div>
-            <label className="form-label">
-              <CalendarDaysIcon className="w-3.5 h-3.5 inline mr-1.5" />
-              Completed At
-            </label>
+            <label htmlFor="edit-completed-at" className="form-label">Finished</label>
             <input
+              id="edit-completed-at"
               type="datetime-local"
               value={completedAt}
               onChange={(e) => setCompletedAt(e.target.value)}
-              className="form-input !py-2"
+              className="form-input"
             />
           </div>
+          <div>
+            <label htmlFor="edit-duration" className="form-label">Duration</label>
+            <DurationInput id="edit-duration" value={duration} onChange={(v) => setDuration(v ?? 0)} />
+          </div>
         </div>
-      </div>
-
-      {/* Notes */}
-      <div className="mb-5">
-        <label className="form-label">
-          <DocumentTextIcon className="w-3.5 h-3.5 inline mr-1.5" />
-          Notes
-        </label>
-        <textarea
-          value={notes}
+        <div>
+          <label htmlFor="edit-notes" className="form-label">
+            Notes <span className="text-surface-600 dark:text-surface-500">(optional)</span>
+          </label>
+          <textarea
+            id="edit-notes"
+            value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           className="form-input resize-none"
-          placeholder="Workout notes..."
+          placeholder="How did it go?"
         />
+        </div>
       </div>
 
       {/* Exercise Performance */}
       {exercises.length > 0 && (
-        <div className="mb-5">
-          <h3 className="form-label !mb-3">Performance Data</h3>
+        <div className="mb-4">
+          <h3 className="section-title mb-2">Performance</h3>
           <div className="space-y-2">
             {exercises.map((exercise) => {
               const isExpanded = expandedExercise === exercise.exerciseId;
@@ -287,7 +268,7 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                   >
                     <div className="text-left flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full ${isCardio ? 'bg-info-500' : 'bg-accent-500'}`} />
-                      <span className="text-sm font-display font-bold text-surface-50 dark:text-white tracking-wide">
+                      <span className="text-sm font-medium text-surface-50 dark:text-white">
                         {exercise.exerciseName}
                       </span>
                       <span className="text-xs text-surface-500 dark:text-surface-600">
@@ -319,12 +300,14 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                               className={`p-3 rounded-lg border transition-colors ${
                                 set.completed
                                   ? 'border-success-200 dark:border-success-800/40 bg-success-50/50 dark:bg-success-900/10'
-                                  : 'border-surface-200 dark:border-surface-400 bg-surface-950/50 dark:bg-surface-200/20'
+                                  : 'border-black/10 dark:border-surface-400 bg-surface-950/50 dark:bg-surface-200/20'
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="form-label !mb-0">Set {setIdx + 1}</span>
-                                <label className="flex items-center gap-1 text-xs text-surface-500 ml-auto cursor-pointer select-none">
+                                <span className="text-sm font-medium text-surface-50 dark:text-white">
+                                  Set <span className="figure">{setIdx + 1}</span>
+                                </span>
+                                <label className="ml-auto flex min-h-[44px] cursor-pointer select-none items-center gap-2 px-1 text-sm text-surface-500 dark:text-surface-700">
                                   <input
                                     type="checkbox"
                                     checked={set.completed}
@@ -336,9 +319,9 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
                                         ...(e.target.checked ? { skipped: false } : {}),
                                       })
                                     }
-                                    className="rounded border-black/10 text-accent-500 focus:ring-accent-500 w-3.5 h-3.5"
+                                    className="h-5 w-5 accent-accent-500"
                                   />
-                                  <span className="font-display uppercase tracking-wider text-[10px] font-semibold">Done</span>
+                                  Done
                                 </label>
                               </div>
 
@@ -421,14 +404,16 @@ export function EditSessionModal({ isOpen, onClose, session, useMetric }: EditSe
       )}
 
       {/* Summary */}
-      <div className="form-section flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <span className="text-surface-500 dark:text-surface-600">
-          Volume: <strong className="text-surface-50 dark:text-white">{formatVolume(totalVolume, useMetric)}</strong>
-        </span>
-        <span className="text-surface-500 dark:text-surface-600">
-          Duration: <strong className="text-surface-50 dark:text-white">{formatDurationHuman(duration)}</strong>
-        </span>
-      </div>
+      <dl className="form-section grid grid-cols-2 gap-3">
+        <div>
+          <dt className="stat-label">Volume</dt>
+          <dd className="figure mt-1 text-lg leading-none">{formatVolume(totalVolume, useMetric)}</dd>
+        </div>
+        <div>
+          <dt className="stat-label">Duration</dt>
+          <dd className="figure mt-1 text-lg leading-none">{formatDurationHuman(duration)}</dd>
+        </div>
+      </dl>
     </ModalShell>
   );
 }

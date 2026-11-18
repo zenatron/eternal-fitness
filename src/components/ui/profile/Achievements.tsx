@@ -30,7 +30,7 @@ interface AchievementsProps {
 /**
  * The few achievements nearest to unlocking, each with its progress.
  *
- * Was a gold gradient "Progress Overview" banner with a spinning percentage,
+ * Was a gold gradient "Progress overview" banner with a spinning percentage,
  * then each candidate in its own card with a gradient tier pill and a separate
  * "NN% Complete" line under its bar.
  */

@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
  * Favourite templates on the profile page.
  *
  * Previously rendered its own bespoke card — three-column stat blocks, a
- * different header, a "View Details" link instead of a start action — so the
+ * different header, a "View details" link instead of a start action — so the
  * same template looked completely different here and on /templates. It now uses
  * the shared TemplateCard in compact mode (no schedule/delete, which belong on
  * the templates page).

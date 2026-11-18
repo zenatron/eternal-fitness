@@ -6,7 +6,8 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { readAccentHue } from '@/utils/accentHue';
 import { ACHIEVEMENT_DEFINITIONS, TIER_COLORS, TIER_NAMES, TIER_POINTS, localizeAchievement } from '@/types/achievements';
 import { formatVolume } from '@/utils/formatters';
-import { formatPRValue, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
+import { TrophyIcon } from '@heroicons/react/24/outline';
+import { formatPRValue, PR_TYPE_LABELS } from '@/utils/prFormatting';
 import type { PRType } from '@/types/personalRecords';
 import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
 
@@ -193,13 +194,10 @@ function ScrollingXP({ target }: { target: number }) {
       transition={{ ...springBouncy, delay: 0.5 }}
       className="flex items-center justify-center gap-2 my-4"
     >
-      <span className="text-2xl">⭐</span>
-      <span className="text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-award-400 via-award-300 to-award-500 tabular-nums">
+      <span className="font-display text-5xl font-semibold leading-none text-award-600 tabular dark:text-award-400">
         +{display}
       </span>
-      <span className="text-lg font-display font-bold text-award-500 dark:text-award-400 uppercase tracking-wider">
-        XP
-      </span>
+      <span className="self-end pb-1 text-sm font-semibold text-award-700 dark:text-award-400">XP</span>
     </motion.div>
   );
 }
@@ -212,8 +210,8 @@ function HighlightPill({ label, value, delay }: { label: string; value: string; 
       transition={{ ...springBouncy, delay }}
       className="flex flex-col items-center px-5 py-3 rounded-2xl bg-surface-950 dark:bg-surface-200/60 backdrop-blur-sm border border-black/10 dark:border-surface-300/40"
     >
-      <span className="text-2xl font-display font-black text-surface-50 dark:text-white">{value}</span>
-      <span className="text-xs font-medium text-surface-600 dark:text-surface-600 uppercase tracking-wider mt-1">{label}</span>
+      <span className="figure text-2xl leading-none">{value}</span>
+      <span className="stat-label mt-1.5">{label}</span>
     </motion.div>
   );
 }
@@ -222,7 +220,6 @@ function RecordCard({ pr, formattedValue, delay }: { pr: { exerciseName: string;
   // Shared with the PR list views, so a new record type does not need adding
   // here as well.
   const typeLabel = PR_TYPE_LABELS[pr.type as PRType] ?? pr.type;
-  const icon = PR_TYPE_ICONS[pr.type as PRType] ?? '🏆';
 
   return (
     <motion.div
@@ -232,27 +229,21 @@ function RecordCard({ pr, formattedValue, delay }: { pr: { exerciseName: string;
       className="relative p-3 rounded-xl border-2 border-award-400/40 dark:border-award-500/30 bg-gradient-to-br from-award-50/80 to-award-100/60 dark:from-award-900/20 dark:to-award-900/10"
     >
       <div className="flex items-center gap-3">
-        <span className="text-xl">{icon}</span>
+        <TrophyIcon className="h-5 w-5 shrink-0 text-award-600 dark:text-award-400" aria-hidden="true" />
         <div className="flex-1 min-w-0">
-          <span className="font-display font-bold text-surface-50 dark:text-white text-sm tracking-wide">
+          <span className="block truncate text-sm font-medium text-surface-50 dark:text-white">
             {pr.exerciseName}
           </span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent-500 text-white">
-              {typeLabel}
-            </span>
-            <span className="text-xs font-semibold text-accent-600 dark:text-accent-400">
-              {formattedValue}
-            </span>
-          </div>
+          <span className="text-xs text-surface-500 dark:text-surface-600">{typeLabel}</span>
         </div>
+        <span className="figure shrink-0 text-base">{formattedValue}</span>
         <motion.span
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ ...springSnappy, delay: delay + 0.2 }}
-          className="text-xs font-bold text-award-600 dark:text-award-400 uppercase tracking-wider"
+          className="sr-only"
         >
-          NEW PR
+          New personal record
         </motion.span>
       </div>
     </motion.div>
@@ -272,7 +263,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
       className={`relative p-4 rounded-xl border-2 overflow-hidden ${
         isNew
           ? 'border-award-400/60 dark:border-award-500/50 bg-gradient-to-br from-award-50/80 to-award-100/60 dark:from-award-900/30 dark:to-award-900/20'
-          : 'border-surface-200 dark:border-surface-300/30 bg-surface-950/60 dark:bg-surface-200/30'
+          : 'border-black/10 dark:border-surface-300/30 bg-surface-950/60 dark:bg-surface-200/30'
       }`}
     >
       {isNew && (
@@ -286,7 +277,7 @@ function AchievementCard({ achievement, delay, isNew, useMetric }: { achievement
         <span className="text-2xl">{achievement.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-surface-50 dark:text-white text-sm tracking-wide">
+            <span className="text-sm font-medium text-surface-50 dark:text-white">
               {achievement.name}
             </span>
             <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gradient-to-r ${tierGradient} text-white`}>
@@ -469,11 +460,11 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                     initial={prefersReducedMotion ? {} : { scale: 0.5, opacity: 0 }}
                     animate={prefersReducedMotion ? {} : { scale: 1, opacity: 1 }}
                     transition={{ ...springBouncy, delay: 0.2 }}
-                    className="text-3xl sm:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-accent-500 via-accent-600 to-accent-700 tracking-wide uppercase"
+                    className="font-display text-3xl font-semibold tracking-tight text-surface-50 dark:text-white sm:text-4xl"
                   >
-                    Workout Complete!
+                    Workout complete
                   </DialogTitle>
-                  <p className="text-surface-600 dark:text-surface-500 text-sm mt-1 font-display tracking-wide">
+                  <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
                     {data.workoutName}
                   </p>
                 </motion.div>
@@ -501,17 +492,8 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                     className="space-y-2"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🏆</span>
-                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
-                        New Personal Records
-                      </h3>
-                      <motion.span
-                        animate={prefersReducedMotion ? {} : { scale: [1, 1.15, 1] }}
-                        transition={{ repeat: Infinity, duration: 1.5, delay: 0.5 }}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-accent-500 text-white rounded-full"
-                      >
-                        {data.newPRs.length} NEW
-                      </motion.span>
+                      <h3 className="section-title">New personal records</h3>
+                      <span className="tag">{data.newPRs.length}</span>
                     </div>
                     {formattedPRs.map((pr, i) => (
                       <RecordCard key={`${pr.exerciseName}-${pr.type}`} pr={pr} formattedValue={pr.formattedValue} delay={0.8 + i * 0.1} />
@@ -527,17 +509,8 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                     className="space-y-2"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🎉</span>
-                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
-                        New Achievements
-                      </h3>
-                      <motion.span
-                        animate={prefersReducedMotion ? {} : { scale: [1, 1.15, 1] }}
-                        transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }}
-                        className="px-2 py-0.5 text-[10px] font-bold bg-success-500 text-white rounded-full"
-                      >
-                        {newAchievements.length} NEW
-                      </motion.span>
+                      <h3 className="section-title">Achievements unlocked</h3>
+                      <span className="tag">{newAchievements.length}</span>
                     </div>
                     {newAchievements.map((a, i) => (
                       <AchievementCard key={a.id} achievement={a} delay={0.9 + i * 0.12} isNew useMetric={data.useMetric} />
@@ -553,10 +526,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                     className="space-y-3"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">📊</span>
-                      <h3 className="text-sm font-display font-bold text-surface-50 dark:text-white uppercase tracking-wider">
-                        Almost There
-                      </h3>
+                      <h3 className="section-title">Almost there</h3>
                     </div>
                     {closestAchievements.map((a, i) => (
                       <ProgressBar key={a.id} achievement={a} delay={1.3 + i * 0.1} />
@@ -574,7 +544,7 @@ export default function VictoryPopup({ data, isOpen, onContinue }: VictoryPopupP
                   animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
                   transition={{ delay: 1.5 }}
                   onClick={onContinue}
-                  className="tap-control w-full py-3.5 font-display font-bold text-white text-base uppercase tracking-widest rounded-2xl bg-gradient-to-r from-accent-700 to-accent-800 hover:from-accent-800 hover:to-accent-900 shadow-lg shadow-accent-900/25 transition-all active:scale-[0.98]"
+                  className="btn btn-primary tap-control min-h-[48px] w-full text-base"
                 >
                   Continue
                 </motion.button>

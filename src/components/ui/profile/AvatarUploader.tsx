@@ -81,7 +81,7 @@ export function AvatarUploader({
         credentials: 'same-origin',
       });
       if (!response.ok) {
-        toast.error('Could not remove the picture');
+        toast.error("Couldn't remove the picture");
         return;
       }
       await refresh();

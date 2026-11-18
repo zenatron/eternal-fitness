@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ModalShell } from '@/components/ui/ModalShell';
-import { TrophyIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { TrophyIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
-import { TIER_COLORS, TIER_NAMES, CATEGORY_NAMES, AchievementCategory, localizeAchievement } from '@/types/achievements';
-import { springSnappy, springBouncy, springGentle } from '@/lib/motion';
+import { TIER_NAMES, CATEGORY_NAMES, AchievementCategory, localizeAchievement } from '@/types/achievements';
+import { springSnappy } from '@/lib/motion';
 
 
 interface AchievementData {
@@ -76,187 +76,96 @@ export function AchievementsModal({
       onClose={onClose}
       title="Achievements"
       subtitle={`${unlockedCount} of ${totalCount} unlocked`}
-      maxWidth="max-w-5xl"
-      icon={
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-award-100 dark:bg-award-900/30">
-          <TrophyIcon className="h-5 w-5 text-award-500" />
-        </div>
-      }
+      maxWidth="max-w-2xl"
     >
-        {/* Filters — full-width selects on mobile; the row could not fit two
-            dropdowns and a count side by side on a phone. */}
-        <div className="mb-4 border-b border-surface-900 pb-4 dark:border-surface-300">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            <div className="hidden items-center gap-2 sm:flex">
-              <FunnelIcon className="w-5 h-5 text-surface-500" />
-            </div>
-            
-            {/* Category Filter */}
-            <motion.div className="flex-1 sm:flex-none" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as AchievementCategory | 'all')}
-                className="form-input !py-2 !px-3 text-sm"
+        {/* Filters as chips, the same control the records page uses. Two
+            native selects hid the categories until opened. */}
+        <div className="mb-2 space-y-2">
+          <div className="scroll-touch -mx-1 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Category">
+            {(['all', ...categories] as (AchievementCategory | 'all')[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={selectedCategory === c}
+                onClick={() => setSelectedCategory(c)}
+                className="chip shrink-0"
               >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {CATEGORY_NAMES[category]}
-                  </option>
-                ))}
-              </select>
-            </motion.div>
-
-            {/* Status Filter */}
-            <motion.div className="flex-1 sm:flex-none" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
-              <select
-                value={filterUnlocked}
-                onChange={(e) => setFilterUnlocked(e.target.value as 'all' | 'unlocked' | 'locked')}
-                className="form-input !py-2 !px-3 text-sm"
-              >
-                <option value="all">All Achievements</option>
-                <option value="unlocked">Unlocked Only</option>
-                <option value="locked">Locked Only</option>
-              </select>
-            </motion.div>
-
-            <div className="text-xs text-surface-500 dark:text-surface-600 sm:ml-auto sm:text-sm">
-              {filteredAchievements.length} shown
-            </div>
-          </div>
-        </div>
-
-        {/* Achievement Grid */}
-        <div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {filteredAchievements.map((achievement, index) => (
-              <motion.div
-                key={achievement.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...springSnappy, delay: index * 0.05 }}
-                className={`bg-surface-950 dark:bg-surface-200 rounded-xl shadow-lg overflow-hidden ${
-                  achievement.isUnlocked ? 'ring-2 ring-award-400' : ''
-                }`}
-              >
-                <motion.div
-                  className={`h-3 bg-gradient-to-r ${
-                    achievement.isUnlocked 
-                      ? TIER_COLORS[achievement.tier as keyof typeof TIER_COLORS]
-                      : 'from-surface-300 to-surface-400'
-                  }`}
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ ...springBouncy, delay: index * 0.05 + 0.1 }}
-                  style={{ transformOrigin: 'left' }}
-                />
-                
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <motion.span
-                        className={`text-4xl ${achievement.isUnlocked ? '' : 'grayscale opacity-50'}`}
-                        initial={{ scale: 0, rotate: -10 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ ...springBouncy, delay: index * 0.05 + 0.15 }}
-                      >
-                        {achievement.isUnlocked ? achievement.icon : '🔒'}
-                      </motion.span>
-                      <div>
-                        <h4 className={`font-bold text-lg ${
-                          achievement.isUnlocked 
-                            ? 'text-surface-50 dark:text-white' 
-                            : 'text-surface-500 dark:text-surface-600'
-                        }`}>
-                          {achievement.name}
-                        </h4>
-                        <p className="text-sm text-surface-500 dark:text-surface-600">
-                          {TIER_NAMES[achievement.tier as keyof typeof TIER_NAMES]} • {CATEGORY_NAMES[achievement.category]}
-                        </p>
-                      </div>
-                    </div>
-                    {achievement.isUnlocked && (
-                      <motion.div
-                        initial={{ scale: 0, rotate: -30 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ ...springBouncy, delay: index * 0.05 + 0.2 }}
-                      >
-                        <TrophyIcon className="w-8 h-8 text-award-500" />
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {(() => {
-                    const localized = localizeAchievement(achievement, useMetric);
-                    const progressPct = Math.min(100, (achievement.progress / localized.requirement) * 100);
-                    return (
-                      <>
-                        <p className="text-surface-500 dark:text-surface-600 mb-6">
-                          {localized.description}
-                        </p>
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-surface-500 dark:text-surface-600">Progress</span>
-                            <span className={`font-medium ${
-                              achievement.isUnlocked
-                                ? 'text-success-600 dark:text-success-400'
-                                : 'text-surface-500 dark:text-surface-600'
-                            }`}>
-                              {Number(achievement.progress.toFixed(2)).toLocaleString()} / {Number(localized.requirement.toFixed(2)).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="bg-surface-900 dark:bg-surface-300/60 rounded-full h-3 overflow-hidden">
-                            <motion.div
-                              className={`h-3 rounded-full ${
-                                achievement.isUnlocked
-                                  ? 'bg-gradient-to-r from-success-400 to-success-600'
-                                  : 'bg-gradient-to-r from-info-400 to-info-600'
-                              }`}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(100, progressPct)}%` }}
-                              transition={{ ...springBouncy, delay: index * 0.05 + 0.1 }}
-                            />
-                          </div>
-                          <div className="text-center">
-                            <motion.span
-                              className={`text-lg font-display font-bold ${
-                                achievement.isUnlocked
-                                  ? 'text-success-600 dark:text-success-400'
-                                  : 'text-accent-600 dark:text-accent-400'
-                              }`}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ ...springGentle, delay: index * 0.05 + 0.3 }}
-                            >
-                              {Math.round(progressPct)}%
-                            </motion.span>
-                          </div>
-                        </div>
-
-                        {achievement.isUnlocked && achievement.unlockedAt && (
-                          <div className="mt-4 pt-4 border-t border-black/10 dark:border-surface-400">
-                            <p className="text-xs text-surface-500 dark:text-surface-600">
-                              Unlocked on {new Date(achievement.unlockedAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </motion.div>
+                {c === 'all' ? 'All' : CATEGORY_NAMES[c]}
+              </button>
             ))}
           </div>
-
-          {filteredAchievements.length === 0 && (
-            <div className="text-center py-12">
-              <TrophyIcon className="w-16 h-16 text-surface-600 mx-auto mb-4" />
-              <p className="text-surface-500 dark:text-surface-600">
-                No achievements found with the current filters.
-              </p>
-            </div>
-          )}
+          <div className="flex items-center gap-2" role="group" aria-label="Status">
+            {(['all', 'unlocked', 'locked'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filterUnlocked === f}
+                onClick={() => setFilterUnlocked(f)}
+                className="chip capitalize"
+              >
+                {f === 'all' ? 'Any status' : f}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-surface-500 dark:text-surface-600 tabular">
+              {filteredAchievements.length} shown
+            </span>
+          </div>
         </div>
+
+        {/* The same row as the profile card: one design for an achievement,
+            whether you see four of them or all of them. */}
+        {filteredAchievements.length === 0 ? (
+          <p className="py-10 text-center text-sm text-surface-500 dark:text-surface-600">
+            No achievements match these filters.
+          </p>
+        ) : (
+          <ul className="row-list">
+            {filteredAchievements.map((achievement, index) => {
+              const localized = localizeAchievement(achievement, useMetric);
+              const pct = Math.min(100, (achievement.progress / localized.requirement) * 100);
+              return (
+                <motion.li
+                  key={achievement.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ ...springSnappy, delay: Math.min(index * 0.02, 0.3) }}
+                  className="flex items-start gap-3 py-3"
+                >
+                  <span
+                    className={`mt-0.5 text-xl leading-none ${achievement.isUnlocked ? '' : 'opacity-40 grayscale'}`}
+                    aria-hidden="true"
+                  >
+                    {achievement.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="truncate text-sm font-medium text-surface-50 dark:text-white">
+                        {achievement.name}
+                        <span className="ml-1.5 text-xs font-normal text-surface-500 dark:text-surface-600">
+                          {TIER_NAMES[achievement.tier as keyof typeof TIER_NAMES]}
+                        </span>
+                      </p>
+                      <span className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
+                        {achievement.isUnlocked && achievement.unlockedAt
+                          ? new Date(achievement.unlockedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                          : `${Number(achievement.progress.toFixed(1)).toLocaleString()} / ${Number(localized.requirement.toFixed(1)).toLocaleString()}`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-surface-500 dark:text-surface-600">{localized.description}</p>
+                    {!achievement.isUnlocked && (
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+                        <div className="h-full rounded-full bg-award-500" style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
+                  </div>
+                  {achievement.isUnlocked && (
+                    <TrophyIcon className="mt-0.5 h-4 w-4 shrink-0 text-award-500" aria-label="Unlocked" />
+                  )}
+                </motion.li>
+              );
+            })}
+          </ul>
+        )}
     </ModalShell>
   );
 }

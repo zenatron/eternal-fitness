@@ -38,6 +38,8 @@ export const queryKeys = {
   leaderboard: ['leaderboard'] as const,
   /** Prefixed by period; invalidating the prefix covers every period. */
   progress: ['progress'] as const,
+  /** Strength trends per exercise and muscle. Prefixed by period. */
+  insights: ['insights'] as const,
   templates: ['json-templates'] as const,
   /** Prefixed by id; the prefix covers every individual template. */
   template: ['json-template'] as const,
@@ -78,6 +80,7 @@ export function invalidateWorkoutData(queryClient: QueryClient): Promise<void> {
     queryKeys.achievements,
     queryKeys.leaderboard,
     queryKeys.progress,
+    queryKeys.insights,
     queryKeys.templates,
     queryKeys.lastPerformance,
     queryKeys.exerciseHistory,

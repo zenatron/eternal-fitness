@@ -138,7 +138,7 @@ export default function HistoryPage() {
         templateName: sessionDisplayName(full),
       });
     } catch {
-      toast.error('Could not open that workout for editing.');
+      toast.error("Couldn't open that workout for editing");
     } finally {
       setIsLoadingForEdit(false);
       setEditingSessionId(null);
@@ -167,7 +167,7 @@ export default function HistoryPage() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search loaded workouts…"
+          placeholder="Search workouts"
           aria-label="Search workout history"
           className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-surface-100 text-sm text-surface-50 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500"
         />

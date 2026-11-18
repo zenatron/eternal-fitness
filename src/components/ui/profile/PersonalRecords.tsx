@@ -2,22 +2,14 @@
 
 import Link from 'next/link';
 import { UserStatsData } from '@/lib/hooks/useUserStats';
-import { formatPRValue, prTypeFromApi } from '@/utils/prFormatting';
+import { formatPRValue, prTypeFromApi, PR_TYPE_LABELS } from '@/utils/prFormatting';
 import { DashboardCard } from '@/components/ui/dashboard/DashboardCard';
 
 interface PersonalRecordsProps {
   stats: UserStatsData;
   useMetric: boolean;
-  /** Unused: the full list is its own page now. Kept for call-site compatibility. */
-  onViewAll?: () => void;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  weight: 'Heaviest',
-  volume: 'Most volume',
-  duration: 'Longest',
-  distance: 'Farthest',
-};
 
 export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
   const records = stats.personalRecords ?? [];
@@ -25,7 +17,7 @@ export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
   return (
     <DashboardCard
       title="Latest records"
-      action={records.length > 0 ? { href: '/personal-records', label: 'All' } : undefined}
+      action={records.length > 0 ? { href: '/personal-records', label: 'Records' } : undefined}
     >
       {records.length === 0 ? (
         <p className="py-4 text-sm text-surface-500 dark:text-surface-600">
@@ -46,7 +38,7 @@ export function PersonalRecords({ stats, useMetric }: PersonalRecordsProps) {
                   {record.exerciseName}
                 </Link>
                 <p className="text-xs text-surface-500 dark:text-surface-600">
-                  {TYPE_LABEL[record.type] ?? 'Record'} ·{' '}
+                  {PR_TYPE_LABELS[prTypeFromApi(record.type)]} ·{' '}
                   {new Date(record.achievedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </p>
               </div>

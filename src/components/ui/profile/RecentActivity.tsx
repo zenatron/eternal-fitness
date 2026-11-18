@@ -9,16 +9,15 @@ import { DashboardCard } from '@/components/ui/dashboard/DashboardCard';
 interface RecentActivityProps {
   stats: UserStatsData;
   useMetric: boolean;
-  onViewAll?: () => void;
 }
 
-export function RecentActivity({ stats, useMetric, onViewAll }: RecentActivityProps) {
+export function RecentActivity({ stats, useMetric }: RecentActivityProps) {
   const sessions = stats.recentSessions ?? [];
 
   return (
     <DashboardCard
       title="Recent workouts"
-      action={sessions.length > 0 && onViewAll ? { onClick: onViewAll, label: 'All' } : undefined}
+      action={sessions.length > 0 ? { href: '/history', label: 'History' } : undefined}
     >
       {sessions.length === 0 ? (
         <p className="py-4 text-sm text-surface-500 dark:text-surface-600">

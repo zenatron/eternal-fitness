@@ -17,20 +17,15 @@ export function formatPRValue(value: number, type: PRType, useMetric: boolean = 
 }
 
 /** Human label for each record type. */
+/** Human label for each record type. Sentence case, and the same words on
+ *  every screen: the profile card used to say "Heaviest" for what the records
+ *  page called "MAX WEIGHT". */
 export const PR_TYPE_LABELS: Record<PRType, string> = {
-  maxWeight: 'Max Weight',
+  maxWeight: 'Heaviest',
   maxOneRepMax: 'Est. 1RM',
-  maxVolume: 'Max Volume',
-  maxDuration: 'Max Duration',
-  maxDistance: 'Max Distance',
-};
-
-export const PR_TYPE_ICONS: Record<PRType, string> = {
-  maxWeight: '\u{1F3CB}\u{FE0F}',
-  maxOneRepMax: '\u{1F4C8}',
-  maxVolume: '\u{1F4CA}',
-  maxDuration: '\u{23F1}\u{FE0F}',
-  maxDistance: '\u{1F4CD}',
+  maxVolume: 'Most volume',
+  maxDuration: 'Longest',
+  maxDistance: 'Farthest',
 };
 
 /**

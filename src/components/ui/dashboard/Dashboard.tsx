@@ -18,6 +18,7 @@ import DashboardSettingsModal from './DashboardSettingsModal';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PlayIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { StrengthCard } from './StrengthCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 /**
@@ -99,7 +100,7 @@ export default function Dashboard() {
   // Error must be checked BEFORE the data gate: useDashboardData leaves
   // `data` undefined on a failed fetch, so gating on `!data` first rendered a
   // shimmering skeleton forever — precisely the offline cold-start case the
-  // error card with "Try Again" below was built for.
+  // error card with "Try again" below was built for.
   if (!mounted || (error && !data)) {
     if (!mounted || loading || configLoading || profileLoading) {
       return <DashboardSkeletonLoader />;
@@ -138,6 +139,8 @@ export default function Dashboard() {
         return <QuickActionsCard />;
       case 'LevelCard':
         return <LevelCard totalPoints={data.totalPoints} />;
+      case 'StrengthCard':
+        return <StrengthCard />;
       default:
         return null;
     }

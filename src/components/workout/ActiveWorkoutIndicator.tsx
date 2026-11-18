@@ -88,7 +88,7 @@ export default function ActiveWorkoutIndicator() {
                   }
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
-                <span className="font-medium text-sm">Active Workout</span>
+                <span className="font-medium text-sm">Active workout</span>
                 <span className="flex items-center gap-1.5 text-accent-100 text-sm">
                   <ClockIcon className="w-3.5 h-3.5" />
                   <span className="font-mono">{time}</span>
@@ -142,7 +142,7 @@ export default function ActiveWorkoutIndicator() {
               />
 
               <div className="min-w-0 flex-1">
-                {/* The "Active Workout" label is redundant on a bright green
+                {/* The "Active workout" label is redundant on a bright green
                     bar with a live timer, and at phone width it wrapped onto
                     two lines. The template name is what the user actually
                     needs, so on mobile it is the only line. */}

@@ -207,7 +207,7 @@ export function calculateSetPerformance(
 /**
  * Formats set display text
  */
-export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false): string {
+export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false, perSide: boolean = false): string {
   // Timed/distance work: "30:00 · 3.1 mi", not "0 (1800s)".
   if (set.targetDuration || set.targetDistance) {
     const parts: string[] = [];
@@ -224,10 +224,11 @@ export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false): s
     ? set.targetReps.toString()
     : `${set.targetReps?.min}-${set.targetReps?.max}`;
 
+  // Weight first, the way it is said in a gym ("135 × 10") and the way the
+  // exercise history writes a best set. Bodyweight work is just the reps.
   const unit = useMetric ? 'kg' : 'lbs';
-  const weight = set.targetWeight ? ` × ${set.targetWeight}${unit}` : '';
-
-  return `${reps}${weight}`;
+  if (!set.targetWeight) return `${reps} reps`;
+  return `${set.targetWeight} ${unit}${perSide ? '/side' : ''} × ${reps}`;
 }
 
 /**
@@ -236,11 +237,11 @@ export function formatSetDisplay(set: WorkoutSet, useMetric: boolean = false): s
 export function formatPerformedSetDisplay(set: PerformedSet, useMetric: boolean = false): string {
   const reps = set.actualReps ? set.actualReps.toString() : '0';
   const unit = useMetric ? 'kg' : 'lbs';
-  const weight = set.actualWeight ? ` × ${set.actualWeight}${unit}` : '';
   const duration = set.actualDuration ? ` (${set.actualDuration}s)` : '';
   const rpe = set.actualRpe ? ` @${set.actualRpe}` : '';
+  const core = set.actualWeight ? `${set.actualWeight} ${unit} × ${reps}` : `${reps} reps`;
 
-  return `${reps}${weight}${duration}${rpe}`;
+  return `${core}${duration}${rpe}`;
 }
 
 /**

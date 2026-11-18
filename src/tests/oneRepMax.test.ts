@@ -117,6 +117,6 @@ describe('formatOneRepMax', () => {
 
   test('keeps one decimal where it distinguishes two sets', () => {
     expect(formatOneRepMax(112.83, true)).toBe('112.8 kg');
-    expect(formatOneRepMax(112.83, false)).toBe('112.8 lb');
+    expect(formatOneRepMax(112.83, false)).toBe('112.8 lbs');
   });
 });

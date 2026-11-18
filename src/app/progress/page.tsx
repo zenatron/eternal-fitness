@@ -6,11 +6,18 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { DashboardCard } from '@/components/ui/dashboard/DashboardCard';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { formatVolume } from '@/utils/formatters';
 import { formatDurationCompact } from '@/utils/durationUtils';
 import { formatPRValue } from '@/utils/prFormatting';
+import { ChangeText } from '@/components/insights/ChangeText';
+import { StrengthView } from '@/components/insights/StrengthView';
+import { MusclesView } from '@/components/insights/MusclesView';
+import { useInsights, type InsightsPeriod } from '@/lib/hooks/useInsights';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 const PERIODS = [
   { key: '7d', label: '7D', name: 'last 7 days' },
@@ -46,13 +53,7 @@ function bucketLabel(key: string, groupBy: ProgressData['period']['groupBy']): s
 
 function Change({ delta, comparable }: { delta: Delta; comparable: boolean }) {
   if (!comparable || delta.isNew || delta.change === 0) return null;
-  const up = delta.change > 0;
-  return (
-    <span className={`text-xs font-medium tabular ${up ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
-      {up ? '+' : '−'}
-      {Math.abs(delta.change)}%
-    </span>
-  );
+  return <ChangeText percent={delta.change} />;
 }
 
 /**
@@ -97,9 +98,76 @@ function Bars({
   );
 }
 
+type View = 'activity' | 'strength' | 'muscles';
+
+const VIEWS: { key: View; label: string; description: string }[] = [
+  { key: 'activity', label: 'Activity', description: '' },
+  { key: 'strength', label: 'Strength', description: 'Estimated one-rep max for every lift you train' },
+  { key: 'muscles', label: 'Muscles', description: 'Where you are getting stronger, and how much work each muscle gets' },
+];
+
+const INSIGHT_PERIODS: { key: InsightsPeriod; label: string; name: string }[] = [
+  { key: '90d', label: '3M', name: 'last 3 months' },
+  { key: '180d', label: '6M', name: 'last 6 months' },
+  { key: '1y', label: '1Y', name: 'last year' },
+  { key: 'all', label: 'All', name: 'all time' },
+];
+
+/** The period control, one look for both sets of periods. */
+function PeriodTabs<K extends string>({
+  periods,
+  value,
+  onChange,
+}: {
+  periods: { key: K; label: string; name: string }[];
+  value: K;
+  onChange: (k: K) => void;
+}) {
+  return (
+    <div role="tablist" aria-label="Period" className="flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.06]">
+      {periods.map((p) => (
+        <button
+          key={p.key}
+          role="tab"
+          aria-selected={value === p.key}
+          aria-label={p.name}
+          onClick={() => onChange(p.key)}
+          className={`tap-control min-h-[36px] min-w-[48px] rounded-md px-3 text-xs font-semibold transition-colors ${
+            value === p.key
+              ? 'bg-white text-surface-50 shadow-sm dark:bg-surface-300 dark:text-white'
+              : 'text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ProgressPage() {
+  // useSearchParams needs a Suspense boundary for static rendering.
+  return (
+    <Suspense fallback={null}>
+      <ProgressContent />
+    </Suspense>
+  );
+}
+
+function ProgressContent() {
   const { profile } = useProfile();
   const useMetric = profile?.useMetric ?? false;
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  // In the URL, so "see how your chest is doing" can link straight here and
+  // Back returns to the tab you were on.
+  const viewParam = params.get('view');
+  const view: View = viewParam === 'strength' || viewParam === 'muscles' ? viewParam : 'activity';
+  const setView = (v: View) => router.replace(v === 'activity' ? pathname : `${pathname}?view=${v}`, { scroll: false });
+  const [insightPeriod, setInsightPeriod] = useState<InsightsPeriod>('90d');
+  // Only fetched once a strength tab is opened: it is the heaviest read here.
+  const insights = useInsights(insightPeriod, view !== 'activity');
   const [period, setPeriod] = useState('30d');
   const periodName = PERIODS.find((p) => p.key === period)?.name ?? '';
 
@@ -132,44 +200,66 @@ export default function ProgressPage() {
       ]
     : [];
 
+  const insightPeriodName = INSIGHT_PERIODS.find((p) => p.key === insightPeriod)?.name ?? '';
+
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
       <PageHeader
         title="Progress"
-        description={comparable ? `Compared with the ${periodName.replace('last ', 'previous ')}` : 'Everything you have logged'}
-        actions={
-          // Five short labels fit a phone in one row; the old chips were
-          // uppercase words that ran off the screen.
-          <div role="tablist" aria-label="Period" className="flex rounded-lg bg-black/[0.05] p-0.5 dark:bg-white/[0.06]">
-            {PERIODS.map((p) => (
-              <button
-                key={p.key}
-                role="tab"
-                aria-selected={period === p.key}
-                aria-label={p.name}
-                onClick={() => setPeriod(p.key)}
-                className={`tap-control min-h-[36px] min-w-[48px] rounded-md px-3 text-xs font-semibold transition-colors ${
-                  period === p.key
-                    ? 'bg-white text-surface-50 shadow-sm dark:bg-surface-300 dark:text-white'
-                    : 'text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        description={
+          view === 'activity'
+            ? comparable
+              ? `Compared with the ${periodName.replace('last ', 'previous ')}`
+              : 'Everything you have logged'
+            : `${VIEWS.find((v) => v.key === view)?.description}, ${insightPeriodName}`
         }
-      />
+        actions={
+          view === 'activity' ? (
+            <PeriodTabs periods={PERIODS} value={period} onChange={setPeriod} />
+          ) : (
+            <PeriodTabs periods={INSIGHT_PERIODS} value={insightPeriod} onChange={setInsightPeriod} />
+          )
+        }
+      >
+        <div role="tablist" aria-label="View" className="flex gap-5 border-b border-black/[0.08] dark:border-white/[0.08]">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              role="tab"
+              aria-selected={view === v.key}
+              onClick={() => setView(v.key)}
+              className={`tap-control -mb-px min-h-[40px] border-b-2 text-sm font-medium transition-colors ${
+                view === v.key
+                  ? 'border-accent-500 text-surface-50 dark:text-white'
+                  : 'border-transparent text-surface-500 hover:text-surface-50 dark:text-surface-600 dark:hover:text-white'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </PageHeader>
 
-      {isLoading ? (
+      {view !== 'activity' ? (
+        insights.isLoading ? (
+          <div className="forge-card h-40 animate-pulse" aria-busy="true" aria-label="Loading strength trends" />
+        ) : insights.isError || !insights.data ? (
+          <ErrorState what="strength trends" onRetry={() => void insights.refetch()} isRetrying={insights.isFetching} />
+        ) : (
+          <div className={insights.isPlaceholderData ? 'opacity-60 transition-opacity' : ''}>
+            {view === 'strength' ? (
+              <StrengthView data={insights.data} useMetric={useMetric} />
+            ) : (
+              <MusclesView data={insights.data} />
+            )}
+          </div>
+        )
+      ) : isLoading ? (
         <div className="forge-card h-40 animate-pulse" aria-busy="true" aria-label="Loading progress" />
       ) : isError ? (
         <ErrorState what="progress data" onRetry={() => void refetch()} isRetrying={isFetching} />
       ) : !data || data.summary.workouts.value === 0 ? (
-        <div className="forge-card px-6 py-10 text-center">
-          <p className="font-medium text-surface-50 dark:text-white">No workouts in the {periodName}</p>
-          <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">Pick a longer period, or go train.</p>
-        </div>
+        <EmptyState title={`No workouts in the ${periodName}`} hint="Pick a longer period, or go train." />
       ) : (
         <div className="space-y-4">
           <dl className="forge-card grid grid-cols-2 gap-px overflow-hidden bg-black/[0.06] dark:bg-white/[0.06] sm:grid-cols-5">
@@ -177,7 +267,7 @@ export default function ProgressPage() {
               <div key={f.label} className="bg-white px-4 py-3.5 dark:bg-surface-100">
                 <dt className="stat-label">{f.label}</dt>
                 <dd className="mt-1.5 flex items-baseline gap-2">
-                  <span className="font-display text-xl font-semibold text-surface-50 dark:text-white tabular">{f.value}</span>
+                  <span className="figure text-xl leading-none">{f.value}</span>
                   <Change delta={f.delta} comparable={comparable} />
                 </dd>
               </div>
@@ -222,7 +312,7 @@ export default function ProgressPage() {
 
             {data.recentSessions.length > 0 && (
               <DashboardCard title="Sessions" action={{ href: '/history', label: 'History' }}>
-                <ul className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+                <ul className="row-list">
                   {data.recentSessions.slice(0, 8).map((s, i) => (
                     <li key={`${s.date}-${i}`} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
                       <div className="min-w-0">

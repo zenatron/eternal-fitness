@@ -72,7 +72,7 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
 
   return (
     <div className="forge-card p-4 sm:p-5">
-      <h2 className="mb-1 text-sm font-semibold text-surface-50 dark:text-white">
+      <h2 className="section-title mb-1">
         Train today
       </h2>
       <p className="mb-3 text-xs text-surface-500 dark:text-surface-600">
@@ -88,11 +88,11 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="truncate font-display text-sm font-bold text-surface-50 dark:text-white">
+                  <span className="truncate text-sm font-medium text-surface-50 dark:text-white">
                     {template.name}
                   </span>
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_STYLES[readiness.status]}`}
+                    className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-none ${STATUS_STYLES[readiness.status]}`}
                   >
                     {READINESS_LABELS[readiness.status]}
                   </span>
@@ -109,7 +109,7 @@ export function TrainingSuggestions({ recovery }: { recovery: RecoveryMap }) {
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <span className="font-display text-base font-bold tabular text-surface-50 dark:text-white">
+                <span className="figure text-base">
                   {Math.round(readiness.score * 100)}%
                 </span>
                 <PlayCircleIcon className="ml-auto mt-0.5 h-4 w-4 text-accent-500" aria-hidden="true" />

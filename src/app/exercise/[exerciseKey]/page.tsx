@@ -9,8 +9,12 @@ import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { useExerciseHistory } from '@/lib/hooks/useExerciseHistory';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { formatVolume } from '@/utils/formatters';
-import { formatPRValue, PR_TYPE_LABELS, PR_TYPE_ICONS } from '@/utils/prFormatting';
+import { formatVolume, formatWeight } from '@/utils/formatters';
+import { formatPRValue, PR_TYPE_LABELS } from '@/utils/prFormatting';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ChangeText } from '@/components/insights/ChangeText';
+import { exerciseTrend, FLAT_THRESHOLD } from '@/utils/strengthInsights';
+import { dayKeyOf, daysBetween, todayKey, deviceTimeZone } from '@/utils/datetime';
 import { formatDurationHuman } from '@/utils/durationUtils';
 import { PR_TYPES, type PRType } from '@/types/personalRecords';
 import type { ExerciseHistoryPoint } from '@/app/api/exercise/[exerciseId]/history/route';
@@ -85,7 +89,12 @@ function TrendChart({
   const last = coords[coords.length - 1];
 
   const label = (v: number) =>
-    metric === 'volume' ? formatVolume(v, useMetric) : `${Math.round(v * 10) / 10}${useMetric ? 'kg' : 'lb'}`;
+    metric === 'volume'
+      ? formatVolume(v, useMetric)
+      : metric === 'oneRepMax'
+        ? // An estimate: whole numbers, like everywhere else it is shown.
+          `${Math.round(v)} ${useMetric ? 'kg' : 'lbs'}`
+        : formatWeight(v, useMetric);
 
   return (
     <div>
@@ -136,10 +145,27 @@ export default function ExerciseHistoryPage({
     }).filter(Boolean) as { type: PRType; value: number; achievedAt: string }[];
   }, [data]);
 
+  // The same trend the Progress → Strength list shows, so the number on this
+  // page and the number on that row are one calculation, not two.
+  const trend = useMemo(() => {
+    if (!data?.history) return null;
+    const zone = deviceTimeZone();
+    const points = data.history
+      .filter((h) => h.oneRepMax !== null)
+      .map((h) => ({
+        day: dayKeyOf(h.performedAt, zone),
+        e1rm: h.oneRepMax as number,
+        weight: h.bestSet?.weight ?? 0,
+        reps: h.bestSet?.reps ?? 0,
+      }));
+    const t = exerciseTrend(data.exerciseKey, points);
+    return t ? { ...t, daysSinceBest: daysBetween(t.bestDay, todayKey(zone)) } : null;
+  }, [data]);
+
   if (isLoading) {
     return (
-      <div className="app-bg py-8 px-4">
-        <div className="mx-auto max-w-3xl space-y-4">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
+        <div className="mx-auto max-w-3xl space-y-4" role="status" aria-label="Loading">
           <div className="h-32 animate-pulse rounded-xl bg-surface-900 dark:bg-surface-200" />
           <div className="h-64 animate-pulse rounded-xl bg-surface-900 dark:bg-surface-200" />
         </div>
@@ -149,7 +175,7 @@ export default function ExerciseHistoryPage({
 
   if (error || !data) {
     return (
-      <div className="app-bg py-8 px-4">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
         <div className="mx-auto max-w-3xl">
           <ErrorState what="this exercise's history" onRetry={() => refetch()} />
         </div>
@@ -171,58 +197,71 @@ export default function ExerciseHistoryPage({
         />
 
         {data.history.length === 0 ? (
-          <div className="forge-card p-8 text-center">
-            <ChartBarIcon className="mx-auto h-10 w-10 text-surface-500" />
-            <h2 className="mt-3 text-lg font-semibold text-surface-50 dark:text-white">
-              No sessions yet
-            </h2>
-            <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
-              Log a workout with {data.name} and its history will build here.
-            </p>
-          </div>
+          <EmptyState
+            icon={ChartBarIcon}
+            title="No sessions yet"
+            hint={`Log a workout with ${data.name} and its history will build here.`}
+          />
         ) : (
           <>
-            {records.length > 0 && (
-              <div className="mb-6">
-                <h2 className="form-label">Personal Records</h2>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {records.map((r) => (
-                    <div key={r.type} className="forge-card p-3">
-                      <div className="flex items-center gap-1.5">
-                        <span aria-hidden="true">{PR_TYPE_ICONS[r.type]}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-surface-500 dark:text-surface-600">
-                          {PR_TYPE_LABELS[r.type]}
-                        </span>
-                      </div>
-                      <p className="mt-1 font-display text-lg font-bold tabular text-surface-50 dark:text-white">
-                        {formatPRValue(r.value, r.type, useMetric)}
-                      </p>
-                      <p className="text-[11px] text-surface-500 dark:text-surface-600">
-                        {formatDate(r.achievedAt)}
-                      </p>
-                    </div>
-                  ))}
+            {!isCardio && trend && (
+              <dl className="forge-card mb-4 grid grid-cols-3 divide-x divide-black/[0.06] dark:divide-white/[0.06]">
+                <div className="px-4 py-3.5">
+                  <dt className="stat-label">Est. 1RM</dt>
+                  <dd className="figure mt-1.5 text-xl leading-none">
+                    {Math.round(trend.current)}
+                    <span className="ml-1 font-body text-xs font-medium text-surface-500 dark:text-surface-600">
+                      {useMetric ? 'kg' : 'lbs'}
+                    </span>
+                  </dd>
                 </div>
-              </div>
+                <div className="px-4 py-3.5">
+                  <dt className="stat-label">Change</dt>
+                  <dd className="mt-1.5 leading-none">
+                    {trend.change === null ? (
+                      <span className="text-xs text-surface-500 dark:text-surface-600">Needs 3 sessions</span>
+                    ) : (
+                      <ChangeText percent={trend.change * 100} flatBand={FLAT_THRESHOLD * 100} className="!text-xl font-display font-semibold" />
+                    )}
+                    {trend.perWeek !== null && (
+                      <span className="mt-1 block text-xs text-surface-500 dark:text-surface-600 tabular">
+                        {trend.perWeek >= 0 ? '+' : '−'}
+                        {Math.abs(trend.perWeek).toFixed(1)} {useMetric ? 'kg' : 'lbs'}/wk
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="px-4 py-3.5">
+                  <dt className="stat-label">Best</dt>
+                  <dd className="figure mt-1.5 text-xl leading-none">{Math.round(trend.best)}</dd>
+                  <dd
+                    className={`mt-1 text-xs ${
+                      trend.daysSinceBest >= 21 && trend.status !== 'new'
+                        ? 'text-warning-700 dark:text-warning-400'
+                        : 'text-surface-500 dark:text-surface-600'
+                    }`}
+                  >
+                    {trend.daysSinceBest === 0
+                      ? 'Today'
+                      : trend.daysSinceBest < 14
+                        ? `${trend.daysSinceBest}d ago`
+                        : `${Math.floor(trend.daysSinceBest / 7)} weeks ago`}
+                  </dd>
+                </div>
+              </dl>
             )}
 
             {!isCardio && (
               <div className="forge-card mb-6 p-4 sm:p-5">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-surface-50 dark:text-white">
-                    Trend
-                  </h2>
-                  <div className="flex gap-1.5">
+                  <h2 className="section-title">Trend</h2>
+                  <div className="flex gap-1.5" role="group" aria-label="Trend metric">
                     {METRICS.map((m) => (
                       <button
                         key={m.id}
                         onClick={() => setMetric(m.id)}
                         aria-pressed={metric === m.id}
-                        className={`tap-control min-h-[38px] rounded-lg px-3 text-xs font-display font-semibold uppercase tracking-wide transition-colors ${
-                          metric === m.id
-                            ? 'bg-accent-500 text-white'
-                            : 'bg-surface-900 text-surface-600 dark:bg-surface-200 dark:text-surface-800'
-                        }`}
+                        className="chip"
                       >
                         {m.label}
                       </button>
@@ -233,19 +272,38 @@ export default function ExerciseHistoryPage({
               </div>
             )}
 
+            {records.length > 0 && (
+              <div className="mb-6">
+                <h2 className="section-title mb-2">Personal records</h2>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {records.map((r) => (
+                    <div key={r.type} className="forge-card p-3">
+                      <p className="stat-label">{PR_TYPE_LABELS[r.type]}</p>
+                      <p className="figure mt-1.5 text-lg leading-none">
+                        {formatPRValue(r.value, r.type, useMetric)}
+                      </p>
+                      <p className="mt-1 text-xs text-surface-500 dark:text-surface-600">
+                        {formatDate(r.achievedAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="forge-card p-4 sm:p-5">
-              <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
+              <h2 className="section-title mb-3">
                 Sessions
-                <span className="ml-2 font-body text-xs font-normal normal-case tracking-normal text-surface-500 dark:text-surface-600">
+                <span className="ml-2 text-xs font-normal text-surface-500 dark:text-surface-600">
                   {sessions.length}
                   {data.truncated && '+'}
                 </span>
               </h2>
-              <ul className="divide-y divide-surface-900 dark:divide-surface-300">
+              <ul className="row-list">
                 {sessions.map((s) => (
                   <li key={`${s.sessionId}-${s.performedAt}`} className="flex items-center gap-3 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <p className="font-display text-sm font-bold text-surface-50 dark:text-white">
+                      <p className="text-sm font-medium text-surface-50 dark:text-white">
                         {formatDate(s.performedAt)}
                       </p>
                       <p className="truncate text-xs text-surface-500 dark:text-surface-600">
@@ -261,15 +319,14 @@ export default function ExerciseHistoryPage({
                     </div>
                     {s.oneRepMax !== null && (
                       <div className="shrink-0 text-right">
-                        <p className="font-display text-sm font-bold tabular text-surface-50 dark:text-white">
-                          {Math.round(s.oneRepMax * 10) / 10}
-                          {useMetric ? 'kg' : 'lb'}
+                        <p className="figure text-base">
+                          {Math.round(s.oneRepMax)} {useMetric ? 'kg' : 'lbs'}
                         </p>
-                        <p className="text-[10px] uppercase tracking-wider text-surface-500 dark:text-surface-600">
-                          e1RM
+                        <p className="text-xs text-surface-500 dark:text-surface-600">
+                          Est. 1RM
                           {/* "135×10" read as a bare number with no unit on a
                               page where every other figure carries one. */}
-                          {s.bestSet && ` · ${s.bestSet.weight}${useMetric ? 'kg' : 'lb'}×${s.bestSet.reps}`}
+                          {s.bestSet && ` · ${s.bestSet.weight} × ${s.bestSet.reps}`}
                         </p>
                       </div>
                     )}

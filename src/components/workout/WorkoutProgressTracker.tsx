@@ -21,7 +21,8 @@ import {
 } from '@/lib/exerciseLookup';
 import { searchExercises } from '@/lib/exerciseSearch';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { parseDuration, formatDurationInput, formatDurationHuman } from '@/utils/durationUtils';
+import { parseDuration, formatDurationInput } from '@/utils/durationUtils';
+import { formatSetDisplay } from '@/utils/workoutDisplayUtils';
 import { useRestTimerActions } from './RestTimerProvider';
 import { StepperInput } from './StepperInput';
 import { SetInsights } from './SetInsights';
@@ -665,19 +666,11 @@ function WorkoutProgressTracker({
                                   {setProgress.skipped && <span className="ml-1 font-normal text-surface-500"> · skipped</span>}
                                 </span>
                                 {templateSet && (() => {
-                                  const isCardioEx = isCardioExercise(exercise.exerciseKey);
-                                  if (isCardioEx) {
-                                    return (
-                                      <span className="text-xs text-surface-500">
-                                        Target: {templateSet.targetDuration ? formatDurationHuman(templateSet.targetDuration) : '—'}
-                                        {templateSet.targetDistance && ` / ${templateSet.targetDistance}${useMetric ? 'km' : 'mi'}`}
-                                      </span>
-                                    );
-                                  }
+                                  // The shared set formatter, so a target reads
+                                  // exactly like the same set on the template page.
                                   return (
-                                    <span className="text-xs text-surface-500">
-                                      Target: {typeof templateSet.targetReps === 'number' ? templateSet.targetReps : `${templateSet.targetReps?.min}-${templateSet.targetReps?.max}`} reps
-                                      {templateSet.targetWeight && ` @ ${templateSet.targetWeight}${useMetric ? 'kg' : 'lbs'}`}
+                                    <span className="truncate text-xs text-surface-500 dark:text-surface-600">
+                                      Target {formatSetDisplay(templateSet, useMetric, exercise.perSide)}
                                     </span>
                                   );
                                 })()}

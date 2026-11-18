@@ -8,9 +8,9 @@ import { motion, useReducedMotion } from 'framer-motion';
 import {
   TrophyIcon,
 } from '@heroicons/react/24/outline';
-import LevelBadge from '@/components/ui/LevelBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { springSnappy, springBouncy } from '@/lib/motion';
+import { springSnappy } from '@/lib/motion';
 
 interface LeaderboardEntry {
   rank: number;
@@ -23,21 +23,15 @@ interface LeaderboardEntry {
 }
 
 /*
- * Gold / silver / bronze. Deliberately NOT themed: a podium only reads as a
- * podium if the medals keep their own colours, so this and TIER_COLORS in
- * types/achievements.ts are the two sanctioned uses of raw palette values.
+ * Gold / silver / bronze, on the rank number only. Deliberately NOT themed: a
+ * medal ladder only reads as one if the medals keep their own colours, so this
+ * and TIER_COLORS in types/achievements.ts are the two sanctioned uses of
+ * fixed palette values.
  */
 const MEDAL_COLORS: Record<number, string> = {
-  1: 'from-award-300 to-award-500',
-  2: 'from-surface-800 to-surface-700',
-  3: 'from-amber-600 to-amber-800',
-};
-
-/** Digit ink per medal — white on gold (#fde047) measured ~1.5:1. */
-const MEDAL_TEXT_COLORS: Record<number, string> = {
-  1: 'text-award-950',
-  2: 'text-surface-950',
-  3: 'text-white',
+  1: 'text-award-600 dark:text-award-400',
+  2: 'text-surface-600 dark:text-surface-800',
+  3: 'text-warning-700 dark:text-warning-600',
 };
 
 export default function LeaderboardPage() {
@@ -63,16 +57,13 @@ export default function LeaderboardPage() {
     staleTime: 1000 * 60 * 2,
   });
 
-  const top3 = entries.slice(0, 3);
-  const rest = entries.slice(3);
-
   return (
     <div className="px-4 pb-16 sm:px-6">
       <div className="max-w-3xl mx-auto">
         <PageHeader back title="Leaderboard" description="Everyone training here, ranked by XP" />
 
         {isLoading ? (
-          <div className="forge-card p-12 text-center text-surface-500">Loading...</div>
+          <div className="forge-card p-10 text-center text-sm text-surface-500" role="status">Loading leaderboard…</div>
         ) : isError ? (
           <ErrorState
             what="the leaderboard"
@@ -80,69 +71,61 @@ export default function LeaderboardPage() {
             isRetrying={isFetching}
           />
         ) : entries.length === 0 ? (
-          <div className="forge-card p-12 text-center text-surface-500">
-            <TrophyIcon className="w-16 h-16 mx-auto mb-4 text-surface-600" />
-            <p className="text-lg font-display font-medium">No entries yet</p>
-            <p className="text-sm mt-2 text-surface-500">Complete workouts to appear on the leaderboard</p>
-          </div>
+          <EmptyState icon={TrophyIcon} title="Nobody on the board yet" hint="Finish a workout to put yourself on it." />
         ) : (
-          <>
-            {/* Top 3 Podium */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {top3.map((entry) => (
-                <motion.div
+          /*
+           * One ranked list. This is a handful of friends, not a public ladder:
+           * the old three-card podium plus a second list style split a group of
+           * five into two layouts. Each bar is XP against the leader, so the
+           * gap to the person above you is something you can see.
+           */
+          <ol className="forge-card row-list px-4 sm:px-5">
+            {entries.map((entry, i) => {
+              const leader = entries[0]?.points || 1;
+              const share = Math.max(2, Math.round((entry.points / leader) * 100));
+              return (
+                <motion.li
                   key={entry.userId}
-                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-                  animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-                  transition={{ ...springBouncy, delay: entry.rank * 0.1 }}
-                  className={`forge-card p-4 text-center ${entry.isCurrentUser ? 'ring-2 ring-accent-500' : ''} ${entry.rank === 1 ? 'md:order-2 md:-mt-4 md:scale-105' : entry.rank === 2 ? 'md:order-1' : 'md:order-3'}`}
+                  initial={prefersReducedMotion ? {} : { opacity: 0 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1 }}
+                  transition={{ ...springSnappy, delay: prefersReducedMotion ? 0 : i * 0.03 }}
+                  aria-current={entry.isCurrentUser ? 'true' : undefined}
+                  className={`-mx-4 flex items-center gap-3 px-4 py-3.5 sm:-mx-5 sm:px-5 ${
+                    entry.isCurrentUser ? 'bg-accent-500/[0.06]' : ''
+                  }`}
                 >
-                  <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${MEDAL_COLORS[entry.rank] || 'from-surface-300 to-surface-400'} flex items-center justify-center mx-auto mb-2`}>
-                    <span className={`font-black text-lg ${MEDAL_TEXT_COLORS[entry.rank] || 'text-white'}`}>{entry.rank}</span>
-                  </div>
-                  <p className="font-display font-bold text-surface-50 dark:text-white text-sm truncate">
-                    {entry.name}
-                  </p>
-                  <div className="flex justify-center mt-1">
-                    <LevelBadge points={entry.points} size="sm" showTitle={false} />
-                  </div>
-                  <p className="text-xs text-surface-500 mt-1">
-                    {entry.points.toLocaleString()} XP
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Rest of the list */}
-            <div className="space-y-2">
-              {rest.map((entry, i) => (
-                <motion.div
-                  key={entry.userId}
-                  initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
-                  animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                  transition={{ ...springSnappy, delay: i * 0.03 }}
-                  className={`forge-card p-4 flex items-center gap-4 ${entry.isCurrentUser ? 'ring-2 ring-accent-500 bg-accent-50/50 dark:bg-accent-900/10' : ''}`}
-                >
-                  <span className="w-8 text-center font-display font-bold text-surface-600 text-sm">
+                  <span
+                    className={`figure w-6 shrink-0 text-center text-lg ${MEDAL_COLORS[entry.rank] ?? '!text-surface-600 dark:!text-surface-600'}`}
+                  >
                     {entry.rank}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-display font-bold text-surface-50 dark:text-white text-sm truncate">
-                      {entry.name}
-                      {entry.isCurrentUser && (
-                        <span className="ml-2 text-[10px] font-bold text-accent-500 uppercase">You</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-surface-500">{entry.totalWorkouts} workouts</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-surface-50 dark:text-white">
+                        <span className="truncate">{entry.name}</span>
+                        {entry.isCurrentUser && <span className="tag shrink-0">You</span>}
+                      </p>
+                      <p className="figure shrink-0 text-base">
+                        {entry.points.toLocaleString()}
+                        <span className="ml-1 font-body text-xs font-medium text-surface-500 dark:text-surface-600">XP</span>
+                      </p>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.06]">
+                        <div
+                          className={`h-full rounded-full ${entry.isCurrentUser ? 'bg-accent-500' : 'bg-surface-700 dark:bg-surface-600'}`}
+                          style={{ width: `${share}%` }}
+                        />
+                      </div>
+                      <p className="shrink-0 text-xs text-surface-500 dark:text-surface-600 tabular">
+                        Level {entry.level} · {entry.totalWorkouts} workout{entry.totalWorkouts === 1 ? '' : 's'}
+                      </p>
+                    </div>
                   </div>
-                  <LevelBadge points={entry.points} size="sm" showTitle={false} />
-                  <p className="text-sm font-display font-bold text-surface-600 dark:text-surface-700 w-24 text-right tabular-nums">
-                    {entry.points.toLocaleString()} XP
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </>
+                </motion.li>
+              );
+            })}
+          </ol>
         )}
       </div>
     </div>

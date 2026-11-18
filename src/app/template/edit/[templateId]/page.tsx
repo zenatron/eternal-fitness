@@ -1,5 +1,6 @@
 'use client';
 
+import { Spinner } from '@/components/ui/Spinner';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { use, useMemo } from 'react';
 
@@ -61,11 +62,11 @@ export default function EditTemplatePage({
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
         transition={springGentle}
-        className="w-full h-full py-12 px-4"
+        className="px-4 pb-16 sm:px-6"
       >
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent-500 border-t-transparent"></div>
+        <div className="mx-auto max-w-3xl">
+          <div className="flex min-h-page items-center justify-center" role="status" aria-label="Loading">
+            <Spinner className="h-8 w-8 text-accent-500" />
           </div>
         </div>
       </motion.div>
@@ -78,9 +79,9 @@ export default function EditTemplatePage({
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
         animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
         transition={springGentle}
-        className="w-full h-full py-12 px-4"
+        className="px-4 pb-16 sm:px-6"
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="mx-auto max-w-3xl">
           <div className="p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-500/30 text-danger-700 dark:text-danger-400 rounded-lg">
             {String(error)}
           </div>
@@ -96,9 +97,9 @@ export default function EditTemplatePage({
       initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
       animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={springGentle}
-      className="w-full h-full py-12 px-4"
+      className="px-4 pb-16 sm:px-6"
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="mx-auto max-w-3xl">
         <PageHeader back title="Edit template" />
 
         <JsonTemplateForm

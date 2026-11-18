@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { CalendarDaysIcon, StarIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { PlayIcon, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { PlayIcon } from '@heroicons/react/24/outline';
 import type { WorkoutTemplate } from '@/types/workout';
 import { TemplateSummary } from '@/components/ui/TemplateSummary';
 

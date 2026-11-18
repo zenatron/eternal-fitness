@@ -43,7 +43,14 @@ export function formatTimeAgo(
   const days = Math.floor(diffMs / DAY);
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
+  // "Oct 4" rather than the locale's numeric "10/4/2026", which was the only
+  // all-digits date in the app; the year appears only once it is not this one.
+  const nowDate = new Date(now);
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== nowDate.getFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
 /**

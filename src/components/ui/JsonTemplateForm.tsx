@@ -1,13 +1,13 @@
 'use client';
 
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Spinner } from '@/components/ui/Spinner';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  BoltIcon,
   PlusCircleIcon,
   TrashIcon,
   StarIcon as StarOutline,
-  CheckCircleIcon,
   DocumentDuplicateIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
@@ -200,20 +200,22 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Template name is required');
+      toast.error('Give the template a name');
       return;
     }
 
     if (templateExercises.length === 0) {
-      toast.error('At least one exercise is required');
+      toast.error('Add at least one exercise');
       return;
     }
 
     for (let i = 0; i < templateExercises.length; i++) {
       const exercise = templateExercises[i];
+      // Named, not numbered: "Exercise 3, Set 2" sent you counting cards.
+      const exName = exercises[exercise.exerciseKey as keyof typeof exercises]?.name ?? `Exercise ${i + 1}`;
 
       if (exercise.sets.length === 0) {
-        toast.error(`Exercise ${i + 1} must have at least one set`);
+        toast.error(`${exName} needs at least one set`);
         return;
       }
 
@@ -223,22 +225,22 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
         const set = exercise.sets[j];
 
         if (!isCardio && set.reps <= 0) {
-          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Reps must be greater than 0`);
+          toast.error(`${exName}, set ${j + 1}: reps must be more than 0`);
           return;
         }
 
         if (isCardio && !set.duration && !set.distance) {
-          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Duration or distance is required`);
+          toast.error(`${exName}, set ${j + 1}: add a duration or a distance`);
           return;
         }
 
         if (set.weight !== undefined && set.weight < 0) {
-          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Weight cannot be negative`);
+          toast.error(`${exName}, set ${j + 1}: weight can't be negative`);
           return;
         }
 
         if (set.restTime !== undefined && set.restTime < 0) {
-          toast.error(`Exercise ${i + 1}, Set ${j + 1}: Rest time cannot be negative`);
+          toast.error(`${exName}, set ${j + 1}: rest can't be negative`);
           return;
         }
       }
@@ -257,10 +259,10 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
     try {
       if (mode === 'edit' && templateId) {
         await updateTemplateMutation.mutateAsync({ id: templateId, data: templateData });
-        toast.success('Template updated successfully!');
+        toast.success('Changes saved');
       } else {
         await createTemplateMutation.mutateAsync(templateData);
-        toast.success('Template created successfully!');
+        toast.success('Template created');
       }
       onSuccess?.();
       router.push('/templates');
@@ -291,32 +293,32 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           transition={springSnappy}
           className="forge-card overflow-hidden"
         >
-          <div className="p-4 sm:p-8">
-            <h2 className="mb-5 text-base font-semibold text-surface-50 dark:text-white">Details</h2>
+          <div className="p-4 sm:p-5">
+            <h2 className="section-title mb-4">Details</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-semibold text-surface-600 dark:text-surface-800 mb-3">
-                  Template Name *
+                <label className="form-label">
+                  Name
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="form-input"
-                  placeholder="e.g., Push Day, Full Body Workout"
+                  placeholder="Push day"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-surface-600 dark:text-surface-800 mb-3">
-                  Workout Type
+                <label className="form-label">
+                  Type
                 </label>
                 <select
                   value={workoutType}
                   onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
-                  className="form-input"
+                  className="form-select"
                 >
                   <option value="strength">Strength</option>
                   <option value="cardio">Cardio</option>
@@ -327,13 +329,13 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-surface-600 dark:text-surface-800 mb-3">
-                  Difficulty Level
+                <label className="form-label">
+                  Difficulty
                 </label>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                  className="form-input"
+                  className="form-select"
                 >
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
@@ -345,27 +347,21 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                 <motion.button
                   type="button"
                   onClick={() => setFavorite(!favorite)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={springSnappy}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 ${
-                    favorite
-                      ? 'border-award-300 bg-award-50 dark:bg-award-900/20 text-award-700 dark:text-award-400'
-                      : 'border-surface-300 dark:border-surface-400 hover:border-award-300 hover:bg-award-50 dark:hover:bg-award-900/20'
-                  }`}
+                  aria-pressed={favorite}
+                  className="btn btn-tertiary min-h-[44px] tap-control"
                 >
                   {favorite ? (
                     <StarSolid className="w-5 h-5 text-award-500" />
                   ) : (
                     <StarOutline className="w-5 h-5" />
                   )}
-                  <span className="font-medium">Mark as Favorite</span>
+                  {favorite ? 'Favorite' : 'Add to favorites'}
                 </motion.button>
               </div>
             </div>
 
             <div className="mt-6">
-              <label className="block text-sm font-semibold text-surface-600 dark:text-surface-800 mb-3">
+              <label className="form-label">
                 Description
               </label>
               <textarea
@@ -373,7 +369,7 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                 onChange={(e) => setDescription(e.target.value)}
                 className="form-input"
                 rows={4}
-                placeholder="Describe your workout template... What makes it special? What are the goals?"
+                placeholder="What this session is for, and anything to remember"
               />
             </div>
           </div>
@@ -387,9 +383,9 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           transition={{ ...springSnappy, delay: 0.1 }}
           className="forge-card overflow-hidden"
         >
-          <div className="p-4 sm:p-8">
-            <h2 className="text-base font-semibold text-surface-50 dark:text-white">Add exercises</h2>
-            <p className="mb-4 text-sm text-surface-500 dark:text-surface-600">Tap one to add it below.</p>
+          <div className="p-4 sm:p-5">
+            <h2 className="section-title">Add exercises</h2>
+            <p className="mb-4 text-xs text-surface-500 dark:text-surface-600">Tap one to add it below.</p>
 
             <ExercisePicker onSelect={(key) => addExercise(key)} layout="grid" />
           </div>
@@ -397,12 +393,7 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
 
         {/* Template Exercises */}
         {templateExercises.length === 0 ? (
-          <div className="forge-card p-12 text-center">
-            <p className="font-medium text-surface-50 dark:text-white">No exercises yet</p>
-            <p className="mt-1 text-sm text-surface-500 dark:text-surface-600">
-              Pick from the list above. Compound lifts first is a good default.
-            </p>
-          </div>
+          <EmptyState title="No exercises yet" hint="Pick from the list above. Compound lifts first is a good default." />
         ) : (
           templateExercises.map((exercise, exerciseIndex) => {
             const exerciseData = exercises[exercise.exerciseKey as keyof typeof exercises];
@@ -416,26 +407,21 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
               transition={{ ...springSnappy, delay: 0.1 + exerciseIndex * 0.05 }}
               className="forge-card overflow-hidden"
             >
-              <div className="p-4 sm:p-8">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-accent-100 dark:bg-accent-900/30 rounded-xl">
-                      <BoltIcon className="h-6 w-6 text-accent-600 dark:text-accent-400" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold text-surface-50 dark:text-white">
-                        {exerciseData?.name || exercise.exerciseKey}
-                      </h4>
-                      <p className="text-sm text-surface-500 dark:text-surface-600">
-                        {exerciseData?.muscles.join(', ')} • {exerciseData?.equipment.join(', ')}
-                      </p>
-                    </div>
+              <div className="p-4 sm:p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-surface-50 dark:text-white">
+                      {exerciseData?.name || exercise.exerciseKey}
+                    </h3>
+                    <p className="text-xs text-surface-500 dark:text-surface-600">
+                      {[exerciseData?.muscles.join(', '), exerciseData?.equipment.join(', ')].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeExercise(exerciseIndex)}
                     aria-label={`Remove ${exerciseData?.name || exercise.exerciseKey}`}
-                    className="touch-target flex shrink-0 items-center justify-center rounded-lg bg-danger-100 text-danger-600 transition-colors hover:bg-danger-200 dark:bg-danger-900/30 dark:text-danger-400 dark:hover:bg-danger-900/50 tap-control"
+                    className="touch-target -mr-2 -mt-2 flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-danger-500/10 hover:text-danger-600 dark:text-surface-600 dark:hover:text-danger-400 tap-control"
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
@@ -514,19 +500,15 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                                         <Bars3Icon className="h-5 w-5" />
                                       </div>
 
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-100 font-display text-sm font-bold tabular text-accent-700 dark:bg-accent-900/40 dark:text-accent-300">
-                                        {setIndex + 1}
-                                      </span>
-
-                                      <span className="min-w-0 flex-1 text-xs uppercase tracking-wider text-surface-500 dark:text-surface-600">
-                                        Set {setIndex + 1}
+                                      <span className="min-w-0 flex-1 text-sm font-medium text-surface-50 dark:text-white">
+                                        Set <span className="figure">{setIndex + 1}</span>
                                       </span>
 
                                       <button
                                         type="button"
                                         onClick={() => duplicateSet(exerciseIndex, setIndex)}
                                         aria-label={`Duplicate set ${setIndex + 1}`}
-                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-accent-600 transition-colors hover:bg-accent-100 dark:text-accent-400 dark:hover:bg-accent-900/30 tap-control"
+                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-black/[0.04] hover:text-surface-50 dark:text-surface-700 dark:hover:bg-white/[0.05] dark:hover:text-white tap-control"
                                       >
                                         <DocumentDuplicateIcon className="h-5 w-5" />
                                       </button>
@@ -535,7 +517,7 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                                         onClick={() => removeSet(exerciseIndex, setIndex)}
                                         disabled={exercise.sets.length <= 1}
                                         aria-label={`Remove set ${setIndex + 1}`}
-                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-danger-600 transition-colors hover:bg-danger-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-danger-400 dark:hover:bg-danger-900/30 tap-control"
+                                        className="touch-target flex shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-danger-500/10 hover:text-danger-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-surface-700 dark:hover:text-danger-400 tap-control"
                                       >
                                         <TrashIcon className="h-5 w-5" />
                                       </button>
@@ -608,13 +590,10 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                     <motion.button
                       type="button"
                       onClick={() => addSet(exerciseIndex)}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      transition={springSnappy}
-                      className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-lg bg-accent-100 font-medium text-accent-700 transition-colors hover:bg-accent-200 dark:bg-accent-900/30 dark:text-accent-400 dark:hover:bg-accent-900/50 tap-control"
+                      className="btn btn-tertiary min-h-[46px] w-full border-dashed tap-control"
                     >
                       <PlusCircleIcon className="w-5 h-5 shrink-0" />
-                      Add Set
+                      Add set
                     </motion.button>
                   </div>
                 </div>
@@ -632,27 +611,21 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
           transition={{ ...springSnappy, delay: 0.2 }}
           className="forge-card overflow-hidden"
         >
-          <div className="p-4 sm:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="p-4 sm:p-5">
+            <div className="flex flex-col items-stretch justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h3 className="text-xl font-bold text-surface-50 dark:text-white mb-2">
-                  {mode === 'edit' ? 'Save changes' : 'Save template'}
-                </h3>
-                <p className="text-surface-500 dark:text-surface-600">
+                <p className="text-sm text-surface-500 dark:text-surface-600">
                   {templateExercises.length === 0
-                    ? "Add at least one exercise to create your template"
-                    : `Your template has ${templateExercises.length} exercise${templateExercises.length === 1 ? '' : 's'} with ${templateExercises.reduce((total, ex) => total + ex.sets.length, 0)} total sets`
+                    ? 'Add at least one exercise to save this template.'
+                    : `${templateExercises.length} exercise${templateExercises.length === 1 ? '' : 's'} · ${templateExercises.reduce((total, ex) => total + ex.sets.length, 0)} sets`
                   }
                 </p>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex w-full gap-3 md:w-auto">
                 <motion.button
                   type="button"
                   onClick={() => router.back()}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={springSnappy}
                   className="btn btn-tertiary min-h-[48px] flex-1 tap-control sm:flex-none"
                 >
                   Cancel
@@ -660,20 +633,16 @@ export default function JsonTemplateForm({ mode, templateId, initialData, onSucc
                 <motion.button
                   type="submit"
                   disabled={(mode === 'edit' ? updateTemplateMutation.isPending : createTemplateMutation.isPending) || templateExercises.length === 0}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={springSnappy}
-                  className="flex min-h-[48px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gradient-to-r from-accent-500 to-accent-700 px-6 font-semibold text-white shadow-lg transition-shadow hover:from-accent-600 hover:to-accent-800 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 tap-control sm:flex-none"
+                  className="btn btn-primary min-h-[48px] flex-1 px-6 tap-control sm:flex-none"
                 >
                   {(mode === 'edit' ? updateTemplateMutation.isPending : createTemplateMutation.isPending) ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      {mode === 'edit' ? 'Updating Template...' : 'Creating Template...'}
+                      <Spinner className="h-4 w-4" />
+                      {mode === 'edit' ? 'Saving…' : 'Creating…'}
                     </>
                   ) : (
                     <>
-                      <CheckCircleIcon className="w-5 h-5" />
-                      {mode === 'edit' ? 'Update Template' : 'Create Template'}
+                      {mode === 'edit' ? 'Save changes' : 'Create template'}
                     </>
                   )}
                 </motion.button>

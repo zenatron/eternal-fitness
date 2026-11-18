@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useState } from 'react';
 
@@ -76,7 +77,7 @@ export default function RecoveryPage() {
 
   if (isLoading) {
     return (
-      <div className="app-bg px-4 py-8">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
         <div className="mx-auto max-w-3xl space-y-4">
           <div className="h-24 animate-pulse rounded-xl bg-surface-900 dark:bg-surface-200" />
           <div className="h-96 animate-pulse rounded-xl bg-surface-900 dark:bg-surface-200" />
@@ -87,7 +88,7 @@ export default function RecoveryPage() {
 
   if (error || !recovery) {
     return (
-      <div className="app-bg px-4 py-8">
+      <div className="px-4 pb-16 pt-5 sm:px-6 sm:pt-8">
         <div className="mx-auto max-w-3xl">
           <ErrorState what="your recovery map" onRetry={() => refetch()} />
         </div>
@@ -117,18 +118,9 @@ export default function RecoveryPage() {
         />
 
         <div className="forge-card mb-6 p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-center gap-1.5">
+          <div className="mb-3 flex items-center justify-center gap-2" role="group" aria-label="Body view">
             {(['front', 'back'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                aria-pressed={view === v}
-                className={`tap-control min-h-[38px] rounded-lg px-4 font-display text-xs font-semibold uppercase tracking-wide transition-colors ${
-                  view === v
-                    ? 'bg-accent-500 text-white'
-                    : 'bg-surface-900 text-surface-600 dark:bg-surface-200 dark:text-surface-800'
-                }`}
-              >
+              <button key={v} onClick={() => setView(v)} aria-pressed={view === v} className="chip capitalize">
                 {v}
               </button>
             ))}
@@ -173,7 +165,7 @@ export default function RecoveryPage() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="forge-card p-4 sm:p-5">
-            <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
+            <h2 className="section-title mb-3">
               Ready to train
             </h2>
             <ul className="space-y-1">
@@ -191,7 +183,7 @@ export default function RecoveryPage() {
           </div>
 
           <div className="forge-card p-4 sm:p-5">
-            <h2 className="mb-3 text-sm font-semibold text-surface-50 dark:text-white">
+            <h2 className="section-title mb-3">
               Still recovering
             </h2>
             {needsRest.length === 0 ? (
@@ -219,6 +211,12 @@ export default function RecoveryPage() {
         <p className="form-hint mt-4 text-center">
           An estimate from your logged sets — it can&apos;t see sleep, food or stress. Trust how you
           feel over what this says.
+        </p>
+        {/* Recovery is the short view (days); this is the long one (weeks). */}
+        <p className="mt-2 text-center text-xs">
+          <Link href="/progress?view=muscles" className="font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300">
+            Weekly sets and strength by muscle
+          </Link>
         </p>
       </div>
     </div>

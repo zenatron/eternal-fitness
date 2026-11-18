@@ -10,6 +10,7 @@ A personalized fitness application that helps users track, create, and maintain 
 - **Training Suggestions:** Your own workouts ranked against how recovered you are, so "what should I train today" has an answer you can act on in one tap. A note appears next to Start Workout when a session targets muscles that haven't recovered.
 - **Progress Tracking:** Monitor your completed workouts, current weight, height, and other fitness metrics over time.
 - **History you keep:** Deleting a template keeps the workouts you did with it. Editing or deleting a session recalculates totals, streaks and personal records.
+- **Strength Trends:** Progress → Strength lists every lift with its estimated-1RM trend over 3 months to all time: change since the start, gain per week, and a flag on any lift you are still training that has not set a best in three weeks. Progress → Muscles rolls the same trends up per muscle and shows hard sets per muscle per week against the commonly cited 10–20 band. A Strength tile on the home screen shows the lifts moving most.
 - **Per-Exercise History:** Every lift gets its own page — estimated-1RM, heaviest-set and volume trends over time, its personal records, and the full session list. Reachable by tapping any exercise name in a records list.
 - **Theming:** Dark and light modes, plus five accent themes (Forge, Arctic, Verdant, Amethyst, Steel) that follow you across devices. See [Design System](#design-system).
 - **Responsive Design:** Access your fitness data on any device with a fully responsive interface.
@@ -136,6 +137,7 @@ Note that regenerating the keys invalidates every existing subscription.
 | `bun run db:migrate` | Applies pending Drizzle migrations. Also run automatically by the container entrypoint. |
 | `bun run db:backfill-e1rm` | Backfills estimated-1RM personal records from existing session history, for data logged before that record type existed. Dry-run by default; pass `--write` to apply. Idempotent — it only ever raises a record. |
 | `bun run db:fix-points` | One-off correction for historically inflated achievement points. |
+| `bun run db:seed-dev` | Local only: gives the dev-bypass user ~16 weeks of push/pull/legs history so the charts have something to draw. `--remove` takes it out. Follow with `db:rebuild-personal-records` if the records page should match. |
 | `bun run db:rebuild-personal-records` | Re-derives every user's personal records from their session history. Run once after upgrading to 3.16: earlier versions kept records from deleted or corrected sessions and dated records logged after the fact by the day they were entered. Safe to re-run. |
 
 ## Design System
@@ -178,13 +180,35 @@ in `.greeting-gradient` and on the victory button, so those shades need to clear
 4.5:1 against white; `accent-400` is the dark-mode text/icon shade and needs to
 clear 4.5:1 against `surface-0` (#0a0a09) and `surface-100` (#1a1918).
 
+### Type and shared pieces
+
+- **Oswald (`font-display`) is for figures and page titles only** — a weight,
+  reps, XP, a streak, a rank, and the `<h1>`. Names, labels and everything else
+  you read are Manrope. Use `.figure` for a number.
+- Lists inside a card use `.row-list` (one hairline between rows); small labels
+  use `.tag`; filters and view toggles use `.chip` with `aria-pressed`.
+- Every page opens with `PageHeader`; empty lists use `EmptyState`; 404, crash
+  and offline screens use `StatusScreen`.
+- Forms: each group of fields is a `.form-section` with a `.section-title`;
+  labels are `.form-label` with no icons; invalid fields set `aria-invalid`
+  (that alone turns them red) and explain themselves in `.form-field-error`.
+- Percent changes use `ChangeText`; trend lines in rows use `Sparkline`.
+- Page widths: `max-w-2xl` for forms, `max-w-3xl` for single-column pages,
+  `max-w-6xl` for grids; all with `px-4 pb-16 sm:px-6`.
+- Copy is sentence case ("Save changes", not "Save Changes"), pending states use
+  "…", and a set is written weight first: `135 lbs × 10`.
+- The accent is for things you press, the current tab, and progress — not for
+  decorative icon tiles or every label on a row.
+- The surface scale is inverted, so never use `border-surface-200/300` as a
+  light-mode border (it is near-black); use `border-black/10`.
+
 ### Deliberate exceptions
 
 Two places use raw palette values on purpose, because a gold/silver/bronze
 ladder only reads as one if the medals keep their own colours:
 
 - `TIER_COLORS` in `src/types/achievements.ts`
-- `MEDAL_COLORS` in `src/app/leaderboard/page.tsx`
+- `MEDAL_COLORS` in `src/app/leaderboard/page.tsx` (rank numbers only)
 
 ### How a theme is applied
 

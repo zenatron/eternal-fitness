@@ -1,13 +1,15 @@
 'use client';
 
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProfile } from '@/lib/hooks/useProfile';
 import { useUpdateProfile } from '@/lib/hooks/useMutations';
 import {
-  ArrowLeftIcon,
   UserCircleIcon,
   ScaleIcon,
+  ArrowsRightLeftIcon,
   SwatchIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
@@ -224,53 +226,37 @@ export default function EditProfilePage() {
           animate={prefersReducedMotion ? {} : { opacity: 1 }}
         >
           <Spinner className="h-8 w-8 text-accent-500" />
-          <p className="text-sm text-surface-500 dark:text-surface-600">Loading profile...</p>
+          <p className="text-sm text-surface-500 dark:text-surface-600">Loading profile…</p>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="py-8 px-4">
-      <motion.div
-        initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-        animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-        transition={springGentle}
-        className="w-full max-w-2xl mx-auto"
-      >
-        {/* Back link */}
-        <motion.div
-          className="mb-5"
-          initial={prefersReducedMotion ? {} : { opacity: 0, x: -12 }}
-          animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-          transition={springSnappy}
-        >
-          <button
-            onClick={handleBack}
-            className="inline-flex items-center gap-2 text-sm text-surface-500 dark:text-surface-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors font-medium"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            Back to Profile
-          </button>
-        </motion.div>
+    <div className="px-4 pb-16 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl">
+        {/* A PageHeader like every other screen. This was a card holding the
+            title, nested inside another card holding the form, with its own
+            "Back to Profile" link — three frames before the first field. It is
+            called Settings because that is what the menus call it. */}
+        <PageHeader back={handleBack} title="Settings" description="Profile, units and how the app looks." />
 
-        <div className="forge-card overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-4 border-b border-black/[0.06] px-5 py-5 dark:border-white/[0.06] sm:px-8">
-            <AvatarUploader
-              avatarUrl={profile?.avatarUrl}
-              imageUrl={profile?.image}
-              name={profile?.name}
-              email={profile?.email}
-              size={64}
-            />
-            <div className="min-w-0">
-              <h1 className="font-display text-2xl font-semibold tracking-tight text-surface-50 dark:text-white">Edit profile</h1>
-              <p className="text-sm text-surface-500 dark:text-surface-600">Tap the photo to change it.</p>
+        <div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="form-section flex items-center gap-4">
+              <AvatarUploader
+                avatarUrl={profile?.avatarUrl}
+                imageUrl={profile?.image}
+                name={profile?.name}
+                email={profile?.email}
+                size={56}
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-surface-50 dark:text-white">Photo</p>
+                <p className="text-xs text-surface-500 dark:text-surface-600">Tap it to change. Shown on the leaderboard.</p>
+              </div>
             </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8 p-5 sm:p-8">
             {/* Error */}
             {error && (
               <motion.div
@@ -283,9 +269,7 @@ export default function EditProfilePage() {
                 }
                 transition={shakeError ? { duration: 0.5 } : springSnappy}
               >
-                <div className="w-5 h-5 rounded-full bg-danger-500 flex items-center justify-center shrink-0">
-                  <span className="text-white text-xs font-bold">!</span>
-                </div>
+                <ExclamationCircleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {error}
               </motion.div>
             )}
@@ -298,24 +282,24 @@ export default function EditProfilePage() {
             >
               {/* Personal Info */}
               <motion.div variants={formItem} className="form-section">
-                <SectionHeading icon={UserCircleIcon} title="Personal Information">
+                <SectionHeading icon={UserCircleIcon} title="Personal information">
                   Shown on your profile and the leaderboard.
                 </SectionHeading>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label htmlFor="name" className="form-label">Full Name</label>
+                    <label htmlFor="name" className="form-label">Full name</label>
                     <input
                       id="name"
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.name ? '!border-danger-400 focus:!border-danger-500' : ''}`}
+                      className="form-input"
                       placeholder="Your full name"
                       autoComplete="name"
                       aria-invalid={!!fieldErrors.name}
                     />
-                    {fieldErrors.name && <p className="form-hint !text-danger-500">{fieldErrors.name}</p>}
+                    {fieldErrors.name && <p className="form-field-error" role="alert">{fieldErrors.name}</p>}
                   </div>
                   <div>
                     <label htmlFor="age" className="form-label">Age</label>
@@ -325,13 +309,13 @@ export default function EditProfilePage() {
                       name="age"
                       value={formData.age}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.age ? '!border-danger-400 focus:!border-danger-500' : ''}`}
+                      className="form-input"
                       placeholder="Your age"
                       min={13}
                       max={120}
                       aria-invalid={!!fieldErrors.age}
                     />
-                    {fieldErrors.age && <p className="form-hint !text-danger-500">{fieldErrors.age}</p>}
+                    {fieldErrors.age && <p className="form-field-error" role="alert">{fieldErrors.age}</p>}
                   </div>
                   <div className="sm:col-span-2">
                     <label htmlFor="gender" className="form-label">Gender</label>
@@ -358,7 +342,7 @@ export default function EditProfilePage() {
                   named things rather than something to turn on. Now one control:
                   tap the system you want. */}
               <motion.div variants={formItem} className="form-section">
-                <SectionHeading icon={ScaleIcon} title="Measurement System">
+                <SectionHeading icon={ArrowsRightLeftIcon} title="Units">
                   Your entered heights and weights convert automatically.
                 </SectionHeading>
 
@@ -398,12 +382,12 @@ export default function EditProfilePage() {
                       name="height"
                       value={formData.height}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.height ? '!border-danger-400 focus:!border-danger-500' : ''}`}
+                      className="form-input"
                       placeholder={formData.useMetric ? 'e.g. 175' : 'e.g. 69'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.height}
                     />
-                    {fieldErrors.height && <p className="form-hint !text-danger-500">{fieldErrors.height}</p>}
+                    {fieldErrors.height && <p className="form-field-error" role="alert">{fieldErrors.height}</p>}
                   </div>
                   <div>
                     <label htmlFor="weight" className="form-label">
@@ -415,16 +399,16 @@ export default function EditProfilePage() {
                       name="weight"
                       value={formData.weight}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.weight ? '!border-danger-400 focus:!border-danger-500' : ''}`}
+                      className="form-input"
                       placeholder={formData.useMetric ? 'e.g. 70' : 'e.g. 154'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.weight}
                     />
-                    {fieldErrors.weight && <p className="form-hint !text-danger-500">{fieldErrors.weight}</p>}
+                    {fieldErrors.weight && <p className="form-field-error" role="alert">{fieldErrors.weight}</p>}
                   </div>
                   <div className="sm:col-span-2">
                     <label htmlFor="weightGoal" className="form-label">
-                      Weight Goal ({formData.useMetric ? 'kg' : 'lbs'})
+                      Goal weight ({formData.useMetric ? 'kg' : 'lbs'})
                       <span className="font-normal text-surface-600 dark:text-surface-500 ml-1">(optional)</span>
                     </label>
                     <input
@@ -433,13 +417,13 @@ export default function EditProfilePage() {
                       name="weightGoal"
                       value={formData.weightGoal}
                       onChange={handleChange}
-                      className={`form-input ${fieldErrors.weightGoal ? '!border-danger-400 focus:!border-danger-500' : ''}`}
+                      className="form-input"
                       placeholder={formData.useMetric ? 'Target weight in kg' : 'Target weight in lbs'}
                       step="0.1"
                       aria-invalid={!!fieldErrors.weightGoal}
                     />
                     <p className="form-hint">Set a target weight for your fitness goals</p>
-                    {fieldErrors.weightGoal && <p className="form-hint !text-danger-500">{fieldErrors.weightGoal}</p>}
+                    {fieldErrors.weightGoal && <p className="form-field-error" role="alert">{fieldErrors.weightGoal}</p>}
                   </div>
                 </div>
               </motion.div>
@@ -450,7 +434,7 @@ export default function EditProfilePage() {
                 fold on a phone for anyone editing the fields near the top. The
                 dirty state is stated rather than left to be inferred from
                 whether the button looks pressable. */}
-            <div className="sticky bottom-4 -mx-2 rounded-xl border border-black/10 bg-white/95 p-3 backdrop-blur dark:border-surface-300 dark:bg-surface-100/95">
+            <div className="sticky bottom-4 rounded-xl border border-black/10 bg-white/95 p-3 backdrop-blur dark:border-surface-300 dark:bg-surface-100/95">
               <motion.button
                 type="submit"
                 className="btn btn-primary inline-flex w-full items-center justify-center gap-2 !py-3 disabled:cursor-not-allowed disabled:opacity-50"
@@ -462,14 +446,14 @@ export default function EditProfilePage() {
                 {submitting ? (
                   <>
                     <Spinner className="h-4 w-4" />
-                    Saving...
+                    Saving…
                   </>
                 ) : isDirty ? (
-                  'Save Profile'
+                  'Save profile'
                 ) : (
                   <>
                     <CheckIcon className="h-4 w-4" />
-                    All Changes Saved
+                    All changes saved
                   </>
                 )}
               </motion.button>
@@ -490,7 +474,7 @@ export default function EditProfilePage() {
             onCancel={() => setConfirmDiscardOpen(false)}
           />
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
