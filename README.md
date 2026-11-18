@@ -138,7 +138,7 @@ Note that regenerating the keys invalidates every existing subscription.
 | `bun run db:backfill-e1rm` | Backfills estimated-1RM personal records from existing session history, for data logged before that record type existed. Dry-run by default; pass `--write` to apply. Idempotent — it only ever raises a record. |
 | `bun run db:fix-points` | One-off correction for historically inflated achievement points. |
 | `bun run db:seed-dev` | Local only: gives the dev-bypass user ~16 weeks of push/pull/legs history so the charts have something to draw. `--remove` takes it out. Follow with `db:rebuild-personal-records` if the records page should match. |
-| `bun run db:rebuild-personal-records` | Re-derives every user's personal records from their session history. Run once after upgrading to 3.16: earlier versions kept records from deleted or corrected sessions and dated records logged after the fact by the day they were entered. Safe to re-run. |
+| `bun run db:rebuild-personal-records` | Re-derives every user's personal records from their session history. Run once after upgrading to 3.16 (inside Docker: `docker exec eternal-fitness bun run db:rebuild-personal-records`, needs 3.16.1 or later): earlier versions kept records from deleted or corrected sessions and dated records logged after the fact by the day they were entered. Safe to re-run. |
 
 ## Design System
 

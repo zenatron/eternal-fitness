@@ -34,6 +34,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# The maintenance scripts (db:rebuild-personal-records and friends) import app
+# code from src/ through the @/ alias, which the standalone bundle doesn't
+# carry. Ship the source and tsconfig.json so `docker exec ... bun run db:*`
+# resolves them. Source only, ~2 MB; the server never reads it.
+COPY --from=builder --chown=nextjs:nodejs /app/src ./src
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
 # The standalone bundle traces its own runtime dependencies into
 # .next/standalone/node_modules. This copy exists for ONE consumer:
 # scripts/migrate.ts, which the entrypoint runs before boot and which the
